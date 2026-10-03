@@ -1,0 +1,5 @@
+module CDOSBoxerHost {
+    header "DOSBoxerHost.h"
+    link "DOSBoxerCore"
+    export *
+}

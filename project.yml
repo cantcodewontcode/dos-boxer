@@ -1,0 +1,91 @@
+name: DOSBoxer
+
+options:
+  bundleIdPrefix: com.dosboxer
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    ARCHS: arm64
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEAD_CODE_STRIPPING: YES
+    CORE_BUILD_DIR: $(SRCROOT)/build/core-Release/dosboxer
+
+targets:
+  # Swift wrapper around the emulator core. Shared by the app and (later) the
+  # standalone game player.
+  DOSBoxerKit:
+    type: framework
+    platform: macOS
+    sources:
+      - Sources/DOSBoxerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.DOSBoxerKit
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
+        LIBRARY_SEARCH_PATHS: $(CORE_BUILD_DIR)
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks @loader_path/Frameworks"
+        DEFINES_MODULE: YES
+    preBuildScripts:
+      - name: Build emulator core
+        script: |
+          export PATH="/opt/homebrew/bin:$PATH"
+          "$SRCROOT/Scripts/build-core.sh"
+        basedOnDependencyAnalysis: false
+
+  DOS Boxer:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/DOSBoxerApp
+    dependencies:
+      - target: DOSBoxerKit
+        embed: true
+    settings:
+      base:
+        PRODUCT_NAME: DOS Boxer
+        PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.app
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: DOS Boxer
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
+        INFOPLIST_KEY_NSHumanReadableCopyright: "DOS Boxer is free software under the GNU GPL, version 2 or later."
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: Sources/DOSBoxerApp/DOSBoxer.entitlements
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+    postBuildScripts:
+      - name: Embed emulator core and resources
+        script: |
+          set -e
+          FRAMEWORKS="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH"
+          RESOURCES="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          mkdir -p "$FRAMEWORKS" "$RESOURCES"
+          cp -f "$CORE_BUILD_DIR/libDOSBoxerCore.dylib" "$FRAMEWORKS/"
+          codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" "$FRAMEWORKS/libDOSBoxerCore.dylib"
+          # dosbox-staging looks for its fonts, keyboard layouts and shaders in Contents/Resources
+          rsync -a --delete-excluded --exclude meson.build --exclude webserver \
+            "$SRCROOT/Vendor/dosbox-staging/resources/" "$RESOURCES/dosbox/"
+          for item in "$RESOURCES/dosbox/"*; do
+            ln -sfh "dosbox/$(basename "$item")" "$RESOURCES/$(basename "$item")"
+          done
+        basedOnDependencyAnalysis: false
+
+schemes:
+  DOS Boxer:
+    build:
+      targets:
+        DOS Boxer: all
+    run:
+      config: Debug
+    archive:
+      config: Release

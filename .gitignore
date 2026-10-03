@@ -1,0 +1,26 @@
+# Docs: only README and CHANGELOG are tracked
+*.md
+!README.md
+!CHANGELOG.md
+CLAUDE.md
+
+# Build output
+build/
+DerivedData/
+.build/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+.swiftpm/
+.tools/
+
+# Generated project (XcodeGen)
+DOSBoxer.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Never commit game files or ROMs
+*.dosgame/
+Games/
+ROMs/
+*.log

@@ -1,0 +1,146 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 679470e64..394217353 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -562,3 +562,8 @@ add_custom_target(clean-manual
+ # Add installation rules
+ include(cmake/add_install_rules.cmake)
+ add_install_rules()
++
++# DOS Boxer: build the embedding host library alongside the core
++if (DOSBOXER_HOST_DIR)
++  add_subdirectory(${DOSBOXER_HOST_DIR} dosboxer)
++endif()
+diff --git a/src/audio/mixer.cpp b/src/audio/mixer.cpp
+index d23f1383a..0864c8b39 100644
+--- a/src/audio/mixer.cpp
++++ b/src/audio/mixer.cpp
+@@ -4,6 +4,8 @@
+ 
+ #include "mixer.h"
+ 
++#include "dosboxer/dosboxer_hooks.h"
++
+ #include <algorithm>
+ #include <cinttypes>
+ #include <cmath>
+@@ -2602,6 +2604,14 @@ static void SDLCALL mixer_callback([[maybe_unused]] void* userdata,
+ 	          AudioFrame{});
+ }
+ 
++// DOS Boxer: lets an embedding host pull mixed audio from its own audio thread
++void DOSBOXER_MixerPull(float* interleaved_stereo, const int num_frames)
++{
++	mixer_callback(nullptr,
++	               reinterpret_cast<Uint8*>(interleaved_stereo),
++	               num_frames * static_cast<int>(sizeof(AudioFrame)));
++}
++
+ static void mixer_thread_loop()
+ {
+ 	double last_mixed = 0.0;
+@@ -2749,11 +2759,25 @@ void MIXER_CloseAudioDevice()
+ 	}
+ }
+ 
++// DOS Boxer: default hook, overridden by the embedding host library
++__attribute__((weak)) bool DOSBOXER_HostAudioEnabled()
++{
++	return false;
++}
++
+ // Sets `mixer.sample_rate_hz` and `mixer.blocksize` on success
+ static bool init_sdl_sound(const int requested_sample_rate_hz,
+                            const int requested_blocksize_in_frames,
+                            const bool allow_negotiate)
+ {
++	// DOS Boxer: an embedding host pulls audio itself (see DOSBOXER_MixerPull)
++	if (DOSBOXER_HostAudioEnabled()) {
++		mixer.sample_rate_hz = requested_sample_rate_hz;
++		mixer.blocksize      = requested_blocksize_in_frames;
++		LOG_MSG("MIXER: Audio output handled by embedding host");
++		return true;
++	}
++
+ 	SDL_AudioSpec desired  = {};
+ 	SDL_AudioSpec obtained = {};
+ 
+diff --git a/src/dosbox.cpp b/src/dosbox.cpp
+index fd840770e..8dd77d8c0 100644
+--- a/src/dosbox.cpp
++++ b/src/dosbox.cpp
+@@ -430,6 +430,12 @@ void DOSBOX_RequestShutdown()
+ 	is_shutdown_requested = true;
+ }
+ 
++// DOS Boxer: lets an embedding host run the emulator again in the same process
++void DOSBOXER_ResetShutdownRequest()
++{
++	is_shutdown_requested = false;
++}
++
+ bool DOSBOX_IsShutdownRequested()
+ {
+ 	return is_shutdown_requested;
+diff --git a/src/dosboxer/dosboxer_hooks.h b/src/dosboxer/dosboxer_hooks.h
+new file mode 100644
+index 000000000..ed3309b3a
+--- /dev/null
++++ b/src/dosboxer/dosboxer_hooks.h
+@@ -0,0 +1,23 @@
++// DOS Boxer embedding hooks.
++//
++// The core provides weak default definitions (stock behaviour), so the plain
++// dosbox executable is unchanged. The DOS Boxer host library overrides them.
++
++#ifndef DOSBOXER_HOOKS_H
++#define DOSBOXER_HOOKS_H
++
++class RenderBackend;
++
++// Returns a host-owned render backend, or nullptr to use the built-in ones.
++RenderBackend* DOSBOXER_CreateRenderBackend();
++
++// True when the host pulls audio via DOSBOXER_MixerPull instead of SDL.
++bool DOSBOXER_HostAudioEnabled();
++
++// Provided by the mixer: fills `num_frames` interleaved stereo float frames.
++void DOSBOXER_MixerPull(float* interleaved_stereo, int num_frames);
++
++// Provided by dosbox.cpp: clears the shutdown flag before a new run.
++void DOSBOXER_ResetShutdownRequest();
++
++#endif
+diff --git a/src/gui/sdl_gui.cpp b/src/gui/sdl_gui.cpp
+index 433d4a223..ad87f6b90 100644
+--- a/src/gui/sdl_gui.cpp
++++ b/src/gui/sdl_gui.cpp
+@@ -45,6 +45,8 @@
+ // must be included after dosbox_config.h
+ #include <SDL.h>
+ 
++#include "dosboxer/dosboxer_hooks.h"
++
+ CHECK_NARROWING();
+ 
+ // #define DEBUG_WINDOW_EVENTS
+@@ -1604,8 +1606,19 @@ static int get_sdl_window_flags()
+ 	return check_cast<int>(flags);
+ }
+ 
++// DOS Boxer: default hook, overridden by the embedding host library
++__attribute__((weak)) RenderBackend* DOSBOXER_CreateRenderBackend()
++{
++	return nullptr;
++}
++
+ static RenderBackend* create_renderer()
+ {
++	// DOS Boxer: an embedding host may supply its own render backend
++	if (auto host_renderer = DOSBOXER_CreateRenderBackend()) {
++		return host_renderer;
++	}
++
+ #if C_OPENGL
+ 	if (sdl.render_backend_type == RenderBackendType::OpenGl) {
+ 		try {

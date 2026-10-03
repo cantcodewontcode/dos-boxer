@@ -1,0 +1,8 @@
+_dbx_start
+_dbx_request_quit
+_dbx_is_running
+_dbx_pull_audio
+_dbx_audio_sample_rate
+_dbx_key
+_dbx_mouse_motion
+_dbx_mouse_button
