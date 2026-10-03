@@ -33,6 +33,19 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks @loader_path/Frameworks"
         DEFINES_MODULE: YES
 
+  DOSBoxerKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/DOSBoxerKitTests
+    dependencies:
+      - target: DOSBoxerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.DOSBoxerKitTests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
+
   # Helper process that runs one DOS session (the emulator core can only run
   # once per process). Lives in the app's Contents/MacOS.
   DOS Boxer Engine:
@@ -53,9 +66,6 @@ targets:
         LIBRARY_SEARCH_PATHS: $(CORE_BUILD_DIR)
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         SKIP_INSTALL: YES
-        # Signed with the app's identity: folder permissions the app hands
-        # over (security-scoped bookmarks) only resolve for that identity.
-        OTHER_CODE_SIGN_FLAGS: "--identifier com.dosboxer.app"
     preBuildScripts:
       - name: Build emulator core
         script: |
@@ -69,13 +79,12 @@ targets:
     sources:
       - path: Sources/DOSBoxerApp
         excludes:
-          - "*.entitlements"
+          - Info.plist
     dependencies:
       - target: DOSBoxerKit
         embed: true
       - target: DOS Boxer Engine
         embed: true
-        codeSign: false  # keep the engine's own signature (see its settings)
         copy:
           destination: executables
     settings:
@@ -83,12 +92,12 @@ targets:
         PRODUCT_NAME: DOS Boxer
         PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.app
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Sources/DOSBoxerApp/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: DOS Boxer
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
         INFOPLIST_KEY_NSHumanReadableCopyright: "DOS Boxer is free software under the GNU GPL, version 2 or later."
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
-        CODE_SIGN_ENTITLEMENTS: Sources/DOSBoxerApp/DOSBoxer.entitlements
         CODE_SIGN_IDENTITY: "-"
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
@@ -116,6 +125,9 @@ schemes:
     build:
       targets:
         DOS Boxer: all
+    test:
+      targets:
+        - DOSBoxerKitTests
     run:
       config: Debug
     archive:

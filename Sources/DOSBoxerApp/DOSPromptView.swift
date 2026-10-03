@@ -1,8 +1,10 @@
 import DOSBoxerKit
 import SwiftUI
 
-struct ContentView: View {
-    let emulator: Emulator
+/// A plain DOS prompt, not tied to a gamebox; handy for poking around or
+/// running a game straight from a folder.
+struct DOSPromptView: View {
+    @State private var emulator = Emulator()
 
     @State private var choosingFolder = false
     @State private var gameFolder: URL?
@@ -12,8 +14,7 @@ struct ContentView: View {
             if emulator.isRunning {
                 // Inset from the window edges so the rounded window corners
                 // never clip the DOS screen.
-                EmulatorView(emulator: emulator)
-                    .padding(screenInset)
+                DOSScreen(emulator: emulator)
             } else {
                 StartCard(emulator: emulator,
                           start: { start(folder: gameFolder) },
@@ -22,16 +23,10 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.black)
-        .navigationTitle(gameFolder?.lastPathComponent ?? "DOS Boxer")
+        .navigationTitle(gameFolder?.lastPathComponent ?? "DOS Prompt")
+        .onDisappear { emulator.stop() }
         .toolbar {
-            // Plain text, no glass: a hint, not a control
-            ToolbarItem(placement: .primaryAction) {
-                Text(mouseHint)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-            }
-            .sharedBackgroundVisibility(.hidden)
+            MouseHint(emulator: emulator)
 
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Choose Game Folder…", systemImage: "folder.badge.plus") {
@@ -76,16 +71,6 @@ struct ContentView: View {
     }
     #endif
 
-    private let screenInset: CGFloat = 12
-
-    /// Tells people how to get the mouse in and out of DOS.
-    private var mouseHint: String {
-        guard emulator.isRunning else { return "" }
-        return emulator.isMouseLocked
-            ? "Press ⌘⌥ to release the mouse"
-            : "Click the screen to use the mouse in DOS"
-    }
-
     /// Makes `folder` drive C: mounted straight into the running session
     /// (no restart), or used to start a new one.
     private func useFolder(_ folder: URL) {
@@ -93,12 +78,9 @@ struct ContentView: View {
             start(folder: folder)
             return
         }
-        let accessing = folder.startAccessingSecurityScopedResource()
         if emulator.mount(folder: folder) {
-            gameFolder?.stopAccessingSecurityScopedResource()
             gameFolder = folder
         } else {
-            if accessing { folder.stopAccessingSecurityScopedResource() }
             start(folder: folder)
         }
     }
@@ -106,11 +88,7 @@ struct ContentView: View {
     /// Starts DOS (replacing any running session) with `folder`, if given,
     /// as drive C.
     private func start(folder: URL?) {
-        if folder != gameFolder {
-            gameFolder?.stopAccessingSecurityScopedResource()
-            gameFolder = folder
-            _ = folder?.startAccessingSecurityScopedResource()
-        }
+        gameFolder = folder
         emulator.start(arguments: StartupScript.arguments(
             folderPath: folder?.path(percentEncoded: false),
             folderName: folder?.lastPathComponent))

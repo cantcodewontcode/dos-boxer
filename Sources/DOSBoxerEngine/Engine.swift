@@ -81,31 +81,12 @@ enum Engine {
         case DBXCommandQuit.rawValue:
             dbx_request_quit()
         case DBXCommandMountFolder.rawValue:
-            mountFolder(bookmark: payload, driveLetter: CChar(command.a))
+            if let path = String(data: payload, encoding: .utf8) {
+                dbx_mount_folder(CChar(command.a), path)
+            }
         default:
             break
         }
-    }
-}
-
-extension Engine {
-    /// Folders this session has been given access to; kept open until exit.
-    nonisolated(unsafe) private static var accessedFolders: [URL] = []
-
-    /// Resolves a folder the app handed over and mounts it as a DOS drive.
-    /// The bookmark carries the sandbox permission the user granted the app
-    /// when they picked the folder.
-    private static func mountFolder(bookmark: Data, driveLetter: CChar) {
-        var isStale = false
-        guard let folder = try? URL(resolvingBookmarkData: bookmark, options: .withSecurityScope,
-                                    bookmarkDataIsStale: &isStale) else {
-            FileHandle.standardError.write(Data("DOS Boxer Engine: couldn't open the folder bookmark\n".utf8))
-            return
-        }
-        if folder.startAccessingSecurityScopedResource() {
-            accessedFolders.append(folder)
-        }
-        dbx_mount_folder(driveLetter, folder.path(percentEncoded: false))
     }
 }
 

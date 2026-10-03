@@ -2,12 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Runs inside the app's sandbox, including access to folders the user picked -->
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.inherit</key>
-	<true/>
-	<!-- The emulator's dynamic CPU core generates machine code at runtime -->
+	<!-- The emulator's dynamic CPU core generates machine code at runtime
+	     (hardened runtime; DOS Boxer isn't sandboxed) -->
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
 </dict>
