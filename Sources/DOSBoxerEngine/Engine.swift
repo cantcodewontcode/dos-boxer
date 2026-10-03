@@ -41,8 +41,15 @@ enum Engine {
         Thread.detachNewThread {
             var command = DBXCommand()
             let size = MemoryLayout<DBXCommand>.size
-            while withUnsafeMutableBytes(of: &command, { read(STDIN_FILENO, $0.baseAddress, size) }) == size {
-                handle(command)
+            while withUnsafeMutableBytes(of: &command, { readFully(into: $0.baseAddress!, count: size) }) {
+                var payload = Data()
+                if command.type == DBXCommandMountFolder.rawValue {
+                    let count = Int(command.b)
+                    guard count > 0, count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { break }
+                    payload = Data(count: count)
+                    guard payload.withUnsafeMutableBytes({ readFully(into: $0.baseAddress!, count: count) }) else { break }
+                }
+                handle(command, payload: payload)
             }
             // The app went away (or closed the pipe): shut down, and don't
             // linger if the core doesn't stop promptly.
@@ -52,7 +59,18 @@ enum Engine {
         }
     }
 
-    private static func handle(_ command: DBXCommand) {
+    /// Reads exactly `count` bytes from stdin; false at end of input.
+    private static func readFully(into buffer: UnsafeMutableRawPointer, count: Int) -> Bool {
+        var done = 0
+        while done < count {
+            let result = read(STDIN_FILENO, buffer + done, count - done)
+            if result <= 0 { return false }
+            done += result
+        }
+        return true
+    }
+
+    private static func handle(_ command: DBXCommand, payload: Data) {
         switch command.type {
         case DBXCommandKey.rawValue:
             dbx_key(command.a, command.b != 0)
@@ -62,9 +80,32 @@ enum Engine {
             dbx_mouse_button(command.a, command.b != 0)
         case DBXCommandQuit.rawValue:
             dbx_request_quit()
+        case DBXCommandMountFolder.rawValue:
+            mountFolder(bookmark: payload, driveLetter: CChar(command.a))
         default:
             break
         }
+    }
+}
+
+extension Engine {
+    /// Folders this session has been given access to; kept open until exit.
+    nonisolated(unsafe) private static var accessedFolders: [URL] = []
+
+    /// Resolves a folder the app handed over and mounts it as a DOS drive.
+    /// The bookmark carries the sandbox permission the user granted the app
+    /// when they picked the folder.
+    private static func mountFolder(bookmark: Data, driveLetter: CChar) {
+        var isStale = false
+        guard let folder = try? URL(resolvingBookmarkData: bookmark, options: .withSecurityScope,
+                                    bookmarkDataIsStale: &isStale) else {
+            FileHandle.standardError.write(Data("DOS Boxer Engine: couldn't open the folder bookmark\n".utf8))
+            return
+        }
+        if folder.startAccessingSecurityScopedResource() {
+            accessedFolders.append(folder)
+        }
+        dbx_mount_folder(driveLetter, folder.path(percentEncoded: false))
     }
 }
 

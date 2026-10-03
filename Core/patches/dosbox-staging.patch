@@ -65,12 +65,44 @@ index d23f1383a..0864c8b39 100644
  	SDL_AudioSpec desired  = {};
  	SDL_AudioSpec obtained = {};
  
+diff --git a/src/dosbox.cpp b/src/dosbox.cpp
+index fd840770e..d32658d25 100644
+--- a/src/dosbox.cpp
++++ b/src/dosbox.cpp
+@@ -4,6 +4,8 @@
+ 
+ #include "dosbox.h"
+ 
++#include "dosboxer/dosboxer_hooks.h"
++
+ #include <chrono>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -119,6 +121,8 @@ static Bitu normal_loop()
+ 			if (WEBSERVER_IsEnabled()) {
+ 				Webserver::Bridge::Instance().ProcessRequests();
+ 			}
++			// DOS Boxer: run work the embedding host queued up
++			DOSBOXER_ProcessHostRequests();
+ 
+ 			ret = (*cpudecoder)();
+ 			if (ret < 0) {
+@@ -419,6 +423,9 @@ void DOSBOX_SetNormalLoop()
+ 
+ static bool is_shutdown_requested = false;
+ 
++// DOS Boxer: default hook, overridden by the embedding host library
++__attribute__((weak)) void DOSBOXER_ProcessHostRequests() {}
++
+ void DOSBOX_RunMachine()
+ {
+ 	while ((*loop)() == 0 && !is_shutdown_requested)
 diff --git a/src/dosboxer/dosboxer_hooks.h b/src/dosboxer/dosboxer_hooks.h
 new file mode 100644
-index 000000000..490b07c1f
+index 000000000..1553fdb7d
 --- /dev/null
 +++ b/src/dosboxer/dosboxer_hooks.h
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,28 @@
 +// DOS Boxer embedding hooks.
 +//
 +// The core provides weak default definitions (stock behaviour), so the plain
@@ -93,6 +125,10 @@ index 000000000..490b07c1f
 +// True when SDL quit events should be ignored: the host shuts the emulator
 +// down itself, and SDL can queue stray quits when it outlives a run.
 +bool DOSBOXER_IgnoreSdlQuit();
++
++// Called on the emulator thread from the main loop, so the host can safely
++// change emulator state (e.g. mount drives while DOS is running).
++void DOSBOXER_ProcessHostRequests();
 +
 +#endif
 diff --git a/src/gui/sdl_gui.cpp b/src/gui/sdl_gui.cpp

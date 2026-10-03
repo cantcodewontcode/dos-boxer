@@ -11,6 +11,7 @@ list(TRANSFORM DOSBOX_EXE_SOURCES PREPEND "${PROJECT_SOURCE_DIR}/" REGEX "^[^/]"
 
 add_library(DOSBoxerCore SHARED
   ${CMAKE_CURRENT_LIST_DIR}/src/host_api.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/host_drives.cpp
   ${CMAKE_CURRENT_LIST_DIR}/src/host_renderer.cpp
   ${DOSBOX_EXE_SOURCES}
 )

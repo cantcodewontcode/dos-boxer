@@ -5,9 +5,15 @@
 
 #include "DOSBoxerHost.h"
 
+#include <string>
+
 namespace dosboxer {
 
 void deliver_frame(const DBXFrame& frame);
+
+// Emulator thread only: mounts a host folder as a DOS drive, replacing any
+// drive already using that letter.
+bool mount_folder(char letter, const std::string& path);
 
 } // namespace dosboxer
 

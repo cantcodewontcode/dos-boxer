@@ -41,6 +41,11 @@ void dbx_request_quit(void);
 
 bool dbx_is_running(void);
 
+/// Mounts a host folder as a DOS drive (C–Y) while DOS is running, replacing
+/// any drive with that letter. If DOS is sitting at the Z: prompt, it switches
+/// to the new drive.
+void dbx_mount_folder(char drive_letter, const char* path);
+
 /// Fills `frame_count` interleaved stereo float frames. Real-time safe:
 /// call this from the audio render thread. Writes silence when not running.
 void dbx_pull_audio(float* interleaved_stereo, int32_t frame_count);

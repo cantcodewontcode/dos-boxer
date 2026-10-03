@@ -53,6 +53,9 @@ targets:
         LIBRARY_SEARCH_PATHS: $(CORE_BUILD_DIR)
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
         SKIP_INSTALL: YES
+        # Signed with the app's identity: folder permissions the app hands
+        # over (security-scoped bookmarks) only resolve for that identity.
+        OTHER_CODE_SIGN_FLAGS: "--identifier com.dosboxer.app"
     preBuildScripts:
       - name: Build emulator core
         script: |
@@ -72,6 +75,7 @@ targets:
         embed: true
       - target: DOS Boxer Engine
         embed: true
+        codeSign: false  # keep the engine's own signature (see its settings)
         copy:
           destination: executables
     settings:

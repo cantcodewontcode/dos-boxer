@@ -23,9 +23,17 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.black)
         .navigationTitle(gameFolder?.lastPathComponent ?? "DOS Boxer")
-        .navigationSubtitle(mouseHint)
         .toolbar {
-            ToolbarItemGroup {
+            // Plain text, no glass: a hint, not a control
+            ToolbarItem(placement: .primaryAction) {
+                Text(mouseHint)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+            }
+            .sharedBackgroundVisibility(.hidden)
+
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button("Choose Game Folder…", systemImage: "folder.badge.plus") {
                     choosingFolder = true
                 }
@@ -44,7 +52,7 @@ struct ContentView: View {
         }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             guard case .success(let url) = result else { return }
-            start(folder: url)
+            useFolder(url)
         }
         #if DEBUG
         .task { await runDebugLaunchOptions() }
@@ -76,6 +84,23 @@ struct ContentView: View {
         return emulator.isMouseLocked
             ? "Press ⌘⌥ to release the mouse"
             : "Click the screen to use the mouse in DOS"
+    }
+
+    /// Makes `folder` drive C: mounted straight into the running session
+    /// (no restart), or used to start a new one.
+    private func useFolder(_ folder: URL) {
+        guard emulator.isRunning else {
+            start(folder: folder)
+            return
+        }
+        let accessing = folder.startAccessingSecurityScopedResource()
+        if emulator.mount(folder: folder) {
+            gameFolder?.stopAccessingSecurityScopedResource()
+            gameFolder = folder
+        } else {
+            if accessing { folder.stopAccessingSecurityScopedResource() }
+            start(folder: folder)
+        }
     }
 
     /// Starts DOS (replacing any running session) with `folder`, if given,

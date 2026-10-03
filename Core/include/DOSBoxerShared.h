@@ -121,7 +121,12 @@ typedef enum : int32_t {
 	DBXCommandMouseMotion = 2, // a, b = dx, dy in 1/100 points
 	DBXCommandMouseButton = 3, // a = button (1 left, 2 middle, 3 right), b = down
 	DBXCommandQuit        = 4,
+	DBXCommandMountFolder = 5, // a = drive letter, b = byte count of the
+	                           // security-scoped bookmark that follows
 } DBXCommandType;
+
+/// Largest payload a command may carry (a folder bookmark).
+#define DBX_COMMAND_MAX_PAYLOAD 65536
 
 typedef struct {
 	int32_t type;

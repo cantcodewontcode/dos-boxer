@@ -2,6 +2,7 @@
 // image, pulls some audio and shuts down cleanly.
 //
 // Usage: headless_test <output dir> [--restart | dosbox args...]
+// Set DBX_TEST_MOUNT=<folder> to mount that folder as C: while DOS runs.
 //
 // Pass --restart to also try a second run in the same process. That's known
 // to fail (dosbox-staging keeps process-wide state, so the second run never
@@ -14,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <unistd.h>
 #include <mutex>
 #include <string>
@@ -78,7 +80,14 @@ bool run_once(int run, const char* image_path)
 		printf("run %d: dbx_start failed\n", run);
 		return false;
 	}
-	std::this_thread::sleep_for(std::chrono::seconds(custom_args.empty() ? 4 : 10));
+	if (const char* folder = getenv("DBX_TEST_MOUNT")) {
+		// Live-mount test: mount a folder as C: once DOS is up
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		dbx_mount_folder('C', folder);
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+	} else {
+		std::this_thread::sleep_for(std::chrono::seconds(custom_args.empty() ? 4 : 10));
+	}
 
 	std::vector<float> audio(2 * 1024);
 	dbx_pull_audio(audio.data(), 1024);

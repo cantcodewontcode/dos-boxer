@@ -13,6 +13,7 @@
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -34,6 +35,18 @@ DBXFrameCallback frame_callback = nullptr;
 DBXExitCallback exit_callback   = nullptr;
 void* callback_context          = nullptr;
 
+// Work for the emulator thread, queued from any thread
+std::mutex request_mutex;
+std::vector<std::function<void()>> requests;
+std::atomic<bool> has_requests = false;
+
+void queue_request(std::function<void()> request)
+{
+	std::lock_guard lock(request_mutex);
+	requests.push_back(std::move(request));
+	has_requests = true;
+}
+
 void push_event(SDL_Event& event)
 {
 	if (is_running) {
@@ -48,6 +61,22 @@ void push_event(SDL_Event& event)
 RenderBackend* DOSBOXER_CreateRenderBackend()
 {
 	return new HostRenderer();
+}
+
+void DOSBOXER_ProcessHostRequests()
+{
+	if (!has_requests) {
+		return;
+	}
+	std::vector<std::function<void()>> pending;
+	{
+		std::lock_guard lock(request_mutex);
+		pending.swap(requests);
+		has_requests = false;
+	}
+	for (auto& request : pending) {
+		request();
+	}
 }
 
 bool DOSBOXER_IgnoreSdlQuit()
@@ -132,6 +161,16 @@ void dbx_request_quit(void)
 bool dbx_is_running(void)
 {
 	return is_running;
+}
+
+void dbx_mount_folder(const char drive_letter, const char* const path)
+{
+	if (!is_running || !path) {
+		return;
+	}
+	queue_request([drive_letter, folder = std::string(path)] {
+		dosboxer::mount_folder(drive_letter, folder);
+	});
 }
 
 void dbx_pull_audio(float* const interleaved_stereo, const int32_t frame_count)

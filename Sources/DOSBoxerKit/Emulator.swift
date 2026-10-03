@@ -114,6 +114,19 @@ public final class Emulator {
         }
     }
 
+    /// Mounts `folder` as a DOS drive while DOS keeps running. If DOS is at
+    /// the Z: prompt, it switches to the new drive. Returns false if there's
+    /// no running session or the folder can't be handed over.
+    @discardableResult
+    public func mount(folder: URL, as driveLetter: Character = "C") -> Bool {
+        guard state == .running, let letter = driveLetter.asciiValue,
+              let bookmark = try? folder.bookmarkData(options: .withSecurityScope),
+              bookmark.count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { return false }
+        send(DBXCommand(type: DBXCommandMountFolder.rawValue, a: Int32(letter), b: Int32(bookmark.count)),
+             payload: bookmark)
+        return true
+    }
+
     // MARK: Input
 
     public func key(scancode: Int32, isDown: Bool) {
@@ -130,10 +143,10 @@ public final class Emulator {
         send(DBXCommand(type: DBXCommandMouseButton.rawValue, a: button, b: isDown ? 1 : 0))
     }
 
-    private func send(_ command: DBXCommand) {
+    private func send(_ command: DBXCommand, payload: Data = Data()) {
         guard state == .running || state == .stopping, let commands else { return }
         var command = command
-        let data = withUnsafeBytes(of: &command) { Data($0) }
+        let data = withUnsafeBytes(of: &command) { Data($0) } + payload
         try? commands.write(contentsOf: data)
     }
 }
