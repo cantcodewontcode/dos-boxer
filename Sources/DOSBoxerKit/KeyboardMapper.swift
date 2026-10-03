@@ -27,6 +27,11 @@ public enum KeyboardMapper {
         return (scancode, flags.contains(flag))
     }
 
+    /// True for the left and right ⌘ keys, which DOS never sees.
+    public static func isCommand(scancode: Int32) -> Bool {
+        scancode == 227 || scancode == 231
+    }
+
     private static let table: [Int: Int32] = [
         // Letters
         kVK_ANSI_A: 4, kVK_ANSI_B: 5, kVK_ANSI_C: 6, kVK_ANSI_D: 7, kVK_ANSI_E: 8,

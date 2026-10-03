@@ -5,65 +5,97 @@ struct ContentView: View {
     let emulator: Emulator
 
     @State private var choosingFolder = false
-    @State private var mountedFolder: URL?
+    @State private var gameFolder: URL?
 
     var body: some View {
         ZStack {
-            Color.black
-            EmulatorView(emulator: emulator)
-                .opacity(emulator.isRunning ? 1 : 0)
-
-            if !emulator.isRunning {
-                StartCard(emulator: emulator, chooseFolder: { choosingFolder = true })
+            if emulator.isRunning {
+                // Inset from the window edges so the rounded window corners
+                // never clip the DOS screen.
+                EmulatorView(emulator: emulator)
+                    .padding(screenInset)
+            } else {
+                StartCard(emulator: emulator,
+                          start: { start(folder: gameFolder) },
+                          chooseFolder: { choosingFolder = true })
             }
         }
-        .ignoresSafeArea()
-        .navigationTitle(mountedFolder?.lastPathComponent ?? "DOS Boxer")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.black)
+        .navigationTitle(gameFolder?.lastPathComponent ?? "DOS Boxer")
+        .navigationSubtitle(mouseHint)
         .toolbar {
             ToolbarItemGroup {
                 Button("Choose Game Folder…", systemImage: "folder.badge.plus") {
                     choosingFolder = true
                 }
+                .help("Choose a folder to use as drive C")
                 Button("Restart", systemImage: "arrow.clockwise") {
-                    Relauncher.relaunch(withFolder: mountedFolder)
+                    start(folder: gameFolder)
                 }
+                .help("Restart DOS")
                 .disabled(!emulator.isRunning)
                 Button("Turn Off", systemImage: "power") {
                     emulator.stop()
                 }
+                .help("Turn off DOS")
                 .disabled(!emulator.isRunning)
             }
         }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             guard case .success(let url) = result else { return }
-            if emulator.canStart {
-                start(folder: url)
-            } else {
-                Relauncher.relaunch(withFolder: url)
-            }
+            start(folder: url)
         }
-        .task {
-            if let pending = Relauncher.consumePendingStart() {
-                start(folder: pending)
-            }
-        }
+        #if DEBUG
+        .task { await runDebugLaunchOptions() }
+        #endif
     }
 
-    /// Starts DOS, with `folder` (if any) as drive C.
-    private func start(folder: URL?) {
-        mountedFolder?.stopAccessingSecurityScopedResource()
-        mountedFolder = folder
-        var arguments: [String] = []
-        if let folder, folder.startAccessingSecurityScopedResource() {
-            arguments += ["-c", "MOUNT C \"\(folder.path(percentEncoded: false))\"", "-c", "C:"]
+    #if DEBUG
+    /// Development aid: `-DOSBoxerAutoStart YES` starts DOS at launch, and
+    /// `-DOSBoxerAutoRestart <n>` restarts it every n seconds (for testing
+    /// session replacement without clicking).
+    private func runDebugLaunchOptions() async {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "DOSBoxerAutoStart") else { return }
+        start(folder: nil)
+        let interval = defaults.integer(forKey: "DOSBoxerAutoRestart")
+        guard interval > 0 else { return }
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(interval))
+            start(folder: gameFolder)
         }
-        emulator.start(arguments: arguments)
+    }
+    #endif
+
+    private let screenInset: CGFloat = 12
+
+    /// Tells people how to get the mouse in and out of DOS.
+    private var mouseHint: String {
+        guard emulator.isRunning else { return "" }
+        return emulator.isMouseLocked
+            ? "Press ⌘⌥ to release the mouse"
+            : "Click the screen to use the mouse in DOS"
+    }
+
+    /// Starts DOS (replacing any running session) with `folder`, if given,
+    /// as drive C.
+    private func start(folder: URL?) {
+        if folder != gameFolder {
+            gameFolder?.stopAccessingSecurityScopedResource()
+            gameFolder = folder
+            _ = folder?.startAccessingSecurityScopedResource()
+        }
+        emulator.start(arguments: StartupScript.arguments(
+            folderPath: folder?.path(percentEncoded: false),
+            folderName: folder?.lastPathComponent))
     }
 }
 
 /// Shown while DOS isn't running: a floating glass card over the black screen.
 private struct StartCard: View {
     let emulator: Emulator
+    let start: () -> Void
     let chooseFolder: () -> Void
 
     var body: some View {
@@ -81,13 +113,7 @@ private struct StartCard: View {
                 HStack(spacing: 12) {
                     Button("Choose Game Folder…", action: chooseFolder)
                         .buttonStyle(.glass)
-                    Button(emulator.canStart ? "Start DOS" : "Start Again") {
-                        if emulator.canStart {
-                            emulator.start()
-                        } else {
-                            Relauncher.relaunch(withFolder: nil)
-                        }
-                    }
+                    Button("Start DOS", action: start)
                         .buttonStyle(.glassProminent)
                         .keyboardShortcut(.defaultAction)
                 }
@@ -100,9 +126,10 @@ private struct StartCard: View {
     }
 
     private var title: String {
-        if case .stopped(let code) = emulator.state, code != 0 {
-            return "DOS stopped unexpectedly"
+        switch emulator.state {
+        case .stopping: "Turning off…"
+        case .stopped(let code) where code != 0: "DOS stopped unexpectedly"
+        default: "DOS Boxer"
         }
-        return emulator.state == .stopping ? "Turning off…" : "DOS Boxer"
     }
 }

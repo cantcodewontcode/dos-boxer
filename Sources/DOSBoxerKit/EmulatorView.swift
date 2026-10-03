@@ -20,7 +20,7 @@ public struct EmulatorView: NSViewRepresentable {
 
 /// An MTKView that renders the emulator and captures input.
 ///
-/// Clicking the screen locks the mouse to the game; pressing ⌘ (or switching
+/// Clicking the screen locks the mouse to the game; pressing ⌘⌥ (or switching
 /// away) gives it back.
 public final class EmulatorMTKView: MTKView {
     private let emulator: Emulator
@@ -33,7 +33,7 @@ public final class EmulatorMTKView: MTKView {
         colorPixelFormat = .bgra8Unorm
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         preferredFramesPerSecond = 120
-        renderer = FrameRenderer(view: self, frames: emulator.frames)
+        renderer = FrameRenderer(view: self, emulator: emulator)
         delegate = renderer
     }
 
@@ -52,6 +52,7 @@ public final class EmulatorMTKView: MTKView {
     }
 
     @objc private func windowLostFocus() {
+        releaseModifiersInDOS()
         unlockMouse()
     }
 
@@ -72,14 +73,41 @@ public final class EmulatorMTKView: MTKView {
         emulator.key(scancode: scancode, isDown: false)
     }
 
+    /// Modifier keys DOS currently has held down, so we can let go of them
+    /// on its behalf.
+    private var modifiersDownInDOS: Set<Int32> = []
+
+    /// Modifiers work like this:
+    /// - ⌘ belongs to the Mac and is never sent to DOS.
+    /// - While ⌘ is held, other modifiers aren't sent either, so ⌘⌥ (release
+    ///   the mouse) doesn't press Alt in the game.
+    /// - If ⌥ went down first, DOS gets its key-up as soon as ⌘ joins it.
     public override func flagsChanged(with event: NSEvent) {
-        guard let change = KeyboardMapper.modifierChange(keyCode: event.keyCode, flags: event.modifierFlags) else { return }
-        if event.modifierFlags.contains(.command) {
-            unlockMouse()
+        let flags = event.modifierFlags
+        guard let change = KeyboardMapper.modifierChange(keyCode: event.keyCode, flags: flags) else { return }
+
+        if flags.contains(.command) {
+            releaseModifiersInDOS()
+            if flags.contains(.option) {
+                unlockMouse()
+            }
+            return
         }
-        // ⌘ belongs to the Mac, not DOS
-        if change.scancode == 227 || change.scancode == 231 { return }
-        emulator.key(scancode: change.scancode, isDown: change.isDown)
+        if KeyboardMapper.isCommand(scancode: change.scancode) { return }
+
+        if change.isDown {
+            modifiersDownInDOS.insert(change.scancode)
+            emulator.key(scancode: change.scancode, isDown: true)
+        } else if modifiersDownInDOS.remove(change.scancode) != nil {
+            emulator.key(scancode: change.scancode, isDown: false)
+        }
+    }
+
+    private func releaseModifiersInDOS() {
+        for scancode in modifiersDownInDOS {
+            emulator.key(scancode: scancode, isDown: false)
+        }
+        modifiersDownInDOS.removeAll()
     }
 
     // MARK: Mouse
@@ -115,6 +143,7 @@ public final class EmulatorMTKView: MTKView {
     private func lockMouse() {
         guard emulator.isRunning else { return }
         mouseLocked = true
+        emulator.isMouseLocked = true
         window?.acceptsMouseMovedEvents = true
         NSCursor.hide()
         CGAssociateMouseAndMouseCursorPosition(0)
@@ -123,6 +152,7 @@ public final class EmulatorMTKView: MTKView {
     private func unlockMouse() {
         guard mouseLocked else { return }
         mouseLocked = false
+        emulator.isMouseLocked = false
         CGAssociateMouseAndMouseCursorPosition(1)
         NSCursor.unhide()
     }

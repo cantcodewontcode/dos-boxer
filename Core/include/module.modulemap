@@ -1,5 +1,13 @@
+// The emulator core's C API. Only the engine helper links the core.
 module CDOSBoxerHost {
     header "DOSBoxerHost.h"
     link "DOSBoxerCore"
+    export *
+}
+
+// Shared-memory frame format and command protocol, used by both the app and
+// the engine helper.
+module CDOSBoxerShared {
+    header "DOSBoxerShared.h"
     export *
 }

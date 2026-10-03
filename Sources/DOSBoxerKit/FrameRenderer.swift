@@ -1,18 +1,19 @@
+import CDOSBoxerShared
 import MetalKit
 
 /// Draws emulator frames into an MTKView, scaled to fit with the correct
 /// display aspect ratio and letterboxed in black.
 @MainActor
 final class FrameRenderer: NSObject, MTKViewDelegate {
-    private let frames: FrameBuffer
+    private let emulator: Emulator
     private let commandQueue: MTLCommandQueue
     private let pipeline: MTLRenderPipelineState
 
     private var texture: MTLTexture?
-    private var lastGeneration: UInt64 = 0
+    private var lastFrameCount: UInt64 = 0
     private var displayAspect = 4.0 / 3.0
 
-    init?(view: MTKView, frames: FrameBuffer) {
+    init?(view: MTKView, emulator: Emulator) {
         guard let device = view.device ?? MTLCreateSystemDefaultDevice(),
               let queue = device.makeCommandQueue(),
               let library = try? device.makeLibrary(source: frameShaderSource, options: nil)
@@ -24,7 +25,7 @@ final class FrameRenderer: NSObject, MTKViewDelegate {
         descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
         guard let pipeline = try? device.makeRenderPipelineState(descriptor: descriptor) else { return nil }
 
-        self.frames = frames
+        self.emulator = emulator
         self.commandQueue = queue
         self.pipeline = pipeline
         super.init()
@@ -62,25 +63,38 @@ final class FrameRenderer: NSObject, MTKViewDelegate {
         commands.commit()
     }
 
+    /// Copies the newest frame from the engine's shared memory into the texture.
     private func uploadLatestFrame(device: MTLDevice) {
-        frames.withFrame(newerThan: lastGeneration) { frame in
-            lastGeneration = frame.generation
-            displayAspect = frame.displayAspect
-
-            if texture?.width != frame.width || texture?.height != frame.height {
-                let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                    pixelFormat: .bgra8Unorm, width: frame.width, height: frame.height, mipmapped: false)
-                descriptor.usage = .shaderRead
-                descriptor.storageMode = .shared
-                texture = device.makeTexture(descriptor: descriptor)
-            }
-            frame.pixels.withUnsafeBytes { bytes in
-                texture?.replace(region: MTLRegionMake2D(0, 0, frame.width, frame.height),
-                                 mipmapLevel: 0, withBytes: bytes.baseAddress!,
-                                 bytesPerRow: frame.bytesPerRow)
-            }
+        guard let frames = emulator.frames else {
+            texture = nil
+            lastFrameCount = 0
+            return
         }
-        if frames.isEmpty { texture = nil }
+        let count = dbx_shared_frame_count(frames.base)
+        guard count != lastFrameCount else { return }
+
+        var info = DBXSharedSlot()
+        var pixels: UnsafePointer<UInt8>?
+        var slot: UInt32 = 0
+        var sequence: UInt64 = 0
+        guard dbx_shared_latest(frames.base, &info, &pixels, &slot, &sequence), let pixels else { return }
+
+        let width = Int(info.width), height = Int(info.height)
+        if texture?.width != width || texture?.height != height {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+            descriptor.usage = .shaderRead
+            descriptor.storageMode = .shared
+            texture = device.makeTexture(descriptor: descriptor)
+        }
+        texture?.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
+                         withBytes: pixels, bytesPerRow: Int(info.bytes_per_row))
+
+        // If the engine overwrote the slot mid-copy, take it again next refresh
+        if dbx_shared_is_unchanged(frames.base, slot, sequence) {
+            lastFrameCount = count
+            displayAspect = Double(info.display_aspect)
+        }
     }
 
     /// The largest rectangle with `aspect` that fits centred in `size`.

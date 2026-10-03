@@ -65,29 +65,12 @@ index d23f1383a..0864c8b39 100644
  	SDL_AudioSpec desired  = {};
  	SDL_AudioSpec obtained = {};
  
-diff --git a/src/dosbox.cpp b/src/dosbox.cpp
-index fd840770e..8dd77d8c0 100644
---- a/src/dosbox.cpp
-+++ b/src/dosbox.cpp
-@@ -430,6 +430,12 @@ void DOSBOX_RequestShutdown()
- 	is_shutdown_requested = true;
- }
- 
-+// DOS Boxer: lets an embedding host run the emulator again in the same process
-+void DOSBOXER_ResetShutdownRequest()
-+{
-+	is_shutdown_requested = false;
-+}
-+
- bool DOSBOX_IsShutdownRequested()
- {
- 	return is_shutdown_requested;
 diff --git a/src/dosboxer/dosboxer_hooks.h b/src/dosboxer/dosboxer_hooks.h
 new file mode 100644
-index 000000000..ed3309b3a
+index 000000000..490b07c1f
 --- /dev/null
 +++ b/src/dosboxer/dosboxer_hooks.h
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +// DOS Boxer embedding hooks.
 +//
 +// The core provides weak default definitions (stock behaviour), so the plain
@@ -107,12 +90,13 @@ index 000000000..ed3309b3a
 +// Provided by the mixer: fills `num_frames` interleaved stereo float frames.
 +void DOSBOXER_MixerPull(float* interleaved_stereo, int num_frames);
 +
-+// Provided by dosbox.cpp: clears the shutdown flag before a new run.
-+void DOSBOXER_ResetShutdownRequest();
++// True when SDL quit events should be ignored: the host shuts the emulator
++// down itself, and SDL can queue stray quits when it outlives a run.
++bool DOSBOXER_IgnoreSdlQuit();
 +
 +#endif
 diff --git a/src/gui/sdl_gui.cpp b/src/gui/sdl_gui.cpp
-index 433d4a223..ad87f6b90 100644
+index 433d4a223..43bdfdfec 100644
 --- a/src/gui/sdl_gui.cpp
 +++ b/src/gui/sdl_gui.cpp
 @@ -45,6 +45,8 @@
@@ -124,10 +108,27 @@ index 433d4a223..ad87f6b90 100644
  CHECK_NARROWING();
  
  // #define DEBUG_WINDOW_EVENTS
-@@ -1604,8 +1606,19 @@ static int get_sdl_window_flags()
+@@ -363,7 +365,9 @@ static bool is_unpause_event(const SDL_Event event, const SDL_Keysym unpause_key
+ 		SDL_WaitEvent(&event);
+ 
+ 		switch (event.type) {
+-		case SDL_QUIT: GFX_RequestExit(true); break;
++		case SDL_QUIT:
++			if (!DOSBOXER_IgnoreSdlQuit()) { GFX_RequestExit(true); }
++			break;
+ 
+ 		case SDL_WINDOWEVENT:
+ 			if (event.window.event == SDL_WINDOWEVENT_RESTORED) {
+@@ -1604,8 +1608,25 @@ static int get_sdl_window_flags()
  	return check_cast<int>(flags);
  }
  
++// DOS Boxer: default hook, overridden by the embedding host library
++__attribute__((weak)) bool DOSBOXER_IgnoreSdlQuit()
++{
++	return false;
++}
++
 +// DOS Boxer: default hook, overridden by the embedding host library
 +__attribute__((weak)) RenderBackend* DOSBOXER_CreateRenderBackend()
 +{
@@ -144,3 +145,25 @@ index 433d4a223..ad87f6b90 100644
  #if C_OPENGL
  	if (sdl.render_backend_type == RenderBackendType::OpenGl) {
  		try {
+@@ -2208,7 +2229,9 @@ static void handle_pause_when_inactive(const SDL_Event& event)
+ 			SDL_WaitEvent(&ev);
+ 
+ 			switch (ev.type) {
+-			case SDL_QUIT: GFX_RequestExit(true); break;
++			case SDL_QUIT:
++			if (!DOSBOXER_IgnoreSdlQuit()) { GFX_RequestExit(true); }
++			break;
+ 			case SDL_WINDOWEVENT: {
+ 				const auto we = ev.window.event;
+ 
+@@ -2613,7 +2636,9 @@ bool GFX_PollAndHandleEvents()
+ 			handle_mouse_button(&event.button);
+ 			break;
+ 
+-		case SDL_QUIT: GFX_RequestExit(true); break;
++		case SDL_QUIT:
++			if (!DOSBOXER_IgnoreSdlQuit()) { GFX_RequestExit(true); }
++			break;
+ 		default: MAPPER_CheckEvent(&event);
+ 		}
+ 	}

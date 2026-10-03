@@ -1,11 +1,12 @@
 import AVFAudio
 import CDOSBoxerHost
 
-/// Plays the emulator's mixer output through AVAudioEngine.
+/// Plays the emulator's mixer output through AVAudioEngine (in the engine
+/// process, so sound never has to cross over to the app).
 ///
 /// A source node pulls audio straight from the core on the real-time audio
 /// thread, so there's no extra buffering or locking on the Swift side.
-public final class AudioOutput {
+final class AudioOutput {
     private let engine = AVAudioEngine()
     private var sourceNode: AVAudioSourceNode?
 
@@ -14,7 +15,7 @@ public final class AudioOutput {
     private static let maxFramesPerPull = 4096
     private let scratch = UnsafeMutablePointer<Float>.allocate(capacity: maxFramesPerPull * 2)
 
-    public init() {
+    init() {
         scratch.initialize(repeating: 0, count: Self.maxFramesPerPull * 2)
     }
 

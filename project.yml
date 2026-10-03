@@ -18,8 +18,8 @@ settings:
     CORE_BUILD_DIR: $(SRCROOT)/build/core-Release/dosboxer
 
 targets:
-  # Swift wrapper around the emulator core. Shared by the app and (later) the
-  # standalone game player.
+  # Swift framework for the UI side: session control, Metal renderer, input.
+  # Shared by the app and (later) the standalone game player.
   DOSBoxerKit:
     type: framework
     platform: macOS
@@ -30,9 +30,29 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.DOSBoxerKit
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
-        LIBRARY_SEARCH_PATHS: $(CORE_BUILD_DIR)
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks @loader_path/Frameworks"
         DEFINES_MODULE: YES
+
+  # Helper process that runs one DOS session (the emulator core can only run
+  # once per process). Lives in the app's Contents/MacOS.
+  DOS Boxer Engine:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/DOSBoxerEngine
+        excludes:
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_NAME: DOS Boxer Engine
+        PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.engine
+        CODE_SIGN_ENTITLEMENTS: Sources/DOSBoxerEngine/DOSBoxerEngine.entitlements
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
+        LIBRARY_SEARCH_PATHS: $(CORE_BUILD_DIR)
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        SKIP_INSTALL: YES
     preBuildScripts:
       - name: Build emulator core
         script: |
@@ -44,10 +64,16 @@ targets:
     type: application
     platform: macOS
     sources:
-      - Sources/DOSBoxerApp
+      - path: Sources/DOSBoxerApp
+        excludes:
+          - "*.entitlements"
     dependencies:
       - target: DOSBoxerKit
         embed: true
+      - target: DOS Boxer Engine
+        embed: true
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_NAME: DOS Boxer
@@ -72,7 +98,8 @@ targets:
           mkdir -p "$FRAMEWORKS" "$RESOURCES"
           cp -f "$CORE_BUILD_DIR/libDOSBoxerCore.dylib" "$FRAMEWORKS/"
           codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" "$FRAMEWORKS/libDOSBoxerCore.dylib"
-          # dosbox-staging looks for its fonts, keyboard layouts and shaders in Contents/Resources
+          # The engine (in Contents/MacOS) finds dosbox-staging's fonts, keyboard
+          # layouts and shaders in Contents/Resources
           rsync -a --delete-excluded --exclude meson.build --exclude webserver \
             "$SRCROOT/Vendor/dosbox-staging/resources/" "$RESOURCES/dosbox/"
           for item in "$RESOURCES/dosbox/"*; do

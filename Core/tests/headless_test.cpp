@@ -3,9 +3,9 @@
 //
 // Usage: headless_test <output dir> [--restart | dosbox args...]
 //
-// Pass --restart to also try a second run in the same process. That currently
-// fails (dosbox-staging keeps process-wide state), which is why the app will
-// run each game in its own helper process.
+// Pass --restart to also try a second run in the same process. That's known
+// to fail (dosbox-staging keeps process-wide state, so the second run never
+// draws), which is why the app runs each session in its own engine process.
 //
 // Build & run: Scripts/test-core.sh
 
@@ -83,9 +83,10 @@ bool run_once(int run, const char* image_path)
 	std::vector<float> audio(2 * 1024);
 	dbx_pull_audio(audio.data(), 1024);
 
+	const bool still_running = dbx_is_running();
 	const bool saved = save_ppm(image_path);
-	printf("run %d: %d frames, last %dx%d (aspect %.3f), image %s\n",
-	       run, frame_count.load(), frame_w, frame_h, frame_aspect,
+	printf("run %d: %s, %d frames, last %dx%d (aspect %.3f), image %s\n",
+	       run, still_running ? "running" : "ALREADY STOPPED", frame_count.load(), frame_w, frame_h, frame_aspect,
 	       saved ? image_path : "NOT saved");
 
 	dbx_request_quit();

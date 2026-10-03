@@ -5,6 +5,7 @@
 #include "host_renderer.h"
 #include "host_state.h"
 
+#include "dosbox.h"
 #include "dosboxer/dosboxer_hooks.h"
 
 #include <SDL.h>
@@ -49,6 +50,11 @@ RenderBackend* DOSBOXER_CreateRenderBackend()
 	return new HostRenderer();
 }
 
+bool DOSBOXER_IgnoreSdlQuit()
+{
+	return true;
+}
+
 bool DOSBOXER_HostAudioEnabled()
 {
 	return true;
@@ -78,6 +84,9 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 	// Keep SDL away from Cocoa: no real windows, no main-thread requirements
 	setenv("SDL_VIDEODRIVER", "dummy", 1);
 
+	// SDL outlives each run; drop any events left over from a previous one
+	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+
 	std::vector<std::string> owned_args = {"dosbox"};
 	for (int32_t i = 0; i < arg_count; ++i) {
 		owned_args.emplace_back(args[i]);
@@ -103,7 +112,6 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 		}
 		argv.push_back(nullptr);
 
-		DOSBOXER_ResetShutdownRequest();
 		const int exit_code = dosbox_staging_main(static_cast<int>(owned_args.size()),
 		                                          argv.data());
 		is_running = false;
@@ -116,9 +124,9 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 
 void dbx_request_quit(void)
 {
-	SDL_Event event = {};
-	event.type      = SDL_QUIT;
-	push_event(event);
+	if (is_running) {
+		DOSBOX_RequestShutdown();
+	}
 }
 
 bool dbx_is_running(void)
