@@ -251,6 +251,9 @@ private struct DetailField: View {
                 .multilineTextAlignment(.trailing)
                 .focused($focused)
                 .editingFrame(focused)
+                // The edit box overhangs, so the text lines up with plain rows
+                .padding(.horizontal, -6)
+                .padding(.vertical, -3)
                 .disabled(!enabled)
                 .onSubmit(commit)
                 .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }

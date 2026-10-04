@@ -278,8 +278,25 @@ public struct Gamebox: Sendable, Identifiable {
         let data = try Data(contentsOf: url.appending(path: infoFileName))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let info = try decoder.decode(Info.self, from: data)
+        var info = try decoder.decode(Info.self, from: data)
+        info.drives = info.drives.map(preferringCueSheets)
         return Gamebox(url: url, info: info)
+    }
+
+    /// Earlier imports could mount a CloneCD ".ccd" (which DOSBox can't
+    /// read) and list the same disc's ".cue" as another disc; use the cue.
+    private static func preferringCueSheets(_ drive: Drive) -> Drive {
+        guard drive.kind == .cdROM else { return drive }
+        let base = { (path: String) in (path as NSString).deletingPathExtension.lowercased() }
+        let ext = { (path: String) in (path as NSString).pathExtension.lowercased() }
+        var fixed = drive
+        if ["ccd", "mdf"].contains(ext(drive.path)),
+           let cue = drive.moreDiscs?.first(where: { ext($0) == "cue" && base($0) == base(drive.path) }) {
+            fixed.path = cue
+        }
+        fixed.moreDiscs = drive.moreDiscs?.filter { base($0) != base(fixed.path) }
+        if fixed.moreDiscs?.isEmpty == true { fixed.moreDiscs = nil }
+        return fixed
     }
 
     /// Writes `Game.json`.

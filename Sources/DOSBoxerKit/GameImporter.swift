@@ -175,17 +175,27 @@ enum GameImporter {
 /// `.bin` data files) and ISO, CCD and MDF images. Several discs come back in
 /// name order.
 enum DiscImageFinder {
+    /// Best first: a disc often comes as several files ("GAME.ccd" with a
+    /// "GAME.cue" for the same image), and DOSBox reads cue sheets best.
+    private static let preference = ["cue", "iso", "mdf", "ccd"]
+
     static func discs(in folder: URL) -> [URL] {
         guard let enumerator = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil,
                                                               options: [.skipsHiddenFiles]) else { return [] }
         var images: [URL] = []
         for case let file as URL in enumerator {
             if enumerator.level > 3 { enumerator.skipDescendants(); continue }
-            if ["cue", "iso", "ccd", "mdf"].contains(file.pathExtension.lowercased()) {
+            if preference.contains(file.pathExtension.lowercased()) {
                 images.append(file)
             }
         }
-        return images.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        // One file per disc
+        let discs = Dictionary(grouping: images) { $0.deletingPathExtension().path.lowercased() }
+            .values.compactMap { files in
+                files.min { preference.firstIndex(of: $0.pathExtension.lowercased())!
+                    < preference.firstIndex(of: $1.pathExtension.lowercased())! }
+            }
+        return discs.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 }
 

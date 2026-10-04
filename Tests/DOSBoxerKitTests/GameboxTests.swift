@@ -24,6 +24,15 @@ struct GameboxTests {
         return folder
     }
 
+    @Test func aDiscInSeveralFormatsIsMountedOnceAsItsCueSheet() throws {
+        let folder = scratch.appending(path: "cd", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for file in ["ATLANTIS.ccd", "ATLANTIS.cue", "ATLANTIS.img", "ATLANTIS.sub", "DISC2.iso"] {
+            try Data("x".utf8).write(to: folder.appending(path: file))
+        }
+        #expect(DiscImageFinder.discs(in: folder).map(\.lastPathComponent) == ["ATLANTIS.cue", "DISC2.iso"])
+    }
+
     @Test func importingAFolderMakesAGamebox() throws {
         let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
