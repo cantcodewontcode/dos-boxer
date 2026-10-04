@@ -17,6 +17,7 @@ struct GameInspector: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header(game)
                     details(game)
+                    overview(game)
                     stats(game)
                     programs(game)
                     settings(game)
@@ -95,19 +96,49 @@ AddToCollectionButton(library: library, games: [game])
     }
 
     private func details(_ game: Gamebox) -> some View {
-        section("Details") {
+        let info = game.info
+        return section("Details") {
             row("Released", game.year.map(String.init) ?? "Unknown")
-            DetailField(label: "Publisher", value: game.info.publisher, enabled: !game.isReadOnly) { value in
-                library.update(game) { $0.publisher = value }
-            }
-            DetailField(label: "Developer", value: game.info.developer, enabled: !game.isReadOnly) { value in
+            DetailField(label: "Developer", value: info.developer, enabled: !game.isReadOnly) { value in
                 library.update(game) { $0.developer = value }
             }
-            DetailField(label: "Genre", value: game.info.genre, enabled: !game.isReadOnly) { value in
-                library.update(game) { $0.genre = value }
+            DetailField(label: "Publisher", value: info.publisher, enabled: !game.isReadOnly) { value in
+                library.update(game) { $0.publisher = value }
+            }
+            GenrePills(genres: info.genreList, enabled: !game.isReadOnly) { genres in
+                library.update(game) { $0.setGenres(genres) }
+            }
+            if let players = info.maxPlayers {
+                row("Players", (players == 1 ? "1" : "Up to \(players)") + (info.cooperative == true ? " (co-op)" : ""))
+            }
+            if let ageRating = info.ageRating {
+                row("Age Rating", Self.ageRatingText(ageRating))
+            }
+            if let rating = info.communityRating, (info.communityRatingCount ?? 1) > 0 {
+                HStack {
+                    Text("Rating").foregroundStyle(.secondary)
+                    Spacer()
+                    RatingStars(rating: rating)
+                        .help("\(rating.formatted(.number.precision(.fractionLength(1)))) out of 5"
+                              + (info.communityRatingCount.map { ", from \($0) ratings" } ?? ""))
+                }
+                .font(.callout)
             }
         }
         .id(game.id)  // fresh fields when the selection changes
+    }
+
+    /// "T - Teen" reads as "Teen (T)".
+    private static func ageRatingText(_ rating: String) -> String {
+        let parts = rating.components(separatedBy: " - ")
+        return parts.count == 2 ? "\(parts[1]) (\(parts[0]))" : rating
+    }
+
+    @ViewBuilder private func overview(_ game: Gamebox) -> some View {
+        if let overview = game.info.overview {
+            section("About") { OverviewText(text: overview) }
+                .id(game.id)
+        }
     }
 
     private func stats(_ game: Gamebox) -> some View {
@@ -364,6 +395,166 @@ private struct AddToCollectionButton: View {
             }
             .padding(14)
             .frame(minWidth: 200)
+        }
+    }
+}
+
+/// Genres as pills. Remove one with its ×; add one from the known list.
+private struct GenrePills: View {
+    let genres: [String]
+    let enabled: Bool
+    let save: ([String]) -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Genres").foregroundStyle(.secondary)
+            Spacer(minLength: 16)
+            FlowLayout(spacing: 4, alignment: .trailing) {
+                ForEach(genres, id: \.self) { genre in
+                    Pill(title: genre, removable: enabled) { save(genres.filter { $0 != genre }) }
+                }
+                if enabled {
+                    Menu {
+                        ForEach(GameGenres.all.filter { !genres.contains($0) }, id: \.self) { genre in
+                            Button(genre) { save(genres + [genre]) }
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.caption.weight(.semibold))
+                            .frame(width: 22, height: 20)
+                            .background(.quaternary, in: .capsule)
+                            .contentShape(.capsule)
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("Add Genre")
+                }
+            }
+        }
+        .font(.callout)
+    }
+}
+
+private struct Pill: View {
+    let title: String
+    let removable: Bool
+    let remove: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(title)
+            if removable && hovering {
+                Button(action: remove) {
+                    Image(systemName: "xmark").font(.caption2.weight(.bold))
+                }
+                .buttonStyle(.plain)
+                .help("Remove")
+            }
+        }
+        .font(.caption)
+        .padding(.horizontal, 8)
+        .frame(height: 20)
+        .background(.quaternary, in: .capsule)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Lays views out in rows, wrapping onto new lines as needed.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat
+    var alignment: HorizontalAlignment = .leading
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = rows(for: subviews, width: proposal.width ?? .infinity)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: proposal.width.map { min($0, width) } ?? width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(for: subviews, width: bounds.width) {
+            var x = alignment == .trailing ? bounds.maxX - row.width : bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2),
+                                      proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row { var indices: [Int] = []; var width: CGFloat = 0; var height: CGFloat = 0 }
+
+    private func rows(for subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = [Row()]
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let extra = rows[rows.count - 1].indices.isEmpty ? size.width : spacing + size.width
+            if rows[rows.count - 1].width + extra > width, !rows[rows.count - 1].indices.isEmpty {
+                rows.append(Row())
+            }
+            let added = rows[rows.count - 1].indices.isEmpty ? size.width : spacing + size.width
+            rows[rows.count - 1].indices.append(index)
+            rows[rows.count - 1].width += added
+            rows[rows.count - 1].height = max(rows[rows.count - 1].height, size.height)
+        }
+        return rows
+    }
+}
+
+/// Five stars, filled to the nearest half.
+private struct RatingStars: View {
+    let rating: Double
+
+    var body: some View {
+        let halves = Int((rating * 2).rounded())
+        HStack(spacing: 1) {
+            ForEach(0..<5) { star in
+                Image(systemName: halves >= (star + 1) * 2 ? "star.fill"
+                      : halves == star * 2 + 1 ? "star.leadinghalf.filled" : "star")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.orange)
+    }
+}
+
+/// A description: the first few lines, with Show More to read the rest in
+/// place.
+private struct OverviewText: View {
+    let text: String
+    @State private var expanded = false
+    @State private var shownHeight: CGFloat = 0
+    @State private var fullHeight: CGFloat = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(text)
+                .font(.callout)
+                .lineLimit(expanded ? nil : 4)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { shownHeight = $0 }
+                // The whole text, unseen, to know whether four lines cut it short
+                .background(alignment: .topLeading) {
+                    Text(text)
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { fullHeight = $0 }
+                }
+            if expanded || fullHeight > shownHeight + 1 {
+                Button(expanded ? "Show Less" : "Show More") {
+                    withAnimation(.easeOut(duration: 0.2)) { expanded.toggle() }
+                }
+                .buttonStyle(.link)
+                .font(.callout)
+            }
         }
     }
 }

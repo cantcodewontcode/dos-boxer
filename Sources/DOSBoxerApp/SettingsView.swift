@@ -11,6 +11,7 @@ struct SettingsView: View {
         TabView(selection: $tab) {
             Tab("Display", systemImage: "tv", value: .display) { DisplaySettings() }
             Tab("Music", systemImage: "music.note", value: .music) { MusicSettings() }
+            Tab("Game Details", systemImage: "text.book.closed", value: .gameDetails) { GameDetailsSettings() }
         }
         .frame(width: 460)
     }
@@ -41,7 +42,7 @@ private struct DisplaySettings: View {
 }
 
 enum SettingsTab: String {
-    case display, music
+    case display, music, gameDetails
     static let defaultsKey = "SettingsTab"
 }
 

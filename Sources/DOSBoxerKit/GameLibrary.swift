@@ -56,6 +56,10 @@ public final class GameLibrary {
         rootURL = saved.map { URL(filePath: $0, directoryHint: .isDirectory) } ?? Self.defaultLocation
         reload()
         // Keep "Recently Played" and "Most Played" current
+        NotificationCenter.default.addObserver(forName: .gameDetailsPackChanged, object: nil,
+                                               queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lookUpDetailsAgain() }
+        }
         NotificationCenter.default.addObserver(forName: .gameSessionEnded, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         }
@@ -113,18 +117,24 @@ public final class GameLibrary {
         }
     }
 
-    /// Games whose details (publisher, developer, genre) we've looked up
+    /// Games whose details (publisher, genres…) we've looked up
     /// since launch.
     private var detailLookupsTried: Set<UUID> = []
     private var isFetchingDetails = false
 
-    /// Fills in missing publishers, developers and genres from Wikidata,
-    /// one game at a time.
+    /// Looks for missing details again, e.g. after game details were
+    /// downloaded.
+    public func lookUpDetailsAgain() {
+        detailLookupsTried = []
+        fetchMissingDetails()
+    }
+
+    /// Fills in missing publishers, developers and genres, one game at a
+    /// time.
     private func fetchMissingDetails() {
         guard !isFetchingDetails else { return }
         let missing = games.filter { game in
-            !game.isReadOnly && !detailLookupsTried.contains(game.id)
-                && (game.info.publisher == nil || game.info.developer == nil || game.info.genre == nil)
+            !game.isReadOnly && !detailLookupsTried.contains(game.id) && game.info.launchBoxID == nil
         }
         guard !missing.isEmpty else { return }
         isFetchingDetails = true

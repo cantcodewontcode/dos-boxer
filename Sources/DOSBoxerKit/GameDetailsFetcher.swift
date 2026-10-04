@@ -1,8 +1,9 @@
 import Foundation
 
-/// Looks up a game's publisher, developer and genre on Wikidata (free to
-/// use for anything, no account needed). Only empty details are filled in,
-/// so anything typed by hand is kept.
+/// Fills in a game's publisher, developer and genre: from the downloaded
+/// LaunchBox details when it's there, otherwise from Wikidata (free to use
+/// for anything, no account needed). Only empty details are filled in, so
+/// anything typed by hand is kept.
 public actor GameDetailsFetcher {
     public static let shared = GameDetailsFetcher()
 
@@ -21,8 +22,27 @@ public actor GameDetailsFetcher {
     @discardableResult
     public func fillDetails(of gamebox: Gamebox) async -> Bool {
         let info = gamebox.info
-        guard !gamebox.isReadOnly,
-              info.publisher == nil || info.developer == nil || info.genre == nil,
+        guard !gamebox.isReadOnly, info.launchBoxID == nil else { return false }
+
+        // The downloaded LaunchBox details: by the game's files, then its name
+        if let entry = GameDetailsPack.details(forFilesIn: gamebox.url.appending(path: "Drives"))
+            ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year) {
+            var updated = gamebox
+            entry.fill(&updated.info)
+            // A game that hasn't been played yet starts with the program
+            // LaunchBox knows starts it
+            if gamebox.stats.launches == 0, let startup = entry.startupFile,
+               let launcher = updated.info.launchers.first(where: {
+                   $0.commands == nil && $0.dosPath.uppercased().hasSuffix("\\" + startup) }) {
+                for index in updated.info.launchers.indices {
+                    updated.info.launchers[index].isDefault = updated.info.launchers[index].id == launcher.id
+                }
+            }
+            try? updated.save()
+            return true
+        }
+
+        guard info.publisher == nil || info.developer == nil || info.genreList.isEmpty,
               info.detailsCheckedAt.map({ Date().timeIntervalSince($0) > Self.recheckAfter }) ?? true
         else { return false }
 
@@ -42,7 +62,9 @@ public actor GameDetailsFetcher {
         if let found {
             updated.info.publisher = info.publisher ?? found.publisher
             updated.info.developer = info.developer ?? found.developer
-            updated.info.genre = info.genre ?? found.genre
+            // Only genres DOS Boxer knows, so they match everywhere else
+            let genres = (found.genre ?? "").components(separatedBy: ", ").compactMap(GameGenres.standard)
+            if info.genreList.isEmpty, !genres.isEmpty { updated.info.setGenres(genres) }
         }
         try? updated.save()
         return found != nil

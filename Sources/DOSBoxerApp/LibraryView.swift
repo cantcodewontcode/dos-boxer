@@ -43,6 +43,9 @@ struct LibraryView: View {
     @AppStorage("SortOrder") private var sortOrder: SortOrder = .name
     @AppStorage("LibraryFilter") private var filter: LibraryFilter = .all
     @AppStorage("ShowGameInfo") private var showInfo = false
+    /// Whether the game details download was offered (once, on first launch).
+    @AppStorage("GameDetailsOffered") private var gameDetailsOffered = false
+    @State private var offeringGameDetails = false
 
     /// When a game was last opened by double-click (cancels a pending rename).
     @State private var lastPlayRequest = Date.distantPast
@@ -158,6 +161,13 @@ struct LibraryView: View {
                 Button("Cancel", role: .cancel) { gameToRevert = nil }
             } message: { _ in
                 Text("Saved games, high scores and settings the game changed will be deleted.")
+            }
+            .sheet(isPresented: $offeringGameDetails) { GameDetailsPrompt() }
+            .task {
+                if !gameDetailsOffered {
+                    gameDetailsOffered = true
+                    offeringGameDetails = true
+                }
             }
             #if DEBUG
             .task { runDebugLaunchOptions() }

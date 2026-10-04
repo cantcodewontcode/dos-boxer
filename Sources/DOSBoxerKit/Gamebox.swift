@@ -115,9 +115,11 @@ public struct Gamebox: Sendable, Identifiable {
         return "\(trimmed) (\(year))"
     }
 
-    /// The release year from the name, e.g. 1991 for "Crystal Caves (1991)".
+    /// The release year: from the game's details, otherwise from the name,
+    /// e.g. 1991 for "Crystal Caves (1991)".
     public var year: Int? {
-        name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
+        if let released = info.released, let year = Int(released.prefix(4)) { return year }
+        return name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
             .flatMap { Int(name[$0].dropFirst().prefix(4)) }
     }
     /// Where writes go when they can't live inside the package (original
@@ -141,11 +143,29 @@ public struct Gamebox: Sendable, Identifiable {
         public var quitsWhenGameEnds: Bool?
         /// When the game was added to the library.
         public var dateAdded: Date?
-        /// Who published and made the game, and what kind of game it is.
-        /// Filled in by hand for now; game-info lookups will fill them later.
+        /// Who published and made the game. Filled in from the game details
+        /// download (or Wikidata), and editable.
         public var publisher: String?
         public var developer: String?
+        /// Kinds of game, from `GameGenres.all` (e.g. "Action", "Platform").
+        public var genres: [String]?
+        /// Older gameboxes kept genres as one line of text; read through
+        /// `genreList`.
         public var genre: String?
+        /// The game's entry in the LaunchBox Games Database, once matched.
+        public var launchBoxID: Int?
+        /// "1991-10-22", or just "1991".
+        public var released: String?
+        public var maxPlayers: Int?
+        /// Players can play together (rather than only against each other).
+        public var cooperative: Bool?
+        /// ESRB age rating, e.g. "T - Teen". Nil when not rated.
+        public var ageRating: String?
+        /// Players' rating out of 5, and how many people rated it.
+        public var communityRating: Double?
+        public var communityRatingCount: Int?
+        /// A description of the game.
+        public var overview: String?
         /// When the details were last looked up online.
         public var detailsCheckedAt: Date?
         /// The game's short folder name in the collection it came from (e.g.
@@ -160,6 +180,18 @@ public struct Gamebox: Sendable, Identifiable {
         public var noCover: Bool?
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
+
+        /// The game's genres, including ones saved by older versions.
+        public var genreList: [String] {
+            genres ?? genre.map { $0.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty } } ?? []
+        }
+
+        /// Replaces the genres (clearing the older one-line form).
+        public mutating func setGenres(_ list: [String]) {
+            genres = list.isEmpty ? nil : list
+            genre = nil
+        }
     }
 
     public struct Drive: Codable, Sendable, Hashable {
