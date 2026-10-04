@@ -126,6 +126,8 @@ struct GameCommands: Commands {
                 ForEach(DisplayLook.allCases) { Text($0.title).tag(DisplayLook?.some($0)) }
             }
             .disabled(game == nil)
+            Button("Controls…") { game?.editControls() }
+                .disabled(game == nil)
             Menu("Programs") {
                 ForEach(game?.launchers ?? []) { launcher in
                     Button(launcher.displayName) { game?.run(.launcher(launcher)) }

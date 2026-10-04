@@ -166,6 +166,8 @@ public struct Gamebox: Sendable, Identifiable {
         public var communityRatingCount: Int?
         /// A description of the game.
         public var overview: String?
+        /// What controller buttons do in this game, if changed.
+        public var controls: GameControls?
         /// When the details were last looked up online.
         public var detailsCheckedAt: Date?
         /// The game's short folder name in the collection it came from (e.g.

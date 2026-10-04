@@ -179,6 +179,9 @@ AddToCollectionButton(library: library, games: [game])
             Toggle("Return to the library when the game ends", isOn: Binding(
                 get: { game.info.closesWhenGameEnds },
                 set: { on in library.update(game) { $0.quitsWhenGameEnds = on ? nil : false } }))
+            ControlsButton(controls: game.info.controls) { controls in
+                library.update(game) { $0.controls = controls.isEmpty ? nil : controls }
+            }
         }
         .disabled(game.isReadOnly)
     }
@@ -558,6 +561,26 @@ private struct OverviewText: View {
                 .buttonStyle(.link)
                 .font(.callout)
             }
+        }
+    }
+}
+
+/// "Controller: Standard" with a button to change what the buttons do.
+private struct ControlsButton: View {
+    let controls: GameControls?
+    let save: (GameControls) -> Void
+    @State private var editing = false
+
+    var body: some View {
+        HStack {
+            Text("Controller").foregroundStyle(.secondary)
+            Spacer()
+            Button(controls?.isEmpty == false ? "Customized" : "Standard") { editing = true }
+                .buttonStyle(.link)
+        }
+        .font(.callout)
+        .sheet(isPresented: $editing) {
+            ControlsEditor(controls: controls ?? GameControls(), save: save)
         }
     }
 }

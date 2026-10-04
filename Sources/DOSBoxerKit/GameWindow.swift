@@ -38,6 +38,7 @@ public struct GameWindow: View {
     /// True when the person stopped DOS themselves (Turn Off, Restart,
     /// switching programs), so the window stays open instead of closing.
     @State private var stoppedByUser = false
+    @State private var editingControls = false
 
     enum Phase: Equatable {
         case loading
@@ -95,6 +96,9 @@ public struct GameWindow: View {
             }
         }
         .focusedSceneValue(\.gameActions, gameActions)
+        .sheet(isPresented: $editingControls) {
+            ControlsEditor(controls: gamebox?.info.controls ?? GameControls(), save: setControls)
+        }
         .task(id: restartCount) { await prepareAndPlay() }
         .onChange(of: appLook) { applyLook() }
         .onChange(of: emulator.isMouseLocked) { _, locked in
@@ -141,6 +145,15 @@ public struct GameWindow: View {
         applyLook()
     }
 
+    /// Saves the game's controller controls and uses them right away.
+    private func setControls(_ controls: GameControls) {
+        guard var updated = gamebox else { return }
+        updated.info.controls = controls.isEmpty ? nil : controls
+        if !updated.isReadOnly { try? updated.save() }
+        gamebox = updated
+        emulator.controls = controls
+    }
+
     /// Counts a finished session towards the game's play stats.
     private func endSession(_ gamebox: Gamebox) {
         guard let start = sessionStart else { return }
@@ -172,6 +185,7 @@ public struct GameWindow: View {
                 show(look?.title ?? "Default look")
             },
             run: run,
+            editControls: { editingControls = true },
             restart: {
                 stoppedByUser = true
                 restartCount += 1
@@ -236,6 +250,7 @@ public struct GameWindow: View {
             if let savesFolder { gamebox.externalSavesURL = savesFolder }
             self.gamebox = gamebox
             emulator.displayLook = gamebox.effectiveDisplayLook
+            emulator.controls = gamebox.info.controls ?? GameControls()
             if !ignoreOtherComputer, let other = GameboxPresence.otherComputerPlaying(gamebox) {
                 phase = .inUseElsewhere(other)
                 return

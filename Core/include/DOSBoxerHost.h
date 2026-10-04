@@ -62,7 +62,8 @@ void dbx_paste_text(const char* text);
 /// kind 0: axis 0–5 (left X, left Y, left trigger, right X, right Y, right
 /// trigger), value -32768…32767. kind 1: button 0–10 (A, B, X, Y, LB, RB,
 /// Back, Start, left stick, right stick, Guide), value 0/1. kind 2: d-pad,
-/// value = up 1 | right 2 | down 4 | left 8.
+/// value = up 1 | right 2 | down 4 | left 8. Add 16 to `kind` for player 2's
+/// controller.
 void dbx_joystick(int32_t kind, int32_t index, int32_t value);
 
 /// Fills `frame_count` interleaved stereo float frames. Real-time safe:

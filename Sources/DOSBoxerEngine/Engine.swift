@@ -95,7 +95,7 @@ enum Engine {
                 dbx_paste_text(text)
             }
         case DBXCommandJoystick.rawValue:
-            dbx_joystick(command.a >> 8, command.a & 0xFF, command.b)
+            dbx_joystick(command.a >> 8, command.a & 0xFF, command.b)  // a: player<<12 | kind<<8 | index
         case DBXCommandVolume.rawValue:
             audio?.volume = Float(max(0, min(100, command.a))) / 100
         case DBXCommandMountFolder.rawValue:

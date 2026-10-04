@@ -55,6 +55,8 @@ public struct GameActions {
     public var nextDisc: () -> Void
     public var setLook: (DisplayLook?) -> Void
     public var run: (Gamebox.Start) -> Void
+    /// Opens the game's controller controls.
+    public var editControls: () -> Void
     public var restart: () -> Void
     public var turnOff: () -> Void
 }

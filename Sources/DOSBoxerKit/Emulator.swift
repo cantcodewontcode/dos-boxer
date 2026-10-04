@@ -190,20 +190,25 @@ public final class Emulator {
 
     // MARK: Input
 
-    /// Game controller axis 0–5 (XInput order), value -1…1.
-    func joystickAxis(_ index: Int32, _ value: Float) {
+    /// The game's own controller controls (keys and swapped buttons).
+    public var controls = GameControls() {
+        willSet { GameControllers.shared.releaseHeldKeys() }
+    }
+
+    /// Game controller axis 0–5 (XInput order), value -1…1, for player 0 or 1.
+    func joystickAxis(_ index: Int32, _ value: Float, player: Int32) {
         let scaled = Int32((max(-1, min(1, value)) * 32767).rounded())
-        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 0 << 8 | index, b: scaled))
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: player << 12 | 0 << 8 | index, b: scaled))
     }
 
     /// Game controller button 0–10 (XInput order).
-    func joystickButton(_ index: Int32, _ isPressed: Bool) {
-        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 1 << 8 | index, b: isPressed ? 1 : 0))
+    func joystickButton(_ index: Int32, _ isPressed: Bool, player: Int32) {
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: player << 12 | 1 << 8 | index, b: isPressed ? 1 : 0))
     }
 
     /// Game controller d-pad: up 1 | right 2 | down 4 | left 8.
-    func joystickHat(_ value: Int32) {
-        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 2 << 8, b: value))
+    func joystickHat(_ value: Int32, player: Int32) {
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: player << 12 | 2 << 8, b: value))
     }
 
     public func key(scancode: Int32, isDown: Bool) {
