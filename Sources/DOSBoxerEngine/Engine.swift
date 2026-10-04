@@ -47,7 +47,7 @@ enum Engine {
             let size = MemoryLayout<DBXCommand>.size
             while withUnsafeMutableBytes(of: &command, { readFully(into: $0.baseAddress!, count: size) }) {
                 var payload = Data()
-                if command.type == DBXCommandMountFolder.rawValue || command.type == DBXCommandTrigger.rawValue {
+                if [DBXCommandMountFolder, DBXCommandTrigger, DBXCommandPaste].map(\.rawValue).contains(command.type) {
                     let count = Int(command.b)
                     guard count > 0, count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { break }
                     payload = Data(count: count)
@@ -88,6 +88,14 @@ enum Engine {
             if let action = String(data: payload, encoding: .utf8) {
                 dbx_trigger(action)
             }
+        case DBXCommandPause.rawValue:
+            dbx_set_paused(command.a != 0)
+        case DBXCommandPaste.rawValue:
+            if let text = String(data: payload, encoding: .utf8) {
+                dbx_paste_text(text)
+            }
+        case DBXCommandJoystick.rawValue:
+            dbx_joystick(command.a >> 8, command.a & 0xFF, command.b)
         case DBXCommandVolume.rawValue:
             audio?.volume = Float(max(0, min(100, command.a))) / 100
         case DBXCommandMountFolder.rawValue:

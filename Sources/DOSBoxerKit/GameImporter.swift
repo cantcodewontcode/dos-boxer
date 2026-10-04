@@ -34,16 +34,19 @@ enum GameImporter {
         case "zip", "exo":
             let unpacked = try unzip(source)
             defer { try? fileManager.removeItem(at: unpacked) }
-            return try makeGamebox(fromFolder: gameRoot(in: unpacked),
-                                   name: displayName(for: source), library: library)
+            let root = try gameRoot(in: unpacked)
+            return try makeGamebox(fromFolder: root, name: displayName(for: source), library: library,
+                                   shortName: root == unpacked ? nil : root.lastPathComponent)
         default:
             guard isFolder.boolValue else { throw ImportError.unsupported }
-            return try makeGamebox(fromFolder: source, name: displayName(for: source), library: library)
+            return try makeGamebox(fromFolder: source, name: displayName(for: source), library: library,
+                                   shortName: source.lastPathComponent)
         }
     }
 
     /// Builds a new gamebox around a copy of `folder` as drive C.
-    private static func makeGamebox(fromFolder folder: URL, name: String, library: URL) throws -> URL {
+    private static func makeGamebox(fromFolder folder: URL, name: String, library: URL,
+                                    shortName: String? = nil) throws -> URL {
         let fileManager = FileManager.default
         let destination = uniqueURL(named: name, in: library)
         let driveC = destination.appending(path: "\(Gamebox.drivesFolder)/C", directoryHint: .isDirectory)
@@ -58,6 +61,7 @@ enum GameImporter {
 
         var info = Gamebox.Info(name: name)
         info.dateAdded = Date()
+        info.shortName = shortName
         info.drives = [Gamebox.Drive(letter: "C", kind: .hardDisk, path: "\(Gamebox.drivesFolder)/C")]
         // CD-based games ship their disc as an image; it becomes drive D
         let discs = DiscImageFinder.discs(in: driveC)
@@ -70,6 +74,7 @@ enum GameImporter {
                                              moreDiscs: discs.count > 1 ? discs.dropFirst().map(relative) : nil))
         }
         info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
+        info.launchers = LauncherFinder.expandingMenus(info.launchers, root: driveC)
         try Gamebox(url: destination, info: info).save()
         return destination
     }
@@ -255,6 +260,38 @@ enum LauncherFinder {
                                     dosPath: "\(letter):\\\(relative)",
                                     isDefault: index == 0 && score(program) > -100)
         }
+    }
+
+    /// If the default launcher is a menu script (eXoDOS's "Press 1 for…"),
+    /// puts each menu option first as its own launcher, the first one as the
+    /// default, and keeps the script itself as "Menu".
+    static func expandingMenus(_ launchers: [Gamebox.Launcher], root: URL) -> [Gamebox.Launcher] {
+        guard let script = launchers.first(where: \.isDefault), script.dosPath.lowercased().hasSuffix(".bat") else {
+            return launchers
+        }
+        let parts = script.dosPath.split(separator: "\\").dropFirst().map(String.init)
+        let scriptFolder = Array(parts.dropLast())
+        guard let text = try? String(contentsOf: root.appending(path: parts.joined(separator: "/")), encoding: .isoLatin1)
+        else { return launchers }
+
+        let options = BatchMenuReader.options(in: text) { folder, name in
+            let directory = root.appending(path: (scriptFolder + folder).joined(separator: "/"), directoryHint: .isDirectory)
+            let entries = (try? FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))) ?? []
+            return entries.contains { $0.lowercased() == "\(name.lowercased()).bat" }
+        }
+        guard !options.isEmpty else { return launchers }
+
+        let fromMenu = options.enumerated().map { index, option in
+            Gamebox.Launcher(title: option.title, dosPath: script.dosPath, isDefault: index == 0,
+                             commands: option.commands)
+        }
+        let rest = launchers.map { launcher in
+            var launcher = launcher
+            if launcher.id == script.id { launcher.title = "Menu" }
+            launcher.isDefault = false
+            return launcher
+        }
+        return fromMenu + rest
     }
 
     /// Path components of `file` below `root`, comparing real paths so

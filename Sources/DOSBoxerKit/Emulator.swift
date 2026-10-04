@@ -21,6 +21,12 @@ public final class Emulator {
 
     public private(set) var state: State = .idle
 
+    /// How the screen is drawn right now.
+    @ObservationIgnored public var displayLook: DisplayLook = .appDefault
+
+    /// True while the game is paused.
+    public private(set) var isPaused = false
+
     /// True while the DOS screen has captured the mouse.
     public internal(set) var isMouseLocked = false
 
@@ -83,7 +89,7 @@ public final class Emulator {
         let input = Pipe()
         let process = Process()
         process.executableURL = engineURL
-        process.arguments = [frames.fileURL.path(percentEncoded: false)] + arguments
+        process.arguments = [frames.fileURL.path(percentEncoded: false)] + SessionDefaults.arguments() + arguments
         process.standardInput = input
         process.terminationHandler = { [weak self] finished in
             let code = finished.terminationStatus
@@ -108,6 +114,7 @@ public final class Emulator {
     private func sessionEnded(process finished: Process, exitCode: Int32) {
         guard finished === process else { return }
         isMouseLocked = false
+        isPaused = false
         process = nil
         commands = nil
         frames = nil
@@ -130,6 +137,21 @@ public final class Emulator {
         send(DBXCommand(type: DBXCommandMountFolder.rawValue, a: Int32(letter), b: Int32(path.count)),
              payload: path)
         return true
+    }
+
+    /// Pauses or resumes the game (sound stops while paused).
+    public func togglePause() {
+        guard state == .running else { return }
+        isPaused.toggle()
+        send(DBXCommand(type: DBXCommandPause.rawValue, a: isPaused ? 1 : 0, b: 0))
+    }
+
+    /// Types `text` into DOS as if typed on the keyboard (printable
+    /// characters, tabs and line breaks).
+    public func paste(_ text: String) {
+        let data = Data(text.utf8)
+        guard data.count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { return }
+        send(DBXCommand(type: DBXCommandPaste.rawValue, a: 0, b: Int32(data.count)), payload: data)
     }
 
     /// Makes the game run faster or slower (the emulated CPU's speed).
@@ -162,6 +184,22 @@ public final class Emulator {
     }
 
     // MARK: Input
+
+    /// Game controller axis 0–5 (XInput order), value -1…1.
+    func joystickAxis(_ index: Int32, _ value: Float) {
+        let scaled = Int32((max(-1, min(1, value)) * 32767).rounded())
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 0 << 8 | index, b: scaled))
+    }
+
+    /// Game controller button 0–10 (XInput order).
+    func joystickButton(_ index: Int32, _ isPressed: Bool) {
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 1 << 8 | index, b: isPressed ? 1 : 0))
+    }
+
+    /// Game controller d-pad: up 1 | right 2 | down 4 | left 8.
+    func joystickHat(_ value: Int32) {
+        send(DBXCommand(type: DBXCommandJoystick.rawValue, a: 2 << 8, b: value))
+    }
 
     public func key(scancode: Int32, isDown: Bool) {
         send(DBXCommand(type: DBXCommandKey.rawValue, a: scancode, b: isDown ? 1 : 0))

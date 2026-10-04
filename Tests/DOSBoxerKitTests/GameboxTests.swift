@@ -83,6 +83,8 @@ struct GameboxTests {
         let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: zip, inLibrary: library))
 
         #expect(gamebox.defaultLauncher?.dosPath == "C:\\WOLF3D\\WOLF3D.EXE")
+        // The archive's top folder is eXoDOS's short name (finds controller mappings)
+        #expect(gamebox.info.shortName == "WOLF3D")
     }
 
     /// eXoDOS Duke Nukem: its start script sits at the top, beside a folder
@@ -115,6 +117,39 @@ struct GameboxTests {
         #expect(gamebox.info.drives.last == Gamebox.Drive(letter: "D", kind: .cdROM, path: "Drives/C/cd/fullt.cue"))
         let commands = try gamebox.sessionArguments().joined(separator: "\n")
         #expect(commands.contains("@MOUNT D \"\(gamebox.url.appending(path: "Drives/C/cd/fullt.cue").path(percentEncoded: false))\" -t cdrom >NUL"))
+    }
+
+    @Test func menuScriptsBecomeNamedPrograms() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let folder = scratch.appending(path: "Boxing", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: folder.appending(path: "VBOX.EXE"))
+        try Data("""
+            echo Press 1 for Boxing w/ SoundBlaster\r
+            echo Press 2 for Boxing w/ MT-32\r
+            echo Press 3 to Quit\r
+            choice /C:123 /N\r
+            if errorlevel = 2 goto MT32\r
+            if errorlevel = 1 goto SB16\r
+            :SB16\r
+            @vbox\r
+            goto quit\r
+            :MT32\r
+            CONFIG -set "mididevice=mt32"\r
+            @vbox\r
+            goto quit
+            """.utf8).write(to: folder.appending(path: "run.bat"))
+
+        let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: folder, inLibrary: library))
+
+        #expect(gamebox.info.launchers.prefix(2).map(\.title) == ["Boxing w/ SoundBlaster", "Boxing w/ MT-32"])
+        #expect(gamebox.defaultLauncher?.title == "Boxing w/ SoundBlaster")
+        #expect(gamebox.info.launchers.contains { $0.title == "Menu" })
+        let mt32 = try gamebox.sessionArguments(.launcher(gamebox.info.launchers[1]))
+        #expect(mt32.contains("@CONFIG -set \"mididevice=mt32\""))
+        #expect(mt32.contains("@vbox"))
+        #expect(mt32.last == "@EXIT")
     }
 
     @Test func sameNameGetsANumber() throws {

@@ -49,6 +49,14 @@ public final class EmulatorMTKView: MTKView {
         window?.makeFirstResponder(self)
         NotificationCenter.default.addObserver(self, selector: #selector(windowLostFocus),
                                                name: NSWindow.didResignKeyNotification, object: window)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowGotFocus),
+                                               name: NSWindow.didBecomeKeyNotification, object: window)
+        // Controllers go to this game from the start
+        GameControllers.shared.target = emulator
+    }
+
+    @objc private func windowGotFocus() {
+        GameControllers.shared.target = emulator
     }
 
     @objc private func windowLostFocus() {
@@ -59,7 +67,14 @@ public final class EmulatorMTKView: MTKView {
     // MARK: Keyboard
 
     public override func keyDown(with event: NSEvent) {
-        // Leave ⌘ shortcuts to the app menus
+        // ⌘P pauses (as in DOSBox Staging)
+        if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "p" {
+            emulator.togglePause()
+            // Give the mouse back so the controls can be clicked
+            if emulator.isPaused { unlockMouse() }
+            return
+        }
+        // Leave other ⌘ shortcuts to the app menus
         if event.modifierFlags.contains(.command) {
             super.keyDown(with: event)
             return
@@ -108,6 +123,13 @@ public final class EmulatorMTKView: MTKView {
             emulator.key(scancode: scancode, isDown: false)
         }
         modifiersDownInDOS.removeAll()
+    }
+
+    /// Edit > Paste: types the clipboard's text into DOS.
+    @objc public func paste(_ sender: Any?) {
+        if let text = NSPasteboard.general.string(forType: .string) {
+            emulator.paste(text)
+        }
     }
 
     // MARK: Mouse

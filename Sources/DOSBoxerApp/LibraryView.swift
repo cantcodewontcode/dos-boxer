@@ -26,6 +26,8 @@ struct LibraryView: View {
     /// The cover size when a pinch began.
     @State private var pinchStartSize: Double?
     @AppStorage("SortOrder") private var sortOrder: SortOrder = .name
+    @AppStorage("LibraryFilter") private var filter: LibraryFilter = .all
+    @AppStorage("ShowGameInfo") private var showInfo = false
 
     /// When a game was last opened by double-click (cancels a pending rename).
     @State private var lastPlayRequest = Date.distantPast
@@ -39,9 +41,22 @@ struct LibraryView: View {
     }
 
     var body: some View {
+        NavigationSplitView {
+            LibrarySidebar(library: library, filter: $filter)
+                .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 260)
+        } detail: {
+            detail
+        }
+    }
+
+    private var detail: some View {
         content
-            .navigationTitle("Library")
+            .navigationTitle(filter.title)
             .navigationSubtitle(subtitle)
+            .inspector(isPresented: $showInfo) {
+                GameInspector(library: library, game: library.games.first { $0.id == selection }, play: play)
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+            }
             .searchable(text: $searchText, prompt: "Search games")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -63,6 +78,8 @@ struct LibraryView: View {
                         .help("Add game folders, ZIP files or gameboxes")
                     Button("DOS Prompt", systemImage: "apple.terminal") { openWindow(id: "dos-prompt") }
                         .help("Open a DOS prompt")
+                    Button("Info", systemImage: "info.circle") { showInfo.toggle() }
+                        .help(showInfo ? "Hide game info" : "Show game info")
                     Menu("Library", systemImage: "ellipsis") {
                         Picker("Sort By", selection: $sortOrder) {
                             ForEach(SortOrder.allCases) { Text($0.title).tag($0) }
@@ -125,6 +142,11 @@ struct LibraryView: View {
     @ViewBuilder private var content: some View {
         if library.games.isEmpty && library.pendingImports.isEmpty {
             EmptyLibrary(isDropTargeted: isDropTargeted, addGames: { filePanel = .addGames })
+        } else if filteredGames.isEmpty && library.pendingImports.isEmpty {
+            ContentUnavailableView(searchText.isEmpty ? "No Games Here" : "No Matching Games",
+                                   systemImage: filter.systemImage,
+                                   description: Text(searchText.isEmpty
+                                       ? "Games you add to \(filter.title) appear here." : "Try a different search."))
         } else {
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .center, spacing: coverSize * 0.19) {
@@ -173,6 +195,13 @@ struct LibraryView: View {
                             .simultaneousGesture(TapGesture().onEnded { selection = game.id })
                             .contextMenu {
                                 Button("Play") { play(game) }
+                                Button(game.info.isFavorite == true ? "Remove from Favorites" : "Add to Favorites") {
+                                    library.toggleFavorite(game)
+                                }
+                                Button("Get Info") {
+                                    selection = game.id
+                                    showInfo = true
+                                }
                                 Button("Show in Finder") {
                                     NSWorkspace.shared.activateFileViewerSelecting([game.url])
                                 }
@@ -249,13 +278,16 @@ struct LibraryView: View {
     }
 
     private var filteredGames: [Gamebox] {
-        let games = searchText.isEmpty ? library.games
-            : library.games.filter { $0.name.localizedStandardContains(searchText) }
-        return sortOrder.sorted(games)
+        var games = library.games.filter(filter.includes)
+        if !searchText.isEmpty {
+            games = games.filter { $0.name.localizedStandardContains(searchText) }
+        }
+        // Recently Played always lists the latest first
+        return (filter == .recentlyPlayed ? SortOrder.recentlyPlayed : sortOrder).sorted(games)
     }
 
     private var subtitle: String {
-        let count = library.games.count
+        let count = filteredGames.count
         return count == 1 ? "1 game" : "\(count) games"
     }
 

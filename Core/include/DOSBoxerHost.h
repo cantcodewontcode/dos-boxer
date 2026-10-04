@@ -51,6 +51,20 @@ void dbx_mount_folder(char drive_letter, const char* path);
 /// disc).
 void dbx_trigger(const char* action);
 
+/// Pauses or resumes the emulator (sound stops while paused).
+void dbx_set_paused(bool paused);
+
+/// Types `text` (UTF-8; printable ASCII, tabs and line breaks) into DOS, as
+/// if typed on the keyboard.
+void dbx_paste_text(const char* text);
+
+/// Game controller input, laid out like an Xbox controller (XInput order).
+/// kind 0: axis 0–5 (left X, left Y, left trigger, right X, right Y, right
+/// trigger), value -32768…32767. kind 1: button 0–10 (A, B, X, Y, LB, RB,
+/// Back, Start, left stick, right stick, Guide), value 0/1. kind 2: d-pad,
+/// value = up 1 | right 2 | down 4 | left 8.
+void dbx_joystick(int32_t kind, int32_t index, int32_t value);
+
 /// Fills `frame_count` interleaved stereo float frames. Real-time safe:
 /// call this from the audio render thread. Writes silence when not running.
 void dbx_pull_audio(float* interleaved_stereo, int32_t frame_count);

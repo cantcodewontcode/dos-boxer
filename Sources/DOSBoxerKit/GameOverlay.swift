@@ -7,6 +7,8 @@ struct GameOverlay: View {
     let emulator: Emulator
     let gamebox: Gamebox?
     let screenshotsFolder: URL
+    /// Sets the game's own look (nil: follow Settings).
+    let setLook: (DisplayLook?) -> Void
     let isVisible: Bool
     /// Called while the pointer is over the controls, to keep them showing.
     var keepVisible: () -> Void = {}
@@ -20,6 +22,14 @@ struct GameOverlay: View {
             Spacer()
             GlassEffectContainer(spacing: 12) {
                 VStack(spacing: 12) {
+                    if emulator.isPaused {
+                        Label("Paused", systemImage: "pause.fill")
+                            .font(.title3.weight(.semibold))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .glassEffect(.regular, in: .capsule)
+                            .glassEffectID("paused", in: glass)
+                    }
                     if let toast {
                         Text(toast)
                             .font(.callout.weight(.medium))
@@ -28,7 +38,7 @@ struct GameOverlay: View {
                             .glassEffect(.regular, in: .capsule)
                             .glassEffectID("toast", in: glass)
                     }
-                    if isVisible {
+                    if isVisible || emulator.isPaused {
                         controls
                             .onContinuousHover { phase in
                                 if case .active = phase { keepVisible() }
@@ -37,6 +47,7 @@ struct GameOverlay: View {
                 }
             }
             .animation(.smooth(duration: 0.3), value: isVisible)
+            .animation(.smooth(duration: 0.3), value: emulator.isPaused)
             .animation(.smooth(duration: 0.3), value: toast)
             .animation(.smooth(duration: 0.3), value: showingVolume)
         }
@@ -46,6 +57,10 @@ struct GameOverlay: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
+            control(emulator.isPaused ? "Resume" : "Pause",
+                    systemImage: emulator.isPaused ? "play.fill" : "pause.fill") {
+                emulator.togglePause()
+            }
             control("Slower", systemImage: "tortoise") {
                 emulator.changeSpeed(faster: false)
                 flash("Slower")
@@ -82,6 +97,30 @@ struct GameOverlay: View {
                     flash("Next disc")
                 }
             }
+            Menu {
+                Picker("Look", selection: Binding(get: { gamebox?.info.displayLook },
+                                                  set: { look in
+                                                      setLook(look)
+                                                      flash(look?.title ?? "Default look")
+                                                  })) {
+                    Text("Use Default (\(DisplayLook.appDefault.title))").tag(DisplayLook?.none)
+                    Divider()
+                    ForEach(DisplayLook.allCases) { look in
+                        Text(look.title).tag(DisplayLook?.some(look))
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: "tv")
+                    .font(.title3)
+                    .frame(width: 44, height: 44)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .glassEffect(.regular.interactive(), in: .circle)
+            .glassEffectID("look", in: glass)
+            .help("Display look")
             control("Screenshot", systemImage: "camera") {
                 takeScreenshot()
             }

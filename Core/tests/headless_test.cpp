@@ -81,7 +81,36 @@ bool run_once(int run, const char* image_path)
 		printf("run %d: dbx_start failed\n", run);
 		return false;
 	}
-	if (const char* action = getenv("DBX_TEST_TRIGGER")) {
+	if (getenv("DBX_TEST_PAUSE")) {
+		// Pause test: no frames while paused, frames again afterwards
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		dbx_set_paused(true);
+		std::this_thread::sleep_for(std::chrono::milliseconds(300));
+		const int before = frame_count;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+		const int during = frame_count;
+		dbx_set_paused(false);
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		const int after = frame_count;
+		printf("pause: %d frames while paused, %d after resuming\n", during - before, after - during);
+	} else if (const char* text = getenv("DBX_TEST_PASTE")) {
+		// Paste test: type text into DOS once it's up (\n becomes Enter)
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		std::string typed = text;
+		for (size_t at = typed.find("\\n"); at != std::string::npos; at = typed.find("\\n")) {
+			typed.replace(at, 2, "\n");
+		}
+		dbx_paste_text(typed.c_str());
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+	} else if (getenv("DBX_TEST_JOYSTICK")) {
+		// Controller test: press and release A once DOS is up
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		dbx_joystick(1, 0, 1);
+		dbx_joystick(0, 0, 20000);
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		dbx_joystick(1, 0, 0);
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	} else if (const char* action = getenv("DBX_TEST_TRIGGER")) {
 		// Action test: run a built-in action (e.g. cycleup) once DOS is up
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		dbx_trigger(action);

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Library sidebar**: All Games, Favorites, Recently Played, Never Played, and one list per decade.
+- **Info panel**: a fold-out panel on the right (the ⓘ button, or right-click > Get Info) with the game's cover, Play and Favorite buttons, play stats, which program it starts with, its own display look, whether it returns to the library when it ends, and the readmes and manuals that came with it.
+- **Roland MT-32 music**: add your own MT-32 or CM-32L ROMs once in Settings › Music, and every game set up for the MT-32 uses them.
+- **Pause**: the pause button in the game controls, or ⌘P. The sound stops and a "Paused" badge shows until you resume.
+- **Paste into DOS**: Edit › Paste (⌘V) types the clipboard's text into the game, handy for long commands or copy-protection answers.
+- **Game controllers**: Xbox, PlayStation, Switch and other controllers macOS supports work as a DOS joystick in the game that's in front. About 200 games that came from eXoDOS also get DOSBox Staging's tailored controller layouts (games added from now on).
+- **Full screen**: a toolbar button (or ⌃⌘F); the toolbar stays hidden until you point at the top of the screen.
+- **Display looks**: Crisp Pixels, Smooth, Arcade Monitor (scanlines and a colour mask) and Family TV (a curved, glowing screen). Choose one for all games in Settings, or for a single game from the in-game controls or the info panel.
+- **Named programs for menu games**: games whose start script offers a menu ("Press 1 for… with Sound Blaster, Press 2 for… with MT-32") get each option as a named program, and the first one starts by default.
+- Games no longer pick up settings from your own DOSBox Staging configuration, and DOS uses the keyboard layout you're typing with (it used to pick a non-US layout if one was merely enabled).
+
 - Remove Cover Art, for a wrong cover or none at all; the game then stays without one until you look for art again.
 
 - **Game library.** Drop game folders, ZIP files (including eXoDOS archives) or gameboxes onto the library window, and DOS Boxer keeps a copy of each as a `.dosgame` gamebox in `~/DOSBoxer/Games` (you can choose another location, including iCloud Drive, Dropbox or OneDrive). Box art that comes with a game becomes its cover. Double-click a game to play it in its own window; several games can run at once.

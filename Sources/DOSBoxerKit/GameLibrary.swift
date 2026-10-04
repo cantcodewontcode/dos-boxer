@@ -156,6 +156,37 @@ public final class GameLibrary {
         }
     }
 
+    // MARK: Game settings
+
+    /// Changes `game`'s Game.json with `change` and reloads.
+    public func update(_ game: Gamebox, _ change: (inout Gamebox.Info) -> Void) {
+        guard !game.isReadOnly else {
+            lastError = "Original Boxer gameboxes can't be changed. Add it to the library to make a DOS Boxer copy."
+            return
+        }
+        var updated = game
+        change(&updated.info)
+        do {
+            try updated.save()
+            reload()
+        } catch {
+            lastError = "Couldn't save changes to \(game.name): \(error.localizedDescription)"
+        }
+    }
+
+    public func toggleFavorite(_ game: Gamebox) {
+        update(game) { $0.isFavorite = ($0.isFavorite == true) ? nil : true }
+    }
+
+    /// Makes `launcher` the program the game starts with.
+    public func setDefaultLauncher(_ launcher: Gamebox.Launcher, of game: Gamebox) {
+        update(game) { info in
+            for index in info.launchers.indices {
+                info.launchers[index].isDefault = info.launchers[index].id == launcher.id
+            }
+        }
+    }
+
     // MARK: Renaming and deleting
 
     /// Gives `game` a new name: in its Game.json, and as its package's file

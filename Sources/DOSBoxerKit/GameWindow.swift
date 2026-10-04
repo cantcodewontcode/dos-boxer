@@ -27,6 +27,8 @@ public struct GameWindow: View {
     @State private var restartCount = 0
     /// The glass controls show while the pointer is moving over the game.
     @State private var showControls = false
+    /// The app-wide look, so a change in Settings shows up straight away.
+    @AppStorage(DisplayLook.defaultsKey) private var appLook: DisplayLook = .crispPixels
     /// When the current session started, for play stats.
     @State private var sessionStart: Date?
     @State private var lastPointerMove = Date.distantPast
@@ -54,6 +56,7 @@ public struct GameWindow: View {
                         if case .active = phase { pointerMoved() }
                     }
                 GameOverlay(emulator: emulator, gamebox: gamebox, screenshotsFolder: screenshotsFolder,
+                            setLook: setLook,
                             isVisible: showControls && !emulator.isMouseLocked,
                             keepVisible: pointerMoved)
             } else {
@@ -79,6 +82,10 @@ public struct GameWindow: View {
                     }
                     .help("Run another of the game's programs")
                 }
+                Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") {
+                    NSApp.keyWindow?.toggleFullScreen(nil)
+                }
+                .help("Enter or leave full screen")
                 Button("Restart", systemImage: "arrow.clockwise") {
                     stoppedByUser = true
                     restartCount += 1
@@ -94,6 +101,7 @@ public struct GameWindow: View {
             }
         }
         .task(id: restartCount) { await prepareAndPlay() }
+        .onChange(of: appLook) { applyLook() }
         .onChange(of: emulator.state) { _, state in
             if state == .running {
                 stoppedByUser = false
@@ -118,6 +126,21 @@ public struct GameWindow: View {
                 endSession(gamebox)
             }
         }
+    }
+
+    /// Uses the game's own look, or the app-wide one.
+    private func applyLook() {
+        emulator.displayLook = gamebox?.info.displayLook ?? appLook
+    }
+
+    /// Sets (or with nil, clears) this game's own look, remembering it in
+    /// the gamebox.
+    private func setLook(_ look: DisplayLook?) {
+        guard var updated = gamebox else { return }
+        updated.info.displayLook = look
+        if !updated.isReadOnly { try? updated.save() }
+        gamebox = updated
+        applyLook()
     }
 
     /// Counts a finished session towards the game's play stats.
@@ -147,6 +170,7 @@ public struct GameWindow: View {
             var gamebox = try Gamebox.open(url)
             if let savesFolder { gamebox.externalSavesURL = savesFolder }
             self.gamebox = gamebox
+            emulator.displayLook = gamebox.effectiveDisplayLook
             if !ignoreOtherComputer, let other = GameboxPresence.otherComputerPlaying(gamebox) {
                 phase = .inUseElsewhere(other)
                 return

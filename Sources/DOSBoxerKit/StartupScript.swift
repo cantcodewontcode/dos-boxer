@@ -19,16 +19,22 @@ public enum StartupScript {
     /// start `program` (a DOS path like `C:\CC1\CC1.EXE`) if given. With
     /// `exitsAfterwards`, DOS shuts down when the program ends, so the game
     /// window can close.
-    public static func arguments(mounts: [String], title: String, detail: String,
-                                 program: String?, exitsAfterwards: Bool = false) -> [String] {
+    public static func arguments(mounts: [String], title: String, programCommands: [String]? = nil,
+                                 detail: String, program: String?, exitsAfterwards: Bool = false) -> [String] {
         var commands = ["@ECHO OFF"] + mounts
         // A game that starts straight away (and closes when done) needs no
         // header; it would only flash past
         if !(program != nil && exitsAfterwards) {
             commands += header(title: title, detail: detail)
         }
-        if let program {
-            commands += programCommands(program)
+        if let program, let programCommands {
+            // A menu option: go to the script's folder and run its commands
+            commands += Array(Self.programCommands(program).dropLast()) + programCommands.map { "@\($0)" }
+            if exitsAfterwards {
+                commands.append("@EXIT")
+            }
+        } else if let program {
+            commands += Self.programCommands(program)
             if exitsAfterwards {
                 commands.append("@EXIT")
             }

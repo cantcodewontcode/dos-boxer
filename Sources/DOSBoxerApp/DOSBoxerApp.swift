@@ -31,6 +31,10 @@ struct DOSBoxerApp: App {
         // starting DOS unasked would be surprising
         .restorationBehavior(.disabled)
 
+        Settings {
+            SettingsView()
+        }
+
         Window("DOS Prompt", id: "dos-prompt") {
             DOSPromptView()
                 .frame(minWidth: 640, minHeight: 480)
@@ -49,6 +53,8 @@ private struct GameWindowScene: View {
     var body: some View {
         GameWindow(url: url, screenshotsFolder: screenshotsFolder) { openWindow(id: "library") }
             .frame(minWidth: 640, minHeight: 480)
+            // In full screen, the toolbar slides in only when you point at the top
+            .windowToolbarFullScreenVisibility(.onHover)
     }
 }
 

@@ -126,6 +126,10 @@ typedef enum : int32_t {
 	DBXCommandTrigger     = 6, // b = byte count of the UTF-8 action name that
 	                           // follows ("cycleup", "cycledown", "swapimg")
 	DBXCommandVolume      = 7, // a = volume, 0–100
+	DBXCommandJoystick    = 8, // a = kind << 8 | index, b = value (see
+	                           // dbx_joystick in DOSBoxerHost.h)
+	DBXCommandPause       = 9, // a = 1 paused / 0 running
+	DBXCommandPaste       = 10, // b = byte count of the UTF-8 text that follows
 } DBXCommandType;
 
 /// Largest payload a command may carry (a folder path).

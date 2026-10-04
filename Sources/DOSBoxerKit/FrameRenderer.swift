@@ -7,7 +7,8 @@ import MetalKit
 final class FrameRenderer: NSObject, MTKViewDelegate {
     private let emulator: Emulator
     private let commandQueue: MTLCommandQueue
-    private let pipeline: MTLRenderPipelineState
+    /// One pipeline per display look.
+    private let pipelines: [DisplayLook: MTLRenderPipelineState]
 
     private var texture: MTLTexture?
     private var lastFrameCount: UInt64 = 0
@@ -19,15 +20,19 @@ final class FrameRenderer: NSObject, MTKViewDelegate {
               let library = try? device.makeLibrary(source: frameShaderSource, options: nil)
         else { return nil }
 
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction = library.makeFunction(name: "frameVertex")
-        descriptor.fragmentFunction = library.makeFunction(name: "frameFragment")
-        descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
-        guard let pipeline = try? device.makeRenderPipelineState(descriptor: descriptor) else { return nil }
+        var pipelines: [DisplayLook: MTLRenderPipelineState] = [:]
+        for look in DisplayLook.allCases {
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = library.makeFunction(name: "frameVertex")
+            descriptor.fragmentFunction = library.makeFunction(name: look.fragmentFunction)
+            descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+            pipelines[look] = try? device.makeRenderPipelineState(descriptor: descriptor)
+        }
+        guard pipelines[.crispPixels] != nil else { return nil }
 
         self.emulator = emulator
         self.commandQueue = queue
-        self.pipeline = pipeline
+        self.pipelines = pipelines
         super.init()
         view.device = device
     }
@@ -53,7 +58,7 @@ final class FrameRenderer: NSObject, MTKViewDelegate {
                                             width: fitted.width, height: fitted.height,
                                             znear: 0, zfar: 1))
             var outputSize = SIMD2<Float>(Float(fitted.width), Float(fitted.height))
-            encoder.setRenderPipelineState(pipeline)
+            encoder.setRenderPipelineState(pipelines[emulator.displayLook] ?? pipelines[.crispPixels]!)
             encoder.setFragmentTexture(texture, index: 0)
             encoder.setFragmentBytes(&outputSize, length: MemoryLayout<SIMD2<Float>>.size, index: 0)
             encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)

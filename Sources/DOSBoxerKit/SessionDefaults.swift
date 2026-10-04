@@ -1,0 +1,50 @@
+import Carbon.HIToolbox
+import Foundation
+
+/// dosbox settings every DOS Boxer session starts with, before any
+/// game-specific ones.
+enum SessionDefaults {
+    /// Ignore the person's own DOSBox Staging config files (from using
+    /// DOSBox Staging directly), so games behave the same for everyone; and
+    /// use the keyboard layout they're typing with.
+    static func arguments() -> [String] {
+        ["--noprimaryconf", "--nolocalconf",
+         "--set", "dos keyboard_layout=\(dosKeyboardLayout(forInputSource: currentInputSourceID()))"]
+            + MT32Setup.sessionArguments()
+    }
+
+    /// The Mac keyboard layout in use right now, e.g. "com.apple.keylayout.US".
+    static func currentInputSourceID() -> String? {
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
+              let property = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else { return nil }
+        return Unmanaged<CFString>.fromOpaque(property).takeUnretainedValue() as String
+    }
+
+    /// The DOS keyboard layout matching a Mac input source, or "us".
+    ///
+    /// DOSBox Staging can detect this itself, but it looks at every enabled
+    /// input source and prefers non-US ones, so a Mac with Hebrew enabled
+    /// (but typing in English) got a Hebrew DOS keyboard.
+    static func dosKeyboardLayout(forInputSource id: String?) -> String {
+        guard let id, let name = id.split(separator: ".").last.map(String.init) else { return "us" }
+        let layouts: [String: String] = [
+            "US": "us", "ABC": "us", "USExtended": "us", "USInternational-PC": "ux",
+            "Dvorak": "dv", "Dvorak-Left": "lh", "Dvorak-Right": "rh", "Colemak": "co",
+            "British": "uk", "British-PC": "uk", "Irish": "uk",
+            "Australian": "us", "Canadian": "us", "Canadian-CSA": "cf", "CanadianFrench-PC": "cf",
+            "German": "de", "Austrian": "de", "SwissGerman": "sg", "SwissFrench": "sf",
+            "French": "fr", "French-PC": "fr", "French-numerical": "fr", "Belgian": "be",
+            "Spanish": "es", "Spanish-ISO": "es", "LatinAmerican": "la",
+            "Italian": "it", "Italian-Pro": "it",
+            "Portuguese": "po", "Brazilian": "br", "Brazilian-ABNT2": "br", "Brazilian-Pro": "br274",
+            "Dutch": "nl", "Swedish": "sv", "Swedish-Pro": "sv", "Norwegian": "no", "Danish": "dk",
+            "Finnish": "fi", "Icelandic": "is", "Estonian": "ee", "Latvian": "lv", "Lithuanian": "lt",
+            "Polish": "pl", "PolishPro": "pl", "Czech": "cz", "Czech-QWERTY": "cz489", "Slovak": "sk",
+            "Hungarian": "hu", "Romanian": "ro", "Croatian": "hr", "Slovenian": "si", "Serbian-Latin": "yu",
+            "Russian": "ru", "RussianWin": "ru", "Ukrainian": "ur", "Bulgarian": "bg", "Greek": "gk",
+            "Turkish": "tr", "Turkish-QWERTY": "tr", "Turkish-QWERTY-PC": "tr",
+            "Hebrew": "il", "Hebrew-QWERTY": "il",
+        ]
+        return layouts[name] ?? "us"
+    }
+}

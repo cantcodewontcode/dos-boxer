@@ -6,11 +6,13 @@
 #include "host_state.h"
 
 #include "dosbox.h"
+#include "audio/mixer.h"
 #include "dosboxer/dosboxer_hooks.h"
 
 #include <SDL.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -34,6 +36,13 @@ std::atomic<bool> is_running = false;
 DBXFrameCallback frame_callback = nullptr;
 DBXExitCallback exit_callback   = nullptr;
 void* callback_context          = nullptr;
+
+// Pausing: the emulator thread idles inside DOSBOXER_ProcessHostRequests
+std::atomic<bool> pause_requested = false;
+
+// Text being pasted, fed into DOS's keyboard buffer as it has room
+std::mutex paste_mutex;
+std::string paste_queue;
 
 // Work for the emulator thread, queued from any thread
 std::mutex request_mutex;
@@ -63,7 +72,26 @@ RenderBackend* DOSBOXER_CreateRenderBackend()
 	return new HostRenderer();
 }
 
+static void run_pending_requests();
+
 void DOSBOXER_ProcessHostRequests()
+{
+	run_pending_requests();
+	dosboxer::feed_paste_queue(paste_mutex, paste_queue);
+
+	if (pause_requested) {
+		// Stop the sound and wait here, still handling requests (to resume,
+		// or quit) until unpaused
+		MIXER_LockMixerThread();
+		while (pause_requested && !DOSBOX_IsShutdownRequested()) {
+			run_pending_requests();
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+		MIXER_UnlockMixerThread();
+	}
+}
+
+static void run_pending_requests()
 {
 	if (!has_requests) {
 		return;
@@ -115,6 +143,7 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 
 	// SDL outlives each run; drop any events left over from a previous one
 	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+	dosboxer::configure_joystick_hints();
 
 	std::vector<std::string> owned_args = {"dosbox"};
 	for (int32_t i = 0; i < arg_count; ++i) {
@@ -153,6 +182,7 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 
 void dbx_request_quit(void)
 {
+	pause_requested = false;
 	if (is_running) {
 		DOSBOX_RequestShutdown();
 	}
@@ -183,6 +213,28 @@ void dbx_trigger(const char* const action)
 			LOG_WARNING("DOS BOXER: No action called '%s'", name.c_str());
 		}
 	});
+}
+
+void dbx_set_paused(const bool paused)
+{
+	pause_requested = paused && is_running;
+}
+
+void dbx_paste_text(const char* const text)
+{
+	if (!is_running || !text) {
+		return;
+	}
+	std::lock_guard lock(paste_mutex);
+	paste_queue += text;
+}
+
+void dbx_joystick(const int32_t kind, const int32_t index, const int32_t value)
+{
+	if (!is_running) {
+		return;
+	}
+	queue_request([=] { dosboxer::joystick_input(kind, index, value); });
 }
 
 void dbx_pull_audio(float* const interleaved_stereo, const int32_t frame_count)

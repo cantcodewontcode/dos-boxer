@@ -30,6 +30,45 @@ public struct Gamebox: Sendable, Identifiable {
     /// How much the game has been played, across all Macs.
     public private(set) var stats = PlayStats()
 
+    /// The look to draw this game with: its own, or the app-wide one.
+    public var effectiveDisplayLook: DisplayLook {
+        info.displayLook ?? .appDefault
+    }
+
+    /// DOSBox Staging's controller layout for this game, if it has one
+    /// (about 200 games, named after their eXoDOS short names).
+    public var controllerMapping: URL? {
+        guard let shortName = info.shortName, let resources = Bundle.main.resourceURL else { return nil }
+        let file = resources.appending(path: "mapperfiles/xbox/\(shortName.lowercased()).map")
+        return FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) ? file : nil
+    }
+
+    /// Readmes, manuals and other documents that came with the game, most
+    /// useful first (some games ask questions from the manual to start).
+    public func documents() -> [URL] {
+        guard let drive = info.drives.first(where: { $0.letter == "C" }) else { return [] }
+        let root = url.appending(path: drive.path, directoryHint: .isDirectory)
+        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil,
+                                                              options: [.skipsHiddenFiles]) else { return [] }
+        let documentTypes = ["pdf", "txt", "doc", "docx", "rtf", "htm", "html", "md", "nfo", "diz", "me", "1st"]
+        let usefulWords = ["manual", "readme", "read", "guide", "help", "instruct", "story", "hint", "walk"]
+        var found: [(url: URL, score: Int)] = []
+        for case let file as URL in enumerator {
+            if enumerator.level > 4 { enumerator.skipDescendants(); continue }
+            let ext = file.pathExtension.lowercased()
+            let stem = file.deletingPathExtension().lastPathComponent.lowercased()
+            guard documentTypes.contains(ext) else { continue }
+            var score = usefulWords.contains { stem.contains($0) } ? 10 : 0
+            if ext == "pdf" { score += 5 }
+            if ext == "diz" || ext == "nfo" { score -= 5 }
+            found.append((file, score - enumerator.level))
+        }
+        return found.sorted {
+            $0.score != $1.score ? $0.score > $1.score
+                : $0.url.lastPathComponent.localizedStandardCompare($1.url.lastPathComponent) == .orderedAscending
+        }.prefix(20).map(\.url)
+    }
+
     /// When the game joined the library (falling back to the package's
     /// creation date for games added before this was recorded).
     public var addedDate: Date? {
@@ -62,6 +101,13 @@ public struct Gamebox: Sendable, Identifiable {
         public var quitsWhenGameEnds: Bool?
         /// When the game was added to the library.
         public var dateAdded: Date?
+        /// The game's short folder name in the collection it came from (e.g.
+        /// eXoDOS's "CKeen1"), used to find its controller mapping.
+        public var shortName: String?
+        /// Shown under Favorites in the library.
+        public var isFavorite: Bool?
+        /// This game's own display look; nil follows the app-wide setting.
+        public var displayLook: DisplayLook?
         /// Set when someone removed the cover on purpose, so it isn't
         /// fetched again automatically.
         public var noCover: Bool?
@@ -96,6 +142,9 @@ public struct Gamebox: Sendable, Identifiable {
         /// DOS path including the drive, e.g. `C:\CC1\CC1.EXE`.
         public var dosPath: String
         public var isDefault = false
+        /// For an option read from a menu script: the commands to run instead
+        /// of `dosPath`, from `dosPath`'s folder.
+        public var commands: [String]?
     }
 
     // MARK: Files
@@ -215,7 +264,10 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }
         }
-        let settings = info.settings.sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
+        var settings = info.settings.sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
+        if let mapping = controllerMapping {
+            settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]
+        }
         let program: Launcher? = switch start {
         case .game: defaultLauncher
         case .launcher(let launcher): launcher
@@ -228,6 +280,7 @@ public struct Gamebox: Sendable, Identifiable {
         return settings + StartupScript.arguments(
             mounts: mounts,
             title: name,
+            programCommands: program?.commands,
             detail: program == nil ? "Type DIR to see the game's files."
                 : exitsAfterwards ? "Starting the game…" : "When the game ends, you'll be back at the DOS prompt.",
             program: program?.dosPath,
