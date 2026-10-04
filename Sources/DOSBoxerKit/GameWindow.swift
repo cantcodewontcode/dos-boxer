@@ -75,7 +75,7 @@ public struct GameWindow: View {
                 if let gamebox, !gamebox.info.launchers.isEmpty {
                     Menu("Programs", systemImage: "list.bullet") {
                         ForEach(gamebox.info.launchers) { launcher in
-                            Button(launcher.title) { run(.launcher(launcher)) }
+                            Button(launcher.displayName) { run(.launcher(launcher)) }
                         }
                         Divider()
                         Button("DOS Prompt") { run(.prompt) }

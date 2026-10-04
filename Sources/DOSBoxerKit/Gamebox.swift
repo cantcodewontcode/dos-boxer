@@ -43,9 +43,34 @@ public struct Gamebox: Sendable, Identifiable {
         return FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) ? file : nil
     }
 
-    /// Readmes, manuals and other documents that came with the game, most
-    /// useful first (some games ask questions from the manual to start).
+    /// Documents you've added to the game yourself (manuals, maps, notes).
+    public var documentsURL: URL {
+        url.appending(path: "Documents", directoryHint: .isDirectory)
+    }
+
+    /// Copies documents into the gamebox's Documents folder.
+    public func addDocuments(_ files: [URL]) throws {
+        try FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
+        for file in files {
+            let destination = documentsURL.appending(path: file.lastPathComponent)
+            if FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: file, to: destination)
+        }
+    }
+
+    /// Readmes, manuals and other documents: ones you added first, then
+    /// ones that came with the game, most useful first (some games ask
+    /// questions from the manual to start).
     public func documents() -> [URL] {
+        let added = ((try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil,
+                                                                    options: [.skipsHiddenFiles])) ?? [])
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        return added + bundledDocuments()
+    }
+
+    private func bundledDocuments() -> [URL] {
         guard let drive = info.drives.first(where: { $0.letter == "C" }) else { return [] }
         let root = url.appending(path: drive.path, directoryHint: .isDirectory)
         guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil,
@@ -75,6 +100,12 @@ public struct Gamebox: Sendable, Identifiable {
         info.dateAdded ?? (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate)
     }
 
+    /// The name without the trailing year, e.g. "Crystal Caves" (the grid
+    /// leaves the year to the info panel).
+    public var title: String {
+        name.replacingOccurrences(of: #"\s*\(\d{3}[\dx]\)\s*$"#, with: "", options: .regularExpression)
+    }
+
     /// The release year from the name, e.g. 1991 for "Crystal Caves (1991)".
     public var year: Int? {
         name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
@@ -101,6 +132,13 @@ public struct Gamebox: Sendable, Identifiable {
         public var quitsWhenGameEnds: Bool?
         /// When the game was added to the library.
         public var dateAdded: Date?
+        /// Who published and made the game, and what kind of game it is.
+        /// Filled in by hand for now; game-info lookups will fill them later.
+        public var publisher: String?
+        public var developer: String?
+        public var genre: String?
+        /// When the details were last looked up online.
+        public var detailsCheckedAt: Date?
         /// The game's short folder name in the collection it came from (e.g.
         /// eXoDOS's "CKeen1"), used to find its controller mapping.
         public var shortName: String?
@@ -145,6 +183,12 @@ public struct Gamebox: Sendable, Identifiable {
         /// For an option read from a menu script: the commands to run instead
         /// of `dosPath`, from `dosPath`'s folder.
         public var commands: [String]?
+
+        /// How the program is listed: its file name (e.g. KEEN1.EXE), or a
+        /// menu option's title.
+        public var displayName: String {
+            commands != nil ? title : String(dosPath.split(separator: "\\").last ?? Substring(title))
+        }
     }
 
     // MARK: Files

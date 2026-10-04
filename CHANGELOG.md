@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Collections**: hand-built lists of games in the sidebar, like playlists. Make one with the + button or File › New Collection (⌘N), drag games onto it or use right-click › Add to Collection, and rename or delete it from its right-click menu.
+- **Tidier library window**: Import and DOS Prompt, Sort, and Info buttons in the toolbar; search at the top of the sidebar; the game count and cover size slider in a footer. The File and View menus now hold Import Games (⇧⌘I), New DOS Prompt (⌥⌘N), Show Info (⌘I), Bigger/Smaller Covers (⌘+ / ⌘−), sorting, and the library's Finder and location commands.
+- The info panel shows each game's publisher, developer and genre, which you can fill in yourself.
+- New DOS Prompt windows start straight at the DOS prompt.
+
 - **Library sidebar**: All Games, Favorites, Recently Played, Never Played, and one list per decade.
 - **Info panel**: a fold-out panel on the right (the ⓘ button, or right-click > Get Info) with the game's cover, Play and Favorite buttons, play stats, which program it starts with, its own display look, whether it returns to the library when it ends, and the readmes and manuals that came with it.
 - **Roland MT-32 music**: add your own MT-32 or CM-32L ROMs once in Settings › Music, and every game set up for the MT-32 uses them.

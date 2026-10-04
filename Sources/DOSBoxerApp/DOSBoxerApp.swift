@@ -16,9 +16,7 @@ struct DOSBoxerApp: App {
         .defaultSize(width: 980, height: 680)
         .defaultLaunchBehavior(.presented)
         .commands {
-            CommandGroup(after: .newItem) {
-                OpenDOSPromptButton()
-            }
+            LibraryCommands(library: library)
         }
 
         WindowGroup("Game", for: URL.self) { $url in
@@ -58,11 +56,3 @@ private struct GameWindowScene: View {
     }
 }
 
-private struct OpenDOSPromptButton: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button("New DOS Prompt") { openWindow(id: "dos-prompt") }
-            .keyboardShortcut("n", modifiers: [.command, .option])
-    }
-}

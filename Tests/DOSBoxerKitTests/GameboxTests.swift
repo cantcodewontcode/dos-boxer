@@ -285,6 +285,29 @@ struct GameboxTests {
         #expect(try FileManager.default.contentsOfDirectory(atPath: gamebox.url.path(percentEncoded: false)) == before)
     }
 
+    @Test func collectionsAreSavedInTheLibrary() throws {
+        let root = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root.appending(path: "Games"), withIntermediateDirectories: true)
+        _ = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Keen"), inLibrary: root.appending(path: "Games"))
+        let library = GameLibrary()
+        library.useLibrary(at: root)
+        defer { UserDefaults.standard.removeObject(forKey: "LibraryPath") }
+
+        let collection = library.createCollection(named: "Apogee")
+        library.add([library.games[0].id, library.games[0].id], toCollection: collection.id)
+        library.renameCollection(collection.id, to: "Apogee Classics")
+
+        // Reading the library afresh finds the same collection, game listed once
+        library.reload()
+        #expect(library.collections.map(\.name) == ["Apogee Classics"])
+        #expect(library.collections[0].gameIDs == [library.games[0].id])
+
+        library.remove(library.games[0].id, fromCollection: collection.id)
+        library.deleteCollection(collection.id)
+        library.reload()
+        #expect(library.collections.isEmpty)
+    }
+
     @Test func revertingDeletesOnlySaves() throws {
         let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)

@@ -13,6 +13,8 @@ import Observation
 public final class GameLibrary {
     public private(set) var rootURL: URL
     public private(set) var games: [Gamebox] = []
+    /// Hand-built lists of games, shown in the sidebar.
+    public private(set) var collections: [GameCollection] = []
     /// A game being copied into the library, shown as a placeholder card.
     public struct PendingImport: Identifiable, Sendable {
         public let id = UUID()
@@ -73,12 +75,14 @@ public final class GameLibrary {
             let fileManager = FileManager.default
             let entries = try fileManager.contentsOfDirectory(at: gamesURL, includingPropertiesForKeys: nil,
                                                               options: [.skipsHiddenFiles])
+            collections = GameCollectionsFile.load(from: rootURL)
             games = entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
                 .compactMap { try? Gamebox.open($0) }
                 .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             lastError = nil
             fetchMissingCovers()
+            fetchMissingDetails()
         } catch {
             lastError = "Couldn't read the library at \(rootURL.path(percentEncoded: false)): \(error.localizedDescription)"
         }
@@ -106,6 +110,32 @@ public final class GameLibrary {
             isFetchingCovers = false
             // Reloading also picks up games added while we were busy
             if foundAny { reload() } else { fetchMissingCovers() }
+        }
+    }
+
+    /// Games whose details (publisher, developer, genre) we've looked up
+    /// since launch.
+    private var detailLookupsTried: Set<UUID> = []
+    private var isFetchingDetails = false
+
+    /// Fills in missing publishers, developers and genres from Wikidata,
+    /// one game at a time.
+    private func fetchMissingDetails() {
+        guard !isFetchingDetails else { return }
+        let missing = games.filter { game in
+            !game.isReadOnly && !detailLookupsTried.contains(game.id)
+                && (game.info.publisher == nil || game.info.developer == nil || game.info.genre == nil)
+        }
+        guard !missing.isEmpty else { return }
+        isFetchingDetails = true
+        missing.forEach { detailLookupsTried.insert($0.id) }
+        Task {
+            var foundAny = false
+            for game in missing where await GameDetailsFetcher.shared.fillDetails(of: game) {
+                foundAny = true
+            }
+            isFetchingDetails = false
+            if foundAny { reload() } else { fetchMissingDetails() }
         }
     }
 
@@ -153,6 +183,53 @@ public final class GameLibrary {
             reload()
         } catch {
             lastError = "Couldn't remove the cover: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: Collections
+
+    /// Makes a new, empty collection (with `games` in it, if given).
+    @discardableResult
+    public func createCollection(named name: String = "Untitled Collection", with games: [Gamebox] = []) -> GameCollection {
+        var collection = GameCollection(name: name)
+        collection.gameIDs = games.map(\.id)
+        collections.append(collection)
+        saveCollections()
+        return collection
+    }
+
+    public func renameCollection(_ id: GameCollection.ID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = collections.firstIndex(where: { $0.id == id }) else { return }
+        collections[index].name = trimmed
+        saveCollections()
+    }
+
+    public func deleteCollection(_ id: GameCollection.ID) {
+        collections.removeAll { $0.id == id }
+        saveCollections()
+    }
+
+    /// Adds games to a collection (each game once).
+    public func add(_ games: [Gamebox.ID], toCollection id: GameCollection.ID) {
+        guard let index = collections.firstIndex(where: { $0.id == id }) else { return }
+        for game in games where !collections[index].gameIDs.contains(game) {
+            collections[index].gameIDs.append(game)
+        }
+        saveCollections()
+    }
+
+    public func remove(_ game: Gamebox.ID, fromCollection id: GameCollection.ID) {
+        guard let index = collections.firstIndex(where: { $0.id == id }) else { return }
+        collections[index].gameIDs.removeAll { $0 == game }
+        saveCollections()
+    }
+
+    private func saveCollections() {
+        do {
+            try GameCollectionsFile.save(collections, to: rootURL)
+        } catch {
+            lastError = "Couldn't save your collections: \(error.localizedDescription)"
         }
     }
 
@@ -215,14 +292,29 @@ public final class GameLibrary {
         }
     }
 
-    /// Moves `game` (with its saved games) to the Trash.
-    public func delete(_ game: Gamebox) {
-        do {
-            try FileManager.default.trashItem(at: game.url, resultingItemURL: nil)
-            reload()
-        } catch {
-            lastError = "Couldn't move \(game.name) to the Trash: \(error.localizedDescription)"
+    /// Moves games (with their saved games) to the Trash.
+    public func delete(_ games: [Gamebox]) {
+        for game in games {
+            do {
+                try FileManager.default.trashItem(at: game.url, resultingItemURL: nil)
+            } catch {
+                lastError = "Couldn't move \(game.name) to the Trash: \(error.localizedDescription)"
+            }
         }
+        reload()
+    }
+
+    public func setFavorite(_ games: [Gamebox], _ favorite: Bool) {
+        for game in games where !game.isReadOnly {
+            var updated = game
+            updated.info.isFavorite = favorite ? true : nil
+            try? updated.save()
+        }
+        reload()
+    }
+
+    public func reportError(_ message: String) {
+        lastError = message
     }
 
     public func dismissError() {
@@ -288,7 +380,7 @@ public final class GameLibrary {
                 await MainActor.run {
                     self.pendingImports.removeAll { $0.id == pending.id }
                     if case .failure(let error) = result {
-                        self.lastError = "Couldn't add \(url.lastPathComponent): \(error.localizedDescription)"
+                        self.lastError = "Couldn't import \(url.lastPathComponent): \(error.localizedDescription)"
                     }
                     self.reload()
                 }

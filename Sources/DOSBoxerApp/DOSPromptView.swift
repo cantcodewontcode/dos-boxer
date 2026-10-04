@@ -15,15 +15,16 @@ struct DOSPromptView: View {
                 // Inset from the window edges so the rounded window corners
                 // never clip the DOS screen.
                 DOSScreen(emulator: emulator)
-            } else {
-                StartCard(emulator: emulator,
-                          start: { start(folder: gameFolder) },
-                          chooseFolder: { choosingFolder = true })
+            } else if case .stopped = emulator.state {
+                // Only after DOS has been turned off; it starts by itself
+                StoppedCard(emulator: emulator, start: { start(folder: gameFolder) })
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.black)
         .navigationTitle(gameFolder?.lastPathComponent ?? "DOS Prompt")
+        // Straight into a DOS prompt
+        .onAppear { if emulator.state == .idle { start(folder: nil) } }
         .onDisappear { emulator.stop() }
         .toolbar {
             MouseHint(emulator: emulator)
@@ -95,44 +96,26 @@ struct DOSPromptView: View {
     }
 }
 
-/// Shown while DOS isn't running: a floating glass card over the black screen.
-private struct StartCard: View {
+/// Shown after DOS has been turned off.
+private struct StoppedCard: View {
     let emulator: Emulator
     let start: () -> Void
-    let chooseFolder: () -> Void
 
     var body: some View {
-        GlassEffectContainer {
-            VStack(spacing: 16) {
-                Image(systemName: "pc")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.title2.weight(.semibold))
-                Text("Start a DOS prompt, or choose a folder with a game in it to use as drive C.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: 320)
-                HStack(spacing: 12) {
-                    Button("Choose Game Folder…", action: chooseFolder)
-                        .buttonStyle(.glass)
-                    Button("Start DOS", action: start)
-                        .buttonStyle(.glassProminent)
-                        .keyboardShortcut(.defaultAction)
-                }
+        VStack(spacing: 14) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+            Button("Start DOS", action: start)
+                .buttonStyle(.glassProminent)
                 .controlSize(.large)
-            }
-            .padding(32)
-            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+                .keyboardShortcut(.defaultAction)
         }
-        .padding()
+        .padding(28)
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
     }
 
     private var title: String {
-        switch emulator.state {
-        case .stopping: "Turning off…"
-        case .stopped(let code) where code != 0: "DOS stopped unexpectedly"
-        default: "DOS Boxer"
-        }
+        if case .stopped(let code) = emulator.state, code != 0 { return "DOS stopped unexpectedly" }
+        return "DOS is turned off"
     }
 }

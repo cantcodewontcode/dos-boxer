@@ -14,11 +14,24 @@ struct LibraryView: View {
     @State private var filePanel: FilePanel?
     @State private var searchText = ""
     @State private var isDropTargeted = false
-    @State private var selection: Gamebox.ID?
+    /// Selected games (⌘-click toggles, ⇧-click extends, drag a box).
+    @State private var selection: Set<Gamebox.ID> = []
+    /// Where a ⇧-click range starts: the last game clicked.
+    @State private var selectionAnchor: Gamebox.ID?
+    /// Each card's frame in the grid, for drag-to-select.
+    @State private var cardFrames: [Gamebox.ID: CGRect] = [:]
+    /// The box being dragged out to select games, and what was selected
+    /// before it started (kept when ⌘ is held).
+    @State private var marquee: CGRect?
+    @State private var selectionBeforeMarquee: Set<Gamebox.ID> = []
     @State private var gameToRevert: Gamebox?
     /// The game whose rename / delete popover is showing.
     @State private var renaming: Gamebox.ID?
-    @State private var deleting: Gamebox.ID?
+    /// The games waiting for delete confirmation, and the card the
+    /// confirmation is anchored to.
+    @State private var deleting: [Gamebox.ID] = []
+    @State private var deletingAnchor: Gamebox.ID?
+    @State private var renamingCollection: GameCollection.ID?
 
     /// Cover width in points, set with the toolbar slider and remembered.
     @AppStorage("CoverSize") private var coverSize = 150.0
@@ -42,62 +55,66 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationSplitView {
-            LibrarySidebar(library: library, filter: $filter)
+            LibrarySidebar(library: library, filter: $filter, renamingCollection: $renamingCollection)
                 .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 260)
         } detail: {
             detail
         }
+        // Search sits at the top of the sidebar (as in Music), so it never
+        // crowds the toolbar
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search games")
     }
 
     private var detail: some View {
         content
-            .navigationTitle(filter.title)
-            .navigationSubtitle(subtitle)
-            .inspector(isPresented: $showInfo) {
-                GameInspector(library: library, game: library.games.first { $0.id == selection }, play: play)
-                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
-            }
-            .searchable(text: $searchText, prompt: "Search games")
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "photo").imageScale(.small)
-                        Slider(value: $coverSize, in: Self.coverSizes)
-                            .frame(width: 110)
-                            .controlSize(.small)
-                        Image(systemName: "photo").imageScale(.large)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .help("Cover size")
-                }
-                // Keep the slider in its own capsule, apart from the buttons
-                ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button("Add Games…", systemImage: "plus") { filePanel = .addGames }
-                        .help("Add game folders, ZIP files or gameboxes")
+                    Button("Import Games…", systemImage: "square.and.arrow.down") { filePanel = .addGames }
+                        .help("Import game folders, ZIP files or gameboxes")
                     Button("DOS Prompt", systemImage: "apple.terminal") { openWindow(id: "dos-prompt") }
                         .help("Open a DOS prompt")
-                    Button("Info", systemImage: "info.circle") { showInfo.toggle() }
-                        .help(showInfo ? "Hide game info" : "Show game info")
-                    Menu("Library", systemImage: "ellipsis") {
+                }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
                         Picker("Sort By", selection: $sortOrder) {
                             ForEach(SortOrder.allCases) { Text($0.title).tag($0) }
                         }
                         .pickerStyle(.inline)
-                        Divider()
-                        Button("Show Library in Finder") {
-                            NSWorkspace.shared.activateFileViewerSelecting([library.rootURL])
-                        }
-                        Button("Show Screenshots in Finder") {
-                            try? FileManager.default.createDirectory(at: library.screenshotsURL,
-                                                                     withIntermediateDirectories: true)
-                            NSWorkspace.shared.activateFileViewerSelecting([library.screenshotsURL])
-                        }
-                        Button("Choose Library Location…") { filePanel = .chooseLocation }
                     }
+                    .help("Sort games")
+                }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Info", systemImage: "sidebar.squares.trailing") { showInfo.toggle() }
+                        .help(showInfo ? "Hide game info" : "Show game info")
                 }
             }
+            // Cover size: a small floating glass control, bottom right
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .bottomTrailing) {
+                if !filteredGames.isEmpty {
+                    CoverSizeControl(coverSize: $coverSize, range: Self.coverSizes)
+                        .padding(16)
+                }
+            }
+            .inspector(isPresented: $showInfo) {
+                GameInspector(library: library, games: library.games.filter { selection.contains($0.id) },
+                              play: play)
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+
+            }
+            .navigationTitle(filter.title(in: library))
+            .navigationSubtitle(subtitle)
+            .focusedSceneValue(\.libraryActions, LibraryActions(
+                importGames: { filePanel = .addGames },
+                chooseLocation: { filePanel = .chooseLocation },
+                newCollection: newCollection,
+                toggleInfo: { showInfo.toggle() },
+                zoom: { bigger in
+                    coverSize = min(max(coverSize + (bigger ? 25 : -25), Self.coverSizes.lowerBound),
+                                    Self.coverSizes.upperBound)
+                }))
             .onOpenURL { url in
                 if ["dosgame", "boxer"].contains(url.pathExtension.lowercased()) {
                     openWindow(value: url)
@@ -146,7 +163,7 @@ struct LibraryView: View {
             ContentUnavailableView(searchText.isEmpty ? "No Games Here" : "No Matching Games",
                                    systemImage: filter.systemImage,
                                    description: Text(searchText.isEmpty
-                                       ? "Games you add to \(filter.title) appear here." : "Try a different search."))
+                                       ? "Games you add to \(filter.title(in: library)) appear here." : "Try a different search."))
         } else {
             ScrollView {
                 LazyVGrid(columns: columns, alignment: .center, spacing: coverSize * 0.19) {
@@ -154,85 +171,34 @@ struct LibraryView: View {
                         PendingCard(name: pending.name, coverSize: coverSize)
                     }
                     ForEach(filteredGames) { game in
-                        GameCard(gamebox: game, isSelected: selection == game.id, coverSize: coverSize,
-                                 isRenaming: renaming == game.id,
-                                 clickName: { wasSelected in
-                                     // Like Finder: clicking the name of a game that was
-                                     // already selected renames it, after a short pause so
-                                     // a double-click to play doesn't also start a rename
-                                     selection = game.id
-                                     guard wasSelected, game.url.pathExtension.lowercased() == "dosgame" else { return }
-                                     let clickedAt = Date()
-                                     lastPlayRequest = .distantPast
-                                     Task {
-                                         try? await Task.sleep(for: .seconds(0.5))
-                                         if selection == game.id, lastPlayRequest < clickedAt {
-                                             renaming = game.id
-                                         }
-                                     }
-                                 },
-                                 finishRename: { newName in
-                                     // Return also ends editing by losing focus; act once
-                                     guard renaming == game.id else { return }
-                                     renaming = nil
-                                     if let newName { library.rename(game, to: newName) }
-                                 })
-                            // Drop an image on a game to make it the cover
-                            .dropDestination(for: URL.self) { urls, _ in
-                                guard let image = urls.first(where: {
-                                    ["png", "jpg", "jpeg", "heic"].contains($0.pathExtension.lowercased())
-                                }) else { return false }
-                                library.setCover(of: game, to: image)
-                                return true
-                            }
-                            .popover(isPresented: popoverBinding($deleting, game), arrowEdge: .bottom) {
-                                DeletePopover(game: game) {
-                                    deleting = nil
-                                    library.delete(game)
-                                } cancel: { deleting = nil }
-                            }
-                            .onTapGesture(count: 2) { play(game) }
-                            .simultaneousGesture(TapGesture().onEnded { selection = game.id })
-                            .contextMenu {
-                                Button("Play") { play(game) }
-                                Button(game.info.isFavorite == true ? "Remove from Favorites" : "Add to Favorites") {
-                                    library.toggleFavorite(game)
-                                }
-                                Button("Get Info") {
-                                    selection = game.id
-                                    showInfo = true
-                                }
-                                Button("Show in Finder") {
-                                    NSWorkspace.shared.activateFileViewerSelecting([game.url])
-                                }
-                                Divider()
-                                Button("Find Cover Art") { library.findCoverArt(for: game) }
-                                Button("Remove Cover Art") { library.removeCover(of: game) }
-                                    .disabled(game.coverURL == nil)
-                                Divider()
-                                Button("Rename") {
-                                    selection = game.id
-                                    renaming = game.id
-                                }
-                                    .disabled(game.url.pathExtension.lowercased() != "dosgame")
-                                Button("Move to Trash…") { deleting = game.id }
-                                Divider()
-                                Button("Revert to Original…") { gameToRevert = game }
-                            }
+                        card(for: game)
                     }
                 }
                 .padding(28)
                 // Fill at least the visible area, so empty space below the
                 // games can be clicked too
                 .frame(maxWidth: .infinity, minHeight: visibleHeight, alignment: .top)
-                // Clicking empty space clears the selection, as in Finder
+                .coordinateSpace(.named("grid"))
+                // Clicking empty space clears the selection, as in Finder;
+                // dragging there draws a box that selects the games it touches
                 .background {
                     Color.clear
                         .contentShape(.rect)
                         .onTapGesture {
-                            selection = nil
+                            selection = []
                             renaming = nil
                         }
+                        .gesture(marqueeGesture)
+                }
+                .overlay(alignment: .topLeading) {
+                    if let marquee {
+                        Rectangle()
+                            .fill(.tint.opacity(0.12))
+                            .strokeBorder(.tint.opacity(0.6), lineWidth: 1)
+                            .frame(width: marquee.width, height: marquee.height)
+                            .offset(x: marquee.minX, y: marquee.minY)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { visibleHeight = $0 }
@@ -250,10 +216,12 @@ struct LibraryView: View {
             .background {
                 // ⌘⌫ moves the selected game to the Trash (after confirming)
                 Button("Move to Trash") {
-                    if let selection { deleting = selection }
+                    let ordered = filteredGames.map(\.id).filter(selection.contains)
+                    deleting = ordered
+                    deletingAnchor = ordered.first
                 }
                 .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(selection == nil)
+                .disabled(selection.isEmpty)
                 // Invisible but still live (a .hidden() button's shortcut
                 // isn't reliably honoured)
                 .opacity(0)
@@ -271,14 +239,8 @@ struct LibraryView: View {
         }
     }
 
-    /// A popover binding that's "presented" while `state` holds this game.
-    private func popoverBinding(_ state: Binding<Gamebox.ID?>, _ game: Gamebox) -> Binding<Bool> {
-        Binding(get: { state.wrappedValue == game.id },
-                set: { if !$0 && state.wrappedValue == game.id { state.wrappedValue = nil } })
-    }
-
     private var filteredGames: [Gamebox] {
-        var games = library.games.filter(filter.includes)
+        var games = library.games.filter { filter.includes($0, in: library) }
         if !searchText.isEmpty {
             games = games.filter { $0.name.localizedStandardContains(searchText) }
         }
@@ -313,6 +275,182 @@ struct LibraryView: View {
         }
     }
     #endif
+
+    /// One game in the grid, with its clicks, drags, drops and menus.
+    private func card(for game: Gamebox) -> some View {
+        GameCard(gamebox: game, isSelected: selection.contains(game.id), coverSize: coverSize,
+                 isRenaming: renaming == game.id,
+                 clickName: { _ in
+                     // Like Finder: clicking the name of the one selected
+                     // game renames it, after a short pause so a double-
+                     // click to play doesn't also start a rename
+                     let wasOnlySelection = selection == [game.id]
+                     click(game)
+                     guard wasOnlySelection, !game.isReadOnly else { return }
+                     let clickedAt = Date()
+                     lastPlayRequest = .distantPast
+                     Task {
+                         try? await Task.sleep(for: .seconds(0.5))
+                         if selection == [game.id], lastPlayRequest < clickedAt {
+                             renaming = game.id
+                         }
+                     }
+                 },
+                 finishRename: { newName in
+                     // Return also ends editing by losing focus; act once
+                     guard renaming == game.id else { return }
+                     renaming = nil
+                     if let newName { library.rename(game, to: newName) }
+                 })
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("grid")) } action: {
+                cardFrames[game.id] = $0
+            }
+            // Drag games (the whole selection, if this one's in it)
+            // onto a collection in the sidebar
+            .draggable(dragPayload(for: game)) {
+                DragPreview(game: game, count: targets(for: game).count)
+            }
+            // Drop an image on a game to make it the cover
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let image = urls.first(where: {
+                    ["png", "jpg", "jpeg", "heic"].contains($0.pathExtension.lowercased())
+                }) else { return false }
+                library.setCover(of: game, to: image)
+                return true
+            }
+            .popover(isPresented: Binding(get: { deletingAnchor == game.id },
+                                          set: { if !$0 { deletingAnchor = nil; deleting = [] } }),
+                     arrowEdge: .bottom) {
+                DeletePopover(games: library.games.filter { deleting.contains($0.id) }) {
+                    let doomed = library.games.filter { deleting.contains($0.id) }
+                    deletingAnchor = nil
+                    deleting = []
+                    selection.subtract(doomed.map(\.id))
+                    library.delete(doomed)
+                } cancel: {
+                    deletingAnchor = nil
+                    deleting = []
+                }
+            }
+            .onTapGesture(count: 2) { play(game) }
+            .simultaneousGesture(TapGesture().onEnded { click(game) })
+            .contextMenu { contextMenu(for: game) }
+    }
+
+    // MARK: Selection
+
+    /// A click on a game: ⌘ toggles it, ⇧ extends from the last click,
+    /// otherwise it becomes the only selected game.
+    private func click(_ game: Gamebox) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selection.contains(game.id) { selection.remove(game.id) } else { selection.insert(game.id) }
+            selectionAnchor = game.id
+        } else if flags.contains(.shift), let anchor = selectionAnchor,
+                  let from = filteredGames.firstIndex(where: { $0.id == anchor }),
+                  let to = filteredGames.firstIndex(where: { $0.id == game.id }) {
+            selection = Set(filteredGames[min(from, to)...max(from, to)].map(\.id))
+        } else {
+            selection = [game.id]
+            selectionAnchor = game.id
+        }
+    }
+
+    private var marqueeGesture: some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named("grid"))
+            .onChanged { drag in
+                if marquee == nil {
+                    selectionBeforeMarquee = NSEvent.modifierFlags.contains(.command) ? selection : []
+                    renaming = nil
+                }
+                let box = CGRect(x: min(drag.startLocation.x, drag.location.x),
+                                 y: min(drag.startLocation.y, drag.location.y),
+                                 width: abs(drag.location.x - drag.startLocation.x),
+                                 height: abs(drag.location.y - drag.startLocation.y))
+                marquee = box
+                let touched = cardFrames.filter { id, frame in
+                    frame.intersects(box) && filteredGames.contains { $0.id == id }
+                }.keys
+                selection = selectionBeforeMarquee.union(touched)
+            }
+            .onEnded { _ in marquee = nil }
+    }
+
+    /// The games an action on `game` applies to: the whole selection if
+    /// `game` is part of it, otherwise just `game`.
+    private func targets(for game: Gamebox) -> [Gamebox] {
+        guard selection.contains(game.id), selection.count > 1 else { return [game] }
+        return filteredGames.filter { selection.contains($0.id) }
+    }
+
+    /// What dragging `game` carries: the IDs of the games being dragged,
+    /// one per line.
+    private func dragPayload(for game: Gamebox) -> String {
+        targets(for: game).map(\.id.uuidString).joined(separator: "\n")
+    }
+
+    @ViewBuilder private func contextMenu(for game: Gamebox) -> some View {
+        let games = targets(for: game)
+        let single = games.count == 1
+        if single {
+            Button("Play") { play(game) }
+        }
+        let allFavorite = games.allSatisfy { $0.info.isFavorite == true }
+        Button(allFavorite ? "Remove from Favorites" : "Add to Favorites") {
+            library.setFavorite(games, !allFavorite)
+        }
+        Menu("Add to Collection") {
+            ForEach(library.collections) { collection in
+                Button(collection.name) { library.add(games.map(\.id), toCollection: collection.id) }
+            }
+            if !library.collections.isEmpty { Divider() }
+            Button("New Collection") {
+                let collection = library.createCollection(with: games)
+                filter = .collection(collection.id)
+                renamingCollection = collection.id
+            }
+        }
+        if case .collection(let id) = filter {
+            Button("Remove from Collection") {
+                for game in games { library.remove(game.id, fromCollection: id) }
+            }
+        }
+        if single {
+            Button("Get Info") {
+                selection = [game.id]
+                showInfo = true
+            }
+        }
+        Button("Show in Finder") {
+            NSWorkspace.shared.activateFileViewerSelecting(games.map(\.url))
+        }
+        if single {
+            Divider()
+            Button("Find Cover Art") { library.findCoverArt(for: game) }
+            Button("Remove Cover Art") { library.removeCover(of: game) }
+                .disabled(game.coverURL == nil)
+            Divider()
+            Button("Rename") {
+                selection = [game.id]
+                renaming = game.id
+            }
+            .disabled(game.isReadOnly)
+        }
+        Divider()
+        Button(single ? "Move to Trash…" : "Move \(games.count) Games to Trash…") {
+            deleting = games.map(\.id)
+            deletingAnchor = game.id
+        }
+        if single {
+            Button("Revert to Original…") { gameToRevert = game }
+        }
+    }
+
+    private func newCollection() {
+        let collection = library.createCollection()
+        filter = .collection(collection.id)
+        renamingCollection = collection.id
+    }
 
     private func play(_ game: Gamebox) {
         lastPlayRequest = Date()
@@ -400,11 +538,9 @@ private struct GameCard: View {
                         nameFieldFocused = true
                     }
             } else {
-                Text(gamebox.name)
+                Text(gamebox.title)
                     .font(.callout.weight(.medium))
                     .lineLimit(2)
-                    // Trim the middle so the year at the end stays visible
-                    .truncationMode(.middle)
                     .multilineTextAlignment(.center)
                     .help(gamebox.name)
                     .padding(.horizontal, 8)
@@ -420,18 +556,19 @@ private struct GameCard: View {
     }
 }
 
-/// Confirms moving a game to the Trash, in a glass popover by its cover.
+/// Confirms moving games to the Trash, in a glass popover by a cover.
 private struct DeletePopover: View {
-    let game: Gamebox
+    let games: [Gamebox]
     let delete: () -> Void
     let cancel: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Move “\(game.name)” to the Trash?")
+            Text(games.count == 1 ? "Move “\(games[0].name)” to the Trash?" : "Move \(games.count) games to the Trash?")
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Its saved games will also be moved to the Trash.")
+            Text(games.count == 1 ? "Its saved games will also be moved to the Trash."
+                 : "Their saved games will also be moved to the Trash.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -452,6 +589,29 @@ private struct DeletePopover: View {
     }
 }
 
+/// What follows the pointer when dragging games: the cover, with a count
+/// badge for several.
+private struct DragPreview: View {
+    let game: Gamebox
+    let count: Int
+
+    var body: some View {
+        CoverImage(gamebox: game)
+            .frame(width: 80, height: 100)
+            .overlay(alignment: .topTrailing) {
+                if count > 1 {
+                    Text("\(count)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(.red, in: .capsule)
+                        .offset(x: 8, y: -8)
+                }
+            }
+    }
+}
+
 /// A game still being copied into the library.
 private struct PendingCard: View {
     let name: String
@@ -464,7 +624,7 @@ private struct PendingCard: View {
                 .aspectRatio(0.8, contentMode: .fit)
                 .overlay { ProgressView() }
                 .frame(height: coverSize * 1.25, alignment: .bottom)
-            Text("Adding \(name)…")
+            Text("Importing \(name)…")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
@@ -483,13 +643,13 @@ private struct EmptyLibrary: View {
             Image(systemName: isDropTargeted ? "tray.and.arrow.down.fill" : "tray.and.arrow.down")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(isDropTargeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-            Text("Add Your DOS Games")
+            Text("Import Your DOS Games")
                 .font(.title2.weight(.semibold))
             Text("Drop game folders or ZIP files here. DOS Boxer keeps a copy of each game in your library, so your originals stay untouched.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 340)
-            Button("Add Games…", action: addGames)
+            Button("Import Games…", action: addGames)
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)
         }
