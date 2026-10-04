@@ -106,6 +106,15 @@ public struct Gamebox: Sendable, Identifiable {
         name.replacingOccurrences(of: #"\s*\(\d{3}[\dx]\)\s*$"#, with: "", options: .regularExpression)
     }
 
+    /// The full name for a new title, keeping the year: "Crystal Caves II"
+    /// becomes "Crystal Caves II (1991)" (sorting and the Years list use it).
+    public func name(forTitle newTitle: String) -> String {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let alreadyHasYear = trimmed.range(of: #"\(\d{3}[\dx]\)\s*$"#, options: .regularExpression) != nil
+        guard let year, !alreadyHasYear else { return trimmed }
+        return "\(trimmed) (\(year))"
+    }
+
     /// The release year from the name, e.g. 1991 for "Crystal Caves (1991)".
     public var year: Int? {
         name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)

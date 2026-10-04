@@ -205,6 +205,7 @@ struct LibraryView: View {
                     Color.clear
                         .contentShape(.rect)
                         .onTapGesture {
+                            NSApp.keyWindow?.makeFirstResponder(nil)
                             selection = []
                             renaming = nil
                         }
@@ -352,6 +353,8 @@ struct LibraryView: View {
     /// A click on a game: ⌘ toggles it, ⇧ extends from the last click,
     /// otherwise it becomes the only selected game.
     private func click(_ game: Gamebox) {
+        // Clicking a game ends any text editing (e.g. in the info panel)
+        NSApp.keyWindow?.makeFirstResponder(nil)
         let flags = NSEvent.modifierFlags
         if flags.contains(.command) {
             if selection.contains(game.id) { selection.remove(game.id) } else { selection.insert(game.id) }
@@ -554,13 +557,18 @@ private struct GameCard: View {
                     .font(.callout.weight(.medium))
                     .focused($nameFieldFocused)
                     .onSubmit { finishRename(editedName.replacingOccurrences(of: "\n", with: " ")) }
+                    // Return saves (a multi-line field would otherwise add a line)
+                    .onKeyPress(.return) {
+                        finishRename(editedName.replacingOccurrences(of: "\n", with: " "))
+                        return .handled
+                    }
                     .onExitCommand { finishRename(nil) }
                     .onChange(of: nameFieldFocused) { _, focused in
                         // Clicking away keeps the new name, as in Finder
                         if !focused { finishRename(editedName.replacingOccurrences(of: "\n", with: " ")) }
                     }
                     .onAppear {
-                        editedName = gamebox.name
+                        editedName = gamebox.title
                         nameFieldFocused = true
                     }
             } else {

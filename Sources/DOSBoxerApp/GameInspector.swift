@@ -23,6 +23,10 @@ struct GameInspector: View {
                     documents(game)
                 }
                 .padding(20)
+                .frame(maxWidth: .infinity)
+                .contentShape(.rect)
+                // Clicking anywhere else in the panel ends editing
+                .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
             }
         } else {
             ContentUnavailableView("No Game Selected", systemImage: "info.circle",
@@ -52,19 +56,7 @@ struct GameInspector: View {
                 }
                 .buttonStyle(.glass)
                 .help(allFavorite ? "Remove from Favorites" : "Add to Favorites")
-                Menu {
-                    ForEach(library.collections) { collection in
-                        Button(collection.name) { library.add(games.map(\.id), toCollection: collection.id) }
-                    }
-                    if !library.collections.isEmpty { Divider() }
-                    Button("New Collection") { library.createCollection(named: "Untitled Collection", with: games) }
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .menuIndicator(.hidden)
-                .buttonStyle(.glass)
-                .fixedSize()
-                .help("Add to Collection")
+AddToCollectionButton(library: library, games: games)
             }
             .controlSize(.large)
         }
@@ -76,8 +68,8 @@ struct GameInspector: View {
             CoverImage(gamebox: game)
                 .frame(maxHeight: 280)
             // Click the name to rename the game
-            TitleField(name: game.name, enabled: !game.isReadOnly) { newName in
-                library.rename(game, to: newName)
+            TitleField(name: game.title, enabled: !game.isReadOnly) { newTitle in
+                library.rename(game, to: game.name(forTitle: newTitle))
             }
             .id(game.id)
             HStack(spacing: 10) {
@@ -96,21 +88,7 @@ struct GameInspector: View {
                 .buttonStyle(.glass)
                 .controlSize(.large)
                 .help(game.info.isFavorite == true ? "Remove from Favorites" : "Add to Favorites")
-                Menu {
-                    ForEach(library.collections) { collection in
-                        Button(collection.name) { library.add([game.id], toCollection: collection.id) }
-                    }
-                    if !library.collections.isEmpty { Divider() }
-                    Button("New Collection") { library.createCollection(named: "Untitled Collection", with: [game]) }
-                } label: {
-                    Image(systemName: "plus")
-                        .frame(height: Self.buttonContentHeight)
-                }
-                .menuIndicator(.hidden)
-                .buttonStyle(.glass)
-                .controlSize(.large)
-                .fixedSize()
-                .help("Add to Collection")
+AddToCollectionButton(library: library, games: [game])
             }
         }
         .frame(maxWidth: .infinity)
@@ -177,9 +155,6 @@ struct GameInspector: View {
     @ViewBuilder private func documents(_ game: Gamebox) -> some View {
         let documents = game.documents()
         section("Documents") {
-            if documents.isEmpty {
-                Text("None yet.").foregroundStyle(.secondary)
-            }
             ForEach(documents, id: \.self) { document in
                 Button {
                     NSWorkspace.shared.open(document)
@@ -200,10 +175,12 @@ struct GameInspector: View {
                     }
                 }
             }
-            Button("Show in Finder") {
-                NSWorkspace.shared.activateFileViewerSelecting([game.url])
+            if !documents.isEmpty {
+                Button("Show in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting(documents)
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
         }
     }
 
@@ -240,7 +217,7 @@ private struct DetailField: View {
             Spacer()
             TextField(label, text: $text, prompt: Text("Add \(label.lowercased())"))
                 .textFieldStyle(.plain)
-                .multilineTextAlignment(focused ? .leading : .trailing)
+                .multilineTextAlignment(.trailing)
                 .focused($focused)
                 .editingFrame(focused)
                 .disabled(!enabled)
@@ -275,6 +252,11 @@ private struct TitleField: View {
             .focused($focused)
             .editingFrame(focused)
             .disabled(!enabled)
+            // Return saves (a multi-line field would otherwise add a line)
+            .onKeyPress(.return) {
+                focused = false
+                return .handled
+            }
             .onSubmit(commit)
             .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
             .onAppear { text = name }
@@ -287,10 +269,12 @@ private struct TitleField: View {
     }
 }
 
-/// Drop documents (manuals, maps, notes) here to keep them with the game.
+/// Drop documents (manuals, maps, notes) here, or click to choose them, to
+/// keep them with the game.
 private struct DocumentDropZone: View {
     let add: ([URL]) -> Void
     @State private var isTargeted = false
+    @State private var choosing = false
 
     var body: some View {
         Label("Drop documents here to add them", systemImage: "doc.badge.plus")
@@ -303,26 +287,83 @@ private struct DocumentDropZone: View {
                     .strokeBorder(isTargeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary),
                                   style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             }
+            .contentShape(.rect)
+            .onTapGesture { choosing = true }
             .dropDestination(for: URL.self) { urls, _ in
                 add(urls.filter(\.isFileURL))
                 return true
             } isTargeted: { isTargeted = $0 }
+            .fileImporter(isPresented: $choosing, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
+                if case .success(let urls) = result { add(urls) }
+            }
     }
 }
 
 private extension View {
-    /// Looks like plain text until you click in, then like an editable
-    /// text field while you type (as names do in the grid).
+    /// Looks like plain text until you click in, then like an editable text
+    /// field while you type (as names do in the grid). The padding is always
+    /// there, so nothing moves when editing starts; only the field's
+    /// background and border fade in.
     func editingFrame(_ isEditing: Bool) -> some View {
-        padding(.horizontal, isEditing ? 6 : 0)
-            .padding(.vertical, isEditing ? 3 : 0)
+        padding(.horizontal, 6)
+            .padding(.vertical, 3)
             .background {
-                if isEditing {
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color(nsColor: .textBackgroundColor))
-                        .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 1.5)
-                }
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color(nsColor: .textBackgroundColor).opacity(isEditing ? 1 : 0))
+                    .strokeBorder(Color.accentColor.opacity(isEditing ? 0.6 : 0), lineWidth: 1.5)
             }
             .animation(.easeOut(duration: 0.12), value: isEditing)
+    }
+}
+
+/// "+": adds games to a collection, chosen from a small glass popover. A real
+/// button (not a menu), so it matches the buttons beside it in size.
+private struct AddToCollectionButton: View {
+    let library: GameLibrary
+    let games: [Gamebox]
+    @State private var choosing = false
+
+    var body: some View {
+        Button {
+            choosing = true
+        } label: {
+            Image(systemName: "plus")
+                .frame(height: 22)
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .help("Add to Collection")
+        .popover(isPresented: $choosing, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Add to Collection")
+                    .font(.headline)
+                    .padding(.bottom, 6)
+                ForEach(library.collections) { collection in
+                    Button {
+                        library.add(games.map(\.id), toCollection: collection.id)
+                        choosing = false
+                    } label: {
+                        Label(collection.name, systemImage: "rectangle.stack")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
+                }
+                if !library.collections.isEmpty { Divider().padding(.vertical, 4) }
+                Button {
+                    library.createCollection(named: "Untitled Collection", with: games)
+                    choosing = false
+                } label: {
+                    Label("New Collection", systemImage: "plus")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(.vertical, 4)
+            }
+            .padding(14)
+            .frame(minWidth: 200)
+        }
     }
 }

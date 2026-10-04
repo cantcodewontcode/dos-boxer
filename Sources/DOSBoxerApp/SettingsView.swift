@@ -51,7 +51,6 @@ struct MusicSettings: View {
     @State private var status = MT32Setup.status()
     @State private var installed = MT32Setup.installedROMs()
     @State private var choosingROMs = false
-    @State private var isDropTarget = false
     @State private var message: String?
 
     var body: some View {
@@ -71,18 +70,6 @@ struct MusicSettings: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                // Drop ROMs (or the archive.org ZIP) here
-                Label(isDropTarget ? "Release to add" : "Drop ROM files or a ZIP of them here",
-                      systemImage: "square.and.arrow.down")
-                    .font(.callout)
-                    .foregroundStyle(isDropTarget ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background {
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(isDropTarget ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary),
-                                          style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                    }
                 HStack {
                     Button("Add ROMs…") { choosingROMs = true }
                     if !installed.isEmpty {
@@ -116,10 +103,11 @@ struct MusicSettings: View {
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
+        // Dropping ROMs (or the archive.org ZIP) anywhere on the tab adds them
         .dropDestination(for: URL.self) { urls, _ in
             install(urls)
             return true
-        } isTargeted: { isDropTarget = $0 }
+        }
         .fileImporter(isPresented: $choosingROMs, allowedContentTypes: [.data, .folder, .zip],
                       allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }

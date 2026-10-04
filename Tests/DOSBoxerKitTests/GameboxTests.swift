@@ -308,6 +308,16 @@ struct GameboxTests {
         #expect(library.collections.isEmpty)
     }
 
+    @Test func renamingByTitleKeepsTheYear() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: try makeGameFolder(named: "Crystal Caves (1991)"),
+                                                                    inLibrary: library))
+        #expect(gamebox.title == "Crystal Caves")
+        #expect(gamebox.name(forTitle: "Crystal Caves Vol. 1 ") == "Crystal Caves Vol. 1 (1991)")
+        #expect(gamebox.name(forTitle: "Crystal Caves (1992)") == "Crystal Caves (1992)")
+    }
+
     @Test func revertingDeletesOnlySaves() throws {
         let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
