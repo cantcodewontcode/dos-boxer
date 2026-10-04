@@ -25,13 +25,13 @@ public struct GameWindow: View {
     @State private var gamebox: Gamebox?
     @State private var phase: Phase = .loading
     @State private var restartCount = 0
-    /// The glass controls show while the pointer is moving over the game.
-    @State private var showControls = false
+    /// A short glass notice over the game ("Screenshot saved", the mouse
+    /// hint), which fades by itself and can't be clicked.
+    @State private var notice: String?
     /// The app-wide look, so a change in Settings shows up straight away.
     @AppStorage(DisplayLook.defaultsKey) private var appLook: DisplayLook = .crispPixels
     /// When the current session started, for play stats.
     @State private var sessionStart: Date?
-    @State private var lastPointerMove = Date.distantPast
     /// Set by "Play Anyway" when another Mac has the game open.
     @State private var ignoreOtherComputer = false
     @State private var start: Gamebox.Start = .game
@@ -52,13 +52,7 @@ public struct GameWindow: View {
         ZStack {
             if emulator.isRunning {
                 DOSScreen(emulator: emulator)
-                    .onContinuousHover { phase in
-                        if case .active = phase { pointerMoved() }
-                    }
-                GameOverlay(emulator: emulator, gamebox: gamebox, screenshotsFolder: screenshotsFolder,
-                            setLook: setLook,
-                            isVisible: showControls && !emulator.isMouseLocked,
-                            keepVisible: pointerMoved)
+                GameNotices(notice: notice, isPaused: emulator.isPaused)
             } else {
                 StatusCard(gamebox: gamebox, phase: phase, emulatorState: emulator.state,
                            playAgain: { stoppedByUser = true; restartCount += 1 },
@@ -70,38 +64,42 @@ public struct GameWindow: View {
         .background(.black)
         .navigationTitle(gamebox?.name ?? url.deletingPathExtension().lastPathComponent)
         .toolbar {
-            MouseHint(emulator: emulator)
             ToolbarItemGroup(placement: .primaryAction) {
                 if let gamebox, !gamebox.info.launchers.isEmpty {
-                    Menu("Programs", systemImage: "list.bullet") {
-                        ForEach(gamebox.info.launchers) { launcher in
-                            Button(launcher.displayName) { run(.launcher(launcher)) }
-                        }
-                        Divider()
-                        Button("DOS Prompt") { run(.prompt) }
+                    Menu("Programs", systemImage: "apple.terminal") {
+                        programItems(gamebox)
                     }
                     .help("Run another of the game's programs")
                 }
+                Button(emulator.isPaused ? "Resume" : "Pause",
+                       systemImage: emulator.isPaused ? "play.fill" : "pause.fill") { togglePause() }
+                    .help(emulator.isPaused ? "Resume (⌘P)" : "Pause (⌘P)")
+                    .disabled(!emulator.isRunning)
+                Menu("Display Look", systemImage: "tv") {
+                    lookPicker
+                }
+                .help("Display look")
+                Button("Take Screenshot", systemImage: "camera") { takeScreenshot() }
+                    .help("Take a screenshot (⇧⌘S)")
+                    .disabled(!emulator.isRunning)
+            }
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right") {
                     NSApp.keyWindow?.toggleFullScreen(nil)
                 }
-                .help("Enter or leave full screen")
-                Button("Restart", systemImage: "arrow.clockwise") {
-                    stoppedByUser = true
-                    restartCount += 1
-                }
-                .help("Restart the game")
-                .disabled(!emulator.isRunning)
-                Button("Turn Off", systemImage: "power") {
-                    stoppedByUser = true
-                    emulator.stop()
-                }
-                .help("Turn off DOS")
-                .disabled(!emulator.isRunning)
+                .help("Enter or leave full screen (⌘↩)")
+                Button("Turn Off", systemImage: "power") { turnOff() }
+                    .help("Turn off DOS")
+                    .disabled(!emulator.isRunning)
             }
         }
+        .focusedSceneValue(\.gameActions, gameActions)
         .task(id: restartCount) { await prepareAndPlay() }
         .onChange(of: appLook) { applyLook() }
+        .onChange(of: emulator.isMouseLocked) { _, locked in
+            if locked { show("Press ⌘⌥ to release the mouse", for: 3) }
+        }
         .onChange(of: emulator.state) { _, state in
             if state == .running {
                 stoppedByUser = false
@@ -150,13 +148,80 @@ public struct GameWindow: View {
         PlayStats.recordSession(of: gamebox, startedAt: start)
     }
 
-    /// Shows the glass controls, hiding them again once the pointer rests.
-    private func pointerMoved() {
-        lastPointerMove = Date()
-        showControls = true
+    // MARK: Actions (toolbar and the Game menu)
+
+    private var gameActions: GameActions {
+        GameActions(
+            isRunning: emulator.isRunning,
+            isPaused: emulator.isPaused,
+            hasMoreDiscs: gamebox?.info.drives.contains { !($0.moreDiscs ?? []).isEmpty } ?? false,
+            look: gamebox?.info.displayLook,
+            launchers: gamebox?.info.launchers ?? [],
+            togglePause: togglePause,
+            takeScreenshot: takeScreenshot,
+            changeSpeed: { faster in
+                emulator.changeSpeed(faster: faster)
+                show(faster ? "Faster" : "Slower")
+            },
+            nextDisc: {
+                emulator.nextDisc()
+                show("Next disc")
+            },
+            setLook: { look in
+                setLook(look)
+                show(look?.title ?? "Default look")
+            },
+            run: run,
+            restart: {
+                stoppedByUser = true
+                restartCount += 1
+            },
+            turnOff: turnOff)
+    }
+
+    @ViewBuilder private func programItems(_ gamebox: Gamebox) -> some View {
+        ForEach(gamebox.info.launchers) { launcher in
+            Button(launcher.displayName) { run(.launcher(launcher)) }
+        }
+        Divider()
+        Button("DOS Prompt") { run(.prompt) }
+    }
+
+    private var lookPicker: some View {
+        Picker("Display Look", selection: Binding(get: { gamebox?.info.displayLook },
+                                                  set: { gameActions.setLook($0) })) {
+            Text("Default").tag(DisplayLook?.none)
+            Divider()
+            ForEach(DisplayLook.allCases) { Text($0.title).tag(DisplayLook?.some($0)) }
+        }
+        .pickerStyle(.inline)
+    }
+
+    private func togglePause() {
+        emulator.togglePause()
+    }
+
+    private func turnOff() {
+        stoppedByUser = true
+        emulator.stop()
+    }
+
+    private func takeScreenshot() {
+        guard let gamebox, let png = emulator.currentFrame()?.pngData() else { return }
+        do {
+            _ = try gamebox.saveScreenshot(png, in: screenshotsFolder)
+            show("Screenshot saved")
+        } catch {
+            show("Couldn't save the screenshot")
+        }
+    }
+
+    /// Shows a short notice over the game.
+    private func show(_ message: String, for seconds: Double = 1.6) {
+        notice = message
         Task {
-            try? await Task.sleep(for: .seconds(2.5))
-            if Date().timeIntervalSince(lastPointerMove) >= 2.4 { showControls = false }
+            try? await Task.sleep(for: .seconds(seconds))
+            if notice == message { notice = nil }
         }
     }
 
@@ -258,8 +323,9 @@ private struct StatusCard: View {
             case .stopping:
                 Text("Turning off…").foregroundStyle(.secondary)
             case .stopped(let code):
-                Text(code == 0 ? "The game has finished." : "DOS stopped unexpectedly.")
-                    .foregroundStyle(.secondary)
+                if code != 0 {
+                    Text("DOS stopped unexpectedly.").foregroundStyle(.secondary)
+                }
                 HStack(spacing: 12) {
                     Button("Close", action: close).buttonStyle(.glass)
                     Button("Play Again", action: playAgain)

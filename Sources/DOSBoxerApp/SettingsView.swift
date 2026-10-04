@@ -3,10 +3,14 @@ import SwiftUI
 
 /// DOS Boxer's settings (⌘,).
 struct SettingsView: View {
+    /// The open tab, remembered, and set by DOS Boxer to show Music after
+    /// MT-32 ROMs are dropped on the library.
+    @AppStorage(SettingsTab.defaultsKey) private var tab: SettingsTab = .display
+
     var body: some View {
-        TabView {
-            Tab("Display", systemImage: "tv") { DisplaySettings() }
-            Tab("Music", systemImage: "music.note") { MusicSettings() }
+        TabView(selection: $tab) {
+            Tab("Display", systemImage: "tv", value: .display) { DisplaySettings() }
+            Tab("Music", systemImage: "music.note", value: .music) { MusicSettings() }
         }
         .frame(width: 460)
     }
@@ -36,11 +40,18 @@ private struct DisplaySettings: View {
     }
 }
 
+enum SettingsTab: String {
+    case display, music
+    static let defaultsKey = "SettingsTab"
+}
+
 /// Roland MT-32 setup: people add their own ROMs once; every game that
 /// supports the MT-32 can then use it.
-private struct MusicSettings: View {
+struct MusicSettings: View {
     @State private var status = MT32Setup.status()
+    @State private var installed = MT32Setup.installedROMs()
     @State private var choosingROMs = false
+    @State private var isDropTarget = false
     @State private var message: String?
 
     var body: some View {
@@ -55,12 +66,30 @@ private struct MusicSettings: View {
                     case .notInstalled: Text("Not set up").foregroundStyle(.secondary)
                     }
                 }
+                ForEach(installed, id: \.self) { name in
+                    Label(name, systemImage: "memorychip")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                // Drop ROMs (or the archive.org ZIP) here
+                Label(isDropTarget ? "Release to add" : "Drop ROM files or a ZIP of them here",
+                      systemImage: "square.and.arrow.down")
+                    .font(.callout)
+                    .foregroundStyle(isDropTarget ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(isDropTarget ? AnyShapeStyle(.tint) : AnyShapeStyle(.quaternary),
+                                          style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    }
                 HStack {
                     Button("Add ROMs…") { choosingROMs = true }
-                    if status != .notInstalled {
+                    if !installed.isEmpty {
                         Button("Remove ROMs", role: .destructive) {
                             try? MT32Setup.removeAll()
-                            status = MT32Setup.status()
+                            refresh()
+                            message = "The ROMs were removed."
                         }
                     }
                     Spacer()
@@ -74,20 +103,46 @@ private struct MusicSettings: View {
                     Text(message).font(.caption).foregroundStyle(.secondary)
                 }
             } footer: {
-                Text("Many games from the late 1980s and early 1990s were scored for the Roland MT-32. Add a control ROM and a PCM ROM from your own MT-32 or CM-32L, and games set up for it will use it.")
+                Text("""
+                    Many games from the late 1980s and early 1990s were scored for the Roland MT-32. \
+                    DOS Boxer needs two ROM files from an MT-32: a control ROM (MT32_CONTROL.ROM) and \
+                    a sound ROM (MT32_PCM.ROM), or the CM-32L versions (CM32L_CONTROL.ROM and \
+                    CM32L_PCM.ROM). You can find them at \
+                    [archive.org](https://archive.org/details/Roland-MT-32-ROMs).
+                    """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
-        .fileImporter(isPresented: $choosingROMs, allowedContentTypes: [.data, .folder],
+        .dropDestination(for: URL.self) { urls, _ in
+            install(urls)
+            return true
+        } isTargeted: { isDropTarget = $0 }
+        .fileImporter(isPresented: $choosingROMs, allowedContentTypes: [.data, .folder, .zip],
                       allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
-            let added = (try? MT32Setup.install(from: urls)) ?? 0
-            status = MT32Setup.status()
-            message = added == 0 ? "Those files don't look like MT-32 ROMs."
-                : added == 1 ? "Added 1 ROM." : "Added \(added) ROMs."
+            install(urls)
         }
+        // ROMs dropped on the library land here too; show them
+        .onReceive(NotificationCenter.default.publisher(for: .mt32ROMsChanged)) { _ in refresh() }
     }
+
+    private func install(_ urls: [URL]) {
+        let added = (try? MT32Setup.install(from: urls)) ?? 0
+        refresh()
+        message = added == 0 ? "Those files don't look like MT-32 ROMs."
+            : added == 1 ? "Added 1 ROM." : "Added \(added) ROMs."
+    }
+
+    private func refresh() {
+        status = MT32Setup.status()
+        installed = MT32Setup.installedROMs()
+    }
+}
+
+extension Notification.Name {
+    /// Posted when ROMs were installed from outside Settings.
+    static let mt32ROMsChanged = Notification.Name("DOSBoxerMT32ROMsChanged")
 }

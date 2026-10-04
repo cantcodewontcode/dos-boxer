@@ -44,7 +44,7 @@ public enum MT32Setup {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: romsFolder, withIntermediateDirectories: true)
         var added = 0
-        for url in urls.flatMap(candidates) {
+        for url in urls.flatMap({ roms(in: $0) ?? candidates($0) }) {
             let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
             guard controlSizes.contains(size) || size == mt32PCMSize || size == cm32lPCMSize else { continue }
             let destination = romsFolder.appending(path: url.lastPathComponent)
@@ -55,6 +55,53 @@ public enum MT32Setup {
             added += 1
         }
         return added
+    }
+
+    /// The MT-32 ROMs in `url`, if that's what it is: a ROM file, or a
+    /// folder or ZIP holding only ROMs (as the archive.org download does).
+    /// Nil for anything else, such as a game. ZIPs are unpacked into a
+    /// temporary folder, so the URLs are only good until the app quits.
+    public static func roms(in url: URL) -> [URL]? {
+        if url.pathExtension.lowercased() == "zip" {
+            let folder = FileManager.default.temporaryDirectory
+                .appending(path: "dosboxer-roms-\(UUID().uuidString)", directoryHint: .isDirectory)
+            let ditto = Process()
+            ditto.executableURL = URL(filePath: "/usr/bin/ditto")
+            ditto.arguments = ["-x", "-k", url.path(percentEncoded: false), folder.path(percentEncoded: false)]
+            guard (try? ditto.run()) != nil else { return nil }
+            ditto.waitUntilExit()
+            return roms(in: folder)
+        }
+        var isFolder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isFolder) else {
+            return nil
+        }
+        if !isFolder.boolValue {
+            return isROM(url) ? [url] : nil
+        }
+        guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey],
+                                                              options: [.skipsHiddenFiles]) else { return nil }
+        var found: [URL] = []
+        for case let file as URL in enumerator
+        where (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
+            if file.path(percentEncoded: false).contains("__MACOSX") { continue }
+            if isROM(file) { found.append(file) }
+            else if !["txt", "md", "nfo", "diz", "pdf", "url"].contains(file.pathExtension.lowercased()) {
+                return nil  // something else in there: probably a game
+            }
+        }
+        return found.isEmpty ? nil : found
+    }
+
+    private static func isROM(_ url: URL) -> Bool {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        return ["rom", "bin"].contains(url.pathExtension.lowercased())
+            && (controlSizes.contains(size) || size == mt32PCMSize || size == cm32lPCMSize)
+    }
+
+    /// The installed ROM files, by name.
+    public static func installedROMs() -> [String] {
+        romFiles().map(\.lastPathComponent).sorted()
     }
 
     public static func removeAll() throws {

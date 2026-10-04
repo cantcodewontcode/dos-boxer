@@ -8,6 +8,7 @@ struct DOSPromptView: View {
 
     @State private var choosingFolder = false
     @State private var gameFolder: URL?
+    @State private var mouseNotice: String?
 
     var body: some View {
         ZStack {
@@ -15,6 +16,7 @@ struct DOSPromptView: View {
                 // Inset from the window edges so the rounded window corners
                 // never clip the DOS screen.
                 DOSScreen(emulator: emulator)
+                GameNotices(notice: mouseNotice, isPaused: emulator.isPaused)
             } else if case .stopped = emulator.state {
                 // Only after DOS has been turned off; it starts by itself
                 StoppedCard(emulator: emulator, start: { start(folder: gameFolder) })
@@ -26,8 +28,15 @@ struct DOSPromptView: View {
         // Straight into a DOS prompt
         .onAppear { if emulator.state == .idle { start(folder: nil) } }
         .onDisappear { emulator.stop() }
+        .onChange(of: emulator.isMouseLocked) { _, locked in
+            guard locked else { return }
+            mouseNotice = "Press ⌘⌥ to release the mouse"
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                mouseNotice = nil
+            }
+        }
         .toolbar {
-            MouseHint(emulator: emulator)
 
             ToolbarItemGroup(placement: .primaryAction) {
                 Button("Choose Game Folder…", systemImage: "folder.badge.plus") {

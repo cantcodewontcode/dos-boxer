@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Game window**: no more controls floating over the game (a slightly-off click could capture the mouse). The toolbar holds Programs, Pause, Display Look, Screenshot, Full Screen and Turn Off; speed and next disc are in the new Game menu. When the mouse is captured, a short note shows how to release it.
+- **Menu bar and shortcuts**: File (New Collection ⌘N, New DOS Prompt ⌥⌘N, Import Games ⇧⌘I, Play ⌘O, Get Info ⌘I, Show in Finder ⌥⌘R), Edit (Move to Trash ⌘⌫, Find Games ⌘F, Select All ⌘A), View (Show Info Panel ⌥⌘I, Bigger/Smaller Covers ⌘+/⌘−) and Game (Toggle Full Screen ⌘↩, Pause ⌘P, Take Screenshot ⇧⌘S, Faster ⌘] / Slower ⌘[, Next Disc ⇧⌘D, Display Look, Programs, Restart ⌘R, Turn Off).
+
 - **Collections**: hand-built lists of games in the sidebar, like playlists. Make one with the + button or File › New Collection (⌘N), drag games onto it or use right-click › Add to Collection, and rename or delete it from its right-click menu.
 - **Tidier library window**: Import and DOS Prompt, Sort, and Info buttons in the toolbar; search at the top of the sidebar; the game count and cover size slider in a footer. The File and View menus now hold Import Games (⇧⌘I), New DOS Prompt (⌥⌘N), Show Info (⌘I), Bigger/Smaller Covers (⌘+ / ⌘−), sorting, and the library's Finder and location commands.
 - The info panel shows each game's publisher, developer and genre, which you can fill in yourself.
@@ -9,7 +12,7 @@
 
 - **Library sidebar**: All Games, Favorites, Recently Played, Never Played, and one list per decade.
 - **Info panel**: a fold-out panel on the right (the ⓘ button, or right-click > Get Info) with the game's cover, Play and Favorite buttons, play stats, which program it starts with, its own display look, whether it returns to the library when it ends, and the readmes and manuals that came with it.
-- **Roland MT-32 music**: add your own MT-32 or CM-32L ROMs once in Settings › Music, and every game set up for the MT-32 uses them.
+- **Roland MT-32 music**: add your own MT-32 or CM-32L ROMs once in Settings › Music (drop the files, or the ZIP from archive.org, onto the tab or onto the library), and every game set up for the MT-32 uses them. Remove them from the same tab.
 - **Pause**: the pause button in the game controls, or ⌘P. The sound stops and a "Paused" badge shows until you resume.
 - **Paste into DOS**: Edit › Paste (⌘V) types the clipboard's text into the game, handy for long commands or copy-protection answers.
 - **Game controllers**: Xbox, PlayStation, Switch and other controllers macOS supports work as a DOS joystick in the game that's in front. About 200 games that came from eXoDOS also get DOSBox Staging's tailored controller layouts (games added from now on).

@@ -34,6 +34,7 @@ public final class EmulatorMTKView: MTKView {
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         preferredFramesPerSecond = 120
         renderer = FrameRenderer(view: self, emulator: emulator)
+        emulator.releaseMouse = { [weak self] in self?.unlockMouse() }
         delegate = renderer
     }
 
@@ -67,13 +68,6 @@ public final class EmulatorMTKView: MTKView {
     // MARK: Keyboard
 
     public override func keyDown(with event: NSEvent) {
-        // ⌘P pauses (as in DOSBox Staging)
-        if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "p" {
-            emulator.togglePause()
-            // Give the mouse back so the controls can be clicked
-            if emulator.isPaused { unlockMouse() }
-            return
-        }
         // Leave other ⌘ shortcuts to the app menus
         if event.modifierFlags.contains(.command) {
             super.keyDown(with: event)

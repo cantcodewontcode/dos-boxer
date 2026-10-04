@@ -5,6 +5,11 @@ import SwiftUI
 struct DOSBoxerApp: App {
     @State private var library = GameLibrary()
 
+    init() {
+        // DOS Boxer's windows don't use tabs; drop View › Show Tab Bar
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
+
     var body: some Scene {
         Window("Library", id: "library") {
             LibraryView(library: library)
@@ -17,6 +22,7 @@ struct DOSBoxerApp: App {
         .defaultLaunchBehavior(.presented)
         .commands {
             LibraryCommands(library: library)
+            GameCommands()
         }
 
         WindowGroup("Game", for: URL.self) { $url in

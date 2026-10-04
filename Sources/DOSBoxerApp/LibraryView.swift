@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     let library: GameLibrary
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     /// What the file panel is open for. (One panel per view: SwiftUI only
     /// honours the last `.fileImporter` attached to a view.)
@@ -32,6 +33,7 @@ struct LibraryView: View {
     @State private var deleting: [Gamebox.ID] = []
     @State private var deletingAnchor: Gamebox.ID?
     @State private var renamingCollection: GameCollection.ID?
+    @FocusState private var searchFocused: Bool
 
     /// Cover width in points, set with the toolbar slider and remembered.
     @AppStorage("CoverSize") private var coverSize = 150.0
@@ -106,8 +108,19 @@ struct LibraryView: View {
             }
             .navigationTitle(filter.title(in: library))
             .navigationSubtitle(subtitle)
+            .searchFocused($searchFocused)
             .focusedSceneValue(\.libraryActions, LibraryActions(
+                hasSelection: !selection.isEmpty,
                 importGames: { filePanel = .addGames },
+                play: { if let game = selectedGames.first { play(game) } },
+                getInfo: { showInfo = true },
+                showInFinder: { NSWorkspace.shared.activateFileViewerSelecting(selectedGames.map(\.url)) },
+                selectAll: { selection = Set(filteredGames.map(\.id)) },
+                moveToTrash: {
+                    deleting = selectedGames.map(\.id)
+                    deletingAnchor = deleting.first
+                },
+                find: { searchFocused = true },
                 chooseLocation: { filePanel = .chooseLocation },
                 newCollection: newCollection,
                 toggleInfo: { showInfo.toggle() },
@@ -123,7 +136,7 @@ struct LibraryView: View {
                 }
             }
             .dropDestination(for: URL.self) { urls, _ in
-                library.add(urls)
+                importDropped(urls)
                 return true
             } isTargeted: { isDropTargeted = $0 }
             .fileImporter(isPresented: Binding(get: { filePanel != nil }, set: { if !$0 { filePanel = nil } }),
@@ -131,7 +144,7 @@ struct LibraryView: View {
                           allowsMultipleSelection: filePanel == .addGames) { result in
                 guard case .success(let urls) = result, let panel = filePanel else { return }
                 switch panel {
-                case .addGames: library.add(urls)
+                case .addGames: importDropped(urls)
                 case .chooseLocation: if let url = urls.first { library.useLibrary(at: url) }
                 }
                 filePanel = nil
@@ -179,6 +192,13 @@ struct LibraryView: View {
                 // games can be clicked too
                 .frame(maxWidth: .infinity, minHeight: visibleHeight, alignment: .top)
                 .coordinateSpace(.named("grid"))
+                // Edit › Select All (⌘A) selects every game shown, when the
+                // grid has focus (text fields keep their own Select All)
+                .focusable()
+                .focusEffectDisabled()
+                .onCommand(#selector(NSText.selectAll(_:))) {
+                    selection = Set(filteredGames.map(\.id))
+                }
                 // Clicking empty space clears the selection, as in Finder;
                 // dragging there draws a box that selects the games it touches
                 .background {
@@ -213,21 +233,6 @@ struct LibraryView: View {
                     }
                     .onEnded { _ in pinchStartSize = nil }
             )
-            .background {
-                // ⌘⌫ moves the selected game to the Trash (after confirming)
-                Button("Move to Trash") {
-                    let ordered = filteredGames.map(\.id).filter(selection.contains)
-                    deleting = ordered
-                    deletingAnchor = ordered.first
-                }
-                .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(selection.isEmpty)
-                // Invisible but still live (a .hidden() button's shortcut
-                // isn't reliably honoured)
-                .opacity(0)
-                .frame(width: 0, height: 0)
-                .accessibilityHidden(true)
-            }
             .overlay {
                 if isDropTargeted {
                     RoundedRectangle(cornerRadius: 16)
@@ -237,6 +242,11 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+
+    /// The selected games, in grid order.
+    private var selectedGames: [Gamebox] {
+        filteredGames.filter { selection.contains($0.id) }
     }
 
     private var filteredGames: [Gamebox] {
@@ -444,6 +454,22 @@ struct LibraryView: View {
         if single {
             Button("Revert to Original…") { gameToRevert = game }
         }
+    }
+
+    /// Dropped files: MT-32 ROMs go to Settings › Music (which opens to
+    /// show they're installed); everything else is imported as games.
+    private func importDropped(_ urls: [URL]) {
+        var games: [URL] = []
+        var roms: [URL] = []
+        for url in urls {
+            if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
+        }
+        if !roms.isEmpty, (try? MT32Setup.install(from: roms)) ?? 0 > 0 {
+            UserDefaults.standard.set(SettingsTab.music.rawValue, forKey: SettingsTab.defaultsKey)
+            NotificationCenter.default.post(name: .mt32ROMsChanged, object: nil)
+            openSettings()
+        }
+        if !games.isEmpty { library.add(games) }
     }
 
     private func newCollection() {

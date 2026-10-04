@@ -27,6 +27,9 @@ public final class Emulator {
     /// True while the game is paused.
     public private(set) var isPaused = false
 
+    /// Set by the screen view: gives the mouse back to the Mac.
+    @ObservationIgnored var releaseMouse: (() -> Void)?
+
     /// True while the DOS screen has captured the mouse.
     public internal(set) var isMouseLocked = false
 
@@ -143,6 +146,8 @@ public final class Emulator {
     public func togglePause() {
         guard state == .running else { return }
         isPaused.toggle()
+        // Give the mouse back while paused
+        if isPaused { releaseMouse?() }
         send(DBXCommand(type: DBXCommandPause.rawValue, a: isPaused ? 1 : 0, b: 0))
     }
 
