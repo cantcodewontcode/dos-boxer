@@ -39,6 +39,8 @@ public struct GameWindow: View {
     /// switching programs), so the window stays open instead of closing.
     @State private var stoppedByUser = false
     @State private var editingControls = false
+    /// The game was paused for the controls sheet, so resume it after.
+    @State private var pausedForControls = false
 
     enum Phase: Equatable {
         case loading
@@ -80,6 +82,9 @@ public struct GameWindow: View {
                     lookPicker
                 }
                 .help("Display look")
+                Button("Controls", systemImage: "gamecontroller") { editingControls = true }
+                    .help("Controller controls for this game")
+                    .disabled(gamebox == nil)
                 Button("Take Screenshot", systemImage: "camera") { takeScreenshot() }
                     .help("Take a screenshot (⇧⌘S)")
                     .disabled(!emulator.isRunning)
@@ -98,6 +103,16 @@ public struct GameWindow: View {
         .focusedSceneValue(\.gameActions, gameActions)
         .sheet(isPresented: $editingControls) {
             ControlsEditor(controls: gamebox?.info.controls ?? GameControls(), save: setControls)
+        }
+        // The game waits while its controls are being changed
+        .onChange(of: editingControls) { _, editing in
+            if editing, emulator.isRunning, !emulator.isPaused {
+                emulator.togglePause()
+                pausedForControls = true
+            } else if !editing, pausedForControls {
+                pausedForControls = false
+                if emulator.isPaused { emulator.togglePause() }
+            }
         }
         .task(id: restartCount) { await prepareAndPlay() }
         .onChange(of: appLook) { applyLook() }
