@@ -2,7 +2,8 @@
 // image, pulls some audio and shuts down cleanly.
 //
 // Usage: headless_test <output dir> [--restart | dosbox args...]
-// Set DBX_TEST_MOUNT=<folder> to mount that folder as C: while DOS runs.
+// Set DBX_TEST_MOUNT=<folder> to mount that folder as C: while DOS runs, or
+// DBX_TEST_TRIGGER=<action> to run a built-in action like "cycleup".
 //
 // Pass --restart to also try a second run in the same process. That's known
 // to fail (dosbox-staging keeps process-wide state, so the second run never
@@ -80,7 +81,12 @@ bool run_once(int run, const char* image_path)
 		printf("run %d: dbx_start failed\n", run);
 		return false;
 	}
-	if (const char* folder = getenv("DBX_TEST_MOUNT")) {
+	if (const char* action = getenv("DBX_TEST_TRIGGER")) {
+		// Action test: run a built-in action (e.g. cycleup) once DOS is up
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+		dbx_trigger(action);
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+	} else if (const char* folder = getenv("DBX_TEST_MOUNT")) {
 		// Live-mount test: mount a folder as C: once DOS is up
 		std::this_thread::sleep_for(std::chrono::seconds(2));
 		dbx_mount_folder('C', folder);

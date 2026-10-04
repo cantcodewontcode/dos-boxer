@@ -15,6 +15,7 @@ enum Engine {
         }
 
         let audio = AudioOutput()
+        Self.audio = audio
         let started = withCStrings(dosboxArguments) { argv in
             dbx_start(argv, Int32(dosboxArguments.count), publishFrame, sessionEnded, shared)
         }
@@ -24,6 +25,9 @@ enum Engine {
         readCommands()
         dispatchMain()
     }
+
+    /// The session's sound output (for volume changes from the app).
+    nonisolated(unsafe) private static var audio: AudioOutput?
 
     /// Maps the frame buffer file the app created for this session.
     private static func mapSharedFile(at path: String) -> UnsafeMutableRawPointer? {
@@ -43,7 +47,7 @@ enum Engine {
             let size = MemoryLayout<DBXCommand>.size
             while withUnsafeMutableBytes(of: &command, { readFully(into: $0.baseAddress!, count: size) }) {
                 var payload = Data()
-                if command.type == DBXCommandMountFolder.rawValue {
+                if command.type == DBXCommandMountFolder.rawValue || command.type == DBXCommandTrigger.rawValue {
                     let count = Int(command.b)
                     guard count > 0, count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { break }
                     payload = Data(count: count)
@@ -80,6 +84,12 @@ enum Engine {
             dbx_mouse_button(command.a, command.b != 0)
         case DBXCommandQuit.rawValue:
             dbx_request_quit()
+        case DBXCommandTrigger.rawValue:
+            if let action = String(data: payload, encoding: .utf8) {
+                dbx_trigger(action)
+            }
+        case DBXCommandVolume.rawValue:
+            audio?.volume = Float(max(0, min(100, command.a))) / 100
         case DBXCommandMountFolder.rawValue:
             if let path = String(data: payload, encoding: .utf8) {
                 dbx_mount_folder(CChar(command.a), path)

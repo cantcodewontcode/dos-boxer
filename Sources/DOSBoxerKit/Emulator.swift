@@ -32,8 +32,12 @@ public final class Emulator {
     /// Arguments for a session to start once the current one has stopped.
     @ObservationIgnored private var pendingStart: [String]?
 
-    public init() {
-        SharedFrames.removeLeftovers()
+    /// The engine helper to run; nil means the one inside this app.
+    private let engineURL: URL?
+
+    public init(engineURL: URL? = nil) {
+        self.engineURL = engineURL
+        SharedFrames.removeLeftoversOnce()
     }
 
     public var isRunning: Bool { state == .running }
@@ -66,7 +70,7 @@ public final class Emulator {
     }
 
     private func launch(arguments: [String]) {
-        guard let engineURL = Bundle.main.url(forAuxiliaryExecutable: "DOS Boxer Engine") else {
+        guard let engineURL = engineURL ?? Bundle.main.url(forAuxiliaryExecutable: "DOS Boxer Engine") else {
             print("DOS Boxer: the engine helper is missing from the app bundle")
             state = .stopped(exitCode: -1)
             return
@@ -98,6 +102,7 @@ public final class Emulator {
         self.process = process
         self.commands = input.fileHandleForWriting
         state = .running
+        if volume != 1 { sendVolume() }
     }
 
     private func sessionEnded(process finished: Process, exitCode: Int32) {
@@ -125,6 +130,35 @@ public final class Emulator {
         send(DBXCommand(type: DBXCommandMountFolder.rawValue, a: Int32(letter), b: Int32(path.count)),
              payload: path)
         return true
+    }
+
+    /// Makes the game run faster or slower (the emulated CPU's speed).
+    public func changeSpeed(faster: Bool) {
+        trigger(faster ? "cycleup" : "cycledown")
+    }
+
+    /// Switches drive D to the game's next disc (multi-disc games).
+    public func nextDisc() {
+        trigger("swapimg")
+    }
+
+    /// Game sound volume, 0–1. Kept for the session and reapplied on restart.
+    public var volume: Double = 1 {
+        didSet { sendVolume() }
+    }
+
+    private func sendVolume() {
+        send(DBXCommand(type: DBXCommandVolume.rawValue, a: Int32((volume * 100).rounded()), b: 0))
+    }
+
+    private func trigger(_ action: String) {
+        let name = Data(action.utf8)
+        send(DBXCommand(type: DBXCommandTrigger.rawValue, a: 0, b: Int32(name.count)), payload: name)
+    }
+
+    /// The newest frame, e.g. for screenshots.
+    public func currentFrame() -> SharedFrames.Frame? {
+        frames?.latestFrame()
     }
 
     // MARK: Input
@@ -178,8 +212,17 @@ public final class SharedFrames {
         self.size = size
     }
 
-    /// Deletes frame files left behind if the app was force-quit. Only one
-    /// copy of the app uses this folder, so anything there now is stale.
+    /// Deletes frame files left behind if the app was force-quit, once per
+    /// launch (before any session of ours exists; later it would delete
+    /// files that running sessions are using).
+    @MainActor static func removeLeftoversOnce() {
+        guard !hasRemovedLeftovers else { return }
+        hasRemovedLeftovers = true
+        removeLeftovers()
+    }
+
+    @MainActor private static var hasRemovedLeftovers = false
+
     static func removeLeftovers() {
         let folder = FileManager.default.temporaryDirectory
         let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))) ?? []
@@ -189,6 +232,29 @@ public final class SharedFrames {
     }
 
     private static let filePrefix = "dosboxer-frames-"
+
+    /// A copy of the newest frame (BGRA pixels), or nil if none has arrived.
+    public struct Frame: Sendable {
+        public var pixels: Data
+        public var width: Int
+        public var height: Int
+        public var bytesPerRow: Int
+        /// How many frames the engine has produced so far.
+        public var count: UInt64
+    }
+
+    public func latestFrame() -> Frame? {
+        var info = DBXSharedSlot()
+        var pixels: UnsafePointer<UInt8>?
+        var slot: UInt32 = 0
+        var sequence: UInt64 = 0
+        let count = dbx_shared_frame_count(base)
+        guard dbx_shared_latest(base, &info, &pixels, &slot, &sequence), let pixels else { return nil }
+        let data = Data(bytes: pixels, count: Int(info.bytes_per_row) * Int(info.height))
+        guard dbx_shared_is_unchanged(base, slot, sequence) else { return nil }
+        return Frame(pixels: data, width: Int(info.width), height: Int(info.height),
+                     bytesPerRow: Int(info.bytes_per_row), count: count)
+    }
 
     deinit {
         munmap(base, size)

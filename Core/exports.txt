@@ -7,3 +7,4 @@ _dbx_mouse_motion
 _dbx_pull_audio
 _dbx_request_quit
 _dbx_start
+_dbx_trigger

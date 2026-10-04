@@ -8,14 +8,35 @@ struct LibraryView: View {
     let library: GameLibrary
     @Environment(\.openWindow) private var openWindow
 
-    @State private var addingGames = false
-    @State private var choosingLocation = false
+    /// What the file panel is open for. (One panel per view: SwiftUI only
+    /// honours the last `.fileImporter` attached to a view.)
+    enum FilePanel { case addGames, chooseLocation }
+    @State private var filePanel: FilePanel?
     @State private var searchText = ""
     @State private var isDropTargeted = false
     @State private var selection: Gamebox.ID?
     @State private var gameToRevert: Gamebox?
+    /// The game whose rename / delete popover is showing.
+    @State private var renaming: Gamebox.ID?
+    @State private var deleting: Gamebox.ID?
 
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 24)]
+    /// Cover width in points, set with the toolbar slider and remembered.
+    @AppStorage("CoverSize") private var coverSize = 150.0
+    private static let coverSizes = 100.0...260.0
+    /// The cover size when a pinch began.
+    @State private var pinchStartSize: Double?
+    @AppStorage("SortOrder") private var sortOrder: SortOrder = .name
+
+    /// When a game was last opened by double-click (cancels a pending rename).
+    @State private var lastPlayRequest = Date.distantPast
+
+    /// Height of the visible grid area.
+    @State private var visibleHeight: CGFloat = 0
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: coverSize, maximum: coverSize * 1.2), spacing: coverSize * 0.16,
+                  alignment: .top)]
+    }
 
     var body: some View {
         content
@@ -24,21 +45,39 @@ struct LibraryView: View {
             .searchable(text: $searchText, prompt: "Search games")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    if library.importsInProgress > 0 {
-                        ProgressView().controlSize(.small).help("Adding games…")
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo").imageScale(.small)
+                        Slider(value: $coverSize, in: Self.coverSizes)
+                            .frame(width: 110)
+                            .controlSize(.small)
+                        Image(systemName: "photo").imageScale(.large)
                     }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .help("Cover size")
                 }
-                .sharedBackgroundVisibility(.hidden)
+                // Keep the slider in its own capsule, apart from the buttons
+                ToolbarSpacer(.fixed, placement: .primaryAction)
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button("Add Games…", systemImage: "plus") { addingGames = true }
+                    Button("Add Games…", systemImage: "plus") { filePanel = .addGames }
                         .help("Add game folders, ZIP files or gameboxes")
+                    Button("DOS Prompt", systemImage: "apple.terminal") { openWindow(id: "dos-prompt") }
+                        .help("Open a DOS prompt")
                     Menu("Library", systemImage: "ellipsis") {
+                        Picker("Sort By", selection: $sortOrder) {
+                            ForEach(SortOrder.allCases) { Text($0.title).tag($0) }
+                        }
+                        .pickerStyle(.inline)
+                        Divider()
                         Button("Show Library in Finder") {
                             NSWorkspace.shared.activateFileViewerSelecting([library.rootURL])
                         }
-                        Button("Choose Library Location…") { choosingLocation = true }
-                        Divider()
-                        Button("Open DOS Prompt") { openWindow(id: "dos-prompt") }
+                        Button("Show Screenshots in Finder") {
+                            try? FileManager.default.createDirectory(at: library.screenshotsURL,
+                                                                     withIntermediateDirectories: true)
+                            NSWorkspace.shared.activateFileViewerSelecting([library.screenshotsURL])
+                        }
+                        Button("Choose Library Location…") { filePanel = .chooseLocation }
                     }
                 }
             }
@@ -53,13 +92,15 @@ struct LibraryView: View {
                 library.add(urls)
                 return true
             } isTargeted: { isDropTargeted = $0 }
-            .fileImporter(isPresented: $addingGames,
-                          allowedContentTypes: [.folder, .zip, .dosGame],
-                          allowsMultipleSelection: true) { result in
-                if case .success(let urls) = result { library.add(urls) }
-            }
-            .fileImporter(isPresented: $choosingLocation, allowedContentTypes: [.folder]) { result in
-                if case .success(let url) = result { library.useLibrary(at: url) }
+            .fileImporter(isPresented: Binding(get: { filePanel != nil }, set: { if !$0 { filePanel = nil } }),
+                          allowedContentTypes: filePanel == .chooseLocation ? [.folder] : [.folder, .zip, .dosGame, .boxerGame],
+                          allowsMultipleSelection: filePanel == .addGames) { result in
+                guard case .success(let urls) = result, let panel = filePanel else { return }
+                switch panel {
+                case .addGames: library.add(urls)
+                case .chooseLocation: if let url = urls.first { library.useLibrary(at: url) }
+                }
+                filePanel = nil
             }
             .confirmationDialog("Revert \(gameToRevert?.name ?? "this game") to how it was added?",
                                 isPresented: .constant(gameToRevert != nil), presenting: gameToRevert) { game in
@@ -82,13 +123,52 @@ struct LibraryView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if library.games.isEmpty {
-            EmptyLibrary(isDropTargeted: isDropTargeted, addGames: { addingGames = true })
+        if library.games.isEmpty && library.pendingImports.isEmpty {
+            EmptyLibrary(isDropTargeted: isDropTargeted, addGames: { filePanel = .addGames })
         } else {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 28) {
+                LazyVGrid(columns: columns, alignment: .center, spacing: coverSize * 0.19) {
+                    ForEach(library.pendingImports) { pending in
+                        PendingCard(name: pending.name, coverSize: coverSize)
+                    }
                     ForEach(filteredGames) { game in
-                        GameCard(gamebox: game, isSelected: selection == game.id)
+                        GameCard(gamebox: game, isSelected: selection == game.id, coverSize: coverSize,
+                                 isRenaming: renaming == game.id,
+                                 clickName: { wasSelected in
+                                     // Like Finder: clicking the name of a game that was
+                                     // already selected renames it, after a short pause so
+                                     // a double-click to play doesn't also start a rename
+                                     selection = game.id
+                                     guard wasSelected, game.url.pathExtension.lowercased() == "dosgame" else { return }
+                                     let clickedAt = Date()
+                                     lastPlayRequest = .distantPast
+                                     Task {
+                                         try? await Task.sleep(for: .seconds(0.5))
+                                         if selection == game.id, lastPlayRequest < clickedAt {
+                                             renaming = game.id
+                                         }
+                                     }
+                                 },
+                                 finishRename: { newName in
+                                     // Return also ends editing by losing focus; act once
+                                     guard renaming == game.id else { return }
+                                     renaming = nil
+                                     if let newName { library.rename(game, to: newName) }
+                                 })
+                            // Drop an image on a game to make it the cover
+                            .dropDestination(for: URL.self) { urls, _ in
+                                guard let image = urls.first(where: {
+                                    ["png", "jpg", "jpeg", "heic"].contains($0.pathExtension.lowercased())
+                                }) else { return false }
+                                library.setCover(of: game, to: image)
+                                return true
+                            }
+                            .popover(isPresented: popoverBinding($deleting, game), arrowEdge: .bottom) {
+                                DeletePopover(game: game) {
+                                    deleting = nil
+                                    library.delete(game)
+                                } cancel: { deleting = nil }
+                            }
                             .onTapGesture(count: 2) { play(game) }
                             .simultaneousGesture(TapGesture().onEnded { selection = game.id })
                             .contextMenu {
@@ -97,11 +177,59 @@ struct LibraryView: View {
                                     NSWorkspace.shared.activateFileViewerSelecting([game.url])
                                 }
                                 Divider()
+                                Button("Find Cover Art") { library.findCoverArt(for: game) }
+                                Button("Remove Cover Art") { library.removeCover(of: game) }
+                                    .disabled(game.coverURL == nil)
+                                Divider()
+                                Button("Rename") {
+                                    selection = game.id
+                                    renaming = game.id
+                                }
+                                    .disabled(game.url.pathExtension.lowercased() != "dosgame")
+                                Button("Move to Trash…") { deleting = game.id }
+                                Divider()
                                 Button("Revert to Original…") { gameToRevert = game }
                             }
                     }
                 }
                 .padding(28)
+                // Fill at least the visible area, so empty space below the
+                // games can be clicked too
+                .frame(maxWidth: .infinity, minHeight: visibleHeight, alignment: .top)
+                // Clicking empty space clears the selection, as in Finder
+                .background {
+                    Color.clear
+                        .contentShape(.rect)
+                        .onTapGesture {
+                            selection = nil
+                            renaming = nil
+                        }
+                }
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { visibleHeight = $0 }
+            // Pinch to zoom the covers, like Photos
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { value in
+                        let start = pinchStartSize ?? coverSize
+                        pinchStartSize = start
+                        coverSize = min(max(start * value.magnification, Self.coverSizes.lowerBound),
+                                        Self.coverSizes.upperBound)
+                    }
+                    .onEnded { _ in pinchStartSize = nil }
+            )
+            .background {
+                // ⌘⌫ moves the selected game to the Trash (after confirming)
+                Button("Move to Trash") {
+                    if let selection { deleting = selection }
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(selection == nil)
+                // Invisible but still live (a .hidden() button's shortcut
+                // isn't reliably honoured)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
             }
             .overlay {
                 if isDropTargeted {
@@ -114,9 +242,16 @@ struct LibraryView: View {
         }
     }
 
+    /// A popover binding that's "presented" while `state` holds this game.
+    private func popoverBinding(_ state: Binding<Gamebox.ID?>, _ game: Gamebox) -> Binding<Bool> {
+        Binding(get: { state.wrappedValue == game.id },
+                set: { if !$0 && state.wrappedValue == game.id { state.wrappedValue = nil } })
+    }
+
     private var filteredGames: [Gamebox] {
-        guard !searchText.isEmpty else { return library.games }
-        return library.games.filter { $0.name.localizedStandardContains(searchText) }
+        let games = searchText.isEmpty ? library.games
+            : library.games.filter { $0.name.localizedStandardContains(searchText) }
+        return sortOrder.sorted(games)
     }
 
     private var subtitle: String {
@@ -148,30 +283,161 @@ struct LibraryView: View {
     #endif
 
     private func play(_ game: Gamebox) {
+        lastPlayRequest = Date()
         openWindow(value: game.url)
     }
 }
 
-/// One game in the grid: its box art with the name underneath.
+/// How the library grid is ordered. Ties always fall back to the name.
+enum SortOrder: String, CaseIterable, Identifiable {
+    case name, year, recentlyPlayed, mostPlayed, recentlyAdded
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .name: "Name"
+        case .year: "Year"
+        case .recentlyPlayed: "Recently Played"
+        case .mostPlayed: "Most Played"
+        case .recentlyAdded: "Recently Added"
+        }
+    }
+
+    func sorted(_ games: [Gamebox]) -> [Gamebox] {
+        func byName(_ a: Gamebox, _ b: Gamebox) -> Bool {
+            a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }
+        /// Orders by `key` (games without one last), then by name.
+        func by<Key: Comparable>(_ key: (Gamebox) -> Key?, descending: Bool) -> [Gamebox] {
+            games.sorted { a, b in
+                switch (key(a), key(b)) {
+                case let (x?, y?) where x != y: descending ? x > y : x < y
+                case (_?, nil): true
+                case (nil, _?): false
+                default: byName(a, b)
+                }
+            }
+        }
+        switch self {
+        case .name: return games.sorted(by: byName)
+        case .year: return by({ $0.year }, descending: false)
+        case .recentlyPlayed: return by({ $0.stats.lastPlayed }, descending: true)
+        case .mostPlayed: return by({ $0.stats.launches > 0 ? $0.stats.launches : nil }, descending: true)
+        case .recentlyAdded: return by({ $0.addedDate }, descending: true)
+        }
+    }
+}
+
+/// One game in the grid: its box art with the name underneath. The name
+/// turns into a text field while the game is being renamed.
 private struct GameCard: View {
     let gamebox: Gamebox
     let isSelected: Bool
+    let coverSize: Double
+    let isRenaming: Bool
+    /// Called when the name is clicked, with whether the game was already
+    /// selected before this click.
+    let clickName: (_ wasSelected: Bool) -> Void
+    /// Called with the new name, or nil if renaming was cancelled.
+    let finishRename: (String?) -> Void
+
+    @State private var editedName = ""
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: 10) {
             CoverImage(gamebox: gamebox)
-                .frame(height: 190, alignment: .bottom)
-            Text(gamebox.name)
-                .font(.callout.weight(.medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(isSelected ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear),
-                            in: .capsule)
+                .frame(height: coverSize * 1.25, alignment: .bottom)
+            if isRenaming {
+                // Grows to a second line only when the name needs it
+                TextField("Name", text: $editedName, axis: .vertical)
+                    .lineLimit(1...2)
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.center)
+                    .font(.callout.weight(.medium))
+                    .focused($nameFieldFocused)
+                    .onSubmit { finishRename(editedName.replacingOccurrences(of: "\n", with: " ")) }
+                    .onExitCommand { finishRename(nil) }
+                    .onChange(of: nameFieldFocused) { _, focused in
+                        // Clicking away keeps the new name, as in Finder
+                        if !focused { finishRename(editedName.replacingOccurrences(of: "\n", with: " ")) }
+                    }
+                    .onAppear {
+                        editedName = gamebox.name
+                        nameFieldFocused = true
+                    }
+            } else {
+                Text(gamebox.name)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(2)
+                    // Trim the middle so the year at the end stays visible
+                    .truncationMode(.middle)
+                    .multilineTextAlignment(.center)
+                    .help(gamebox.name)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(isSelected ? AnyShapeStyle(.tint.opacity(0.25)) : AnyShapeStyle(.clear),
+                                in: .capsule)
+                    // `isSelected` here is the state before this click
+                    .onTapGesture { clickName(isSelected) }
+            }
         }
         .contentShape(.rect)
         .help("Double-click to play")
+    }
+}
+
+/// Confirms moving a game to the Trash, in a glass popover by its cover.
+private struct DeletePopover: View {
+    let game: Gamebox
+    let delete: () -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Move “\(game.name)” to the Trash?")
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Its saved games will also be moved to the Trash.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Cancel", action: cancel)
+                    .buttonStyle(.glass)
+                    .keyboardShortcut(.cancelAction)
+                Button("Move to Trash", role: .destructive, action: delete)
+                    .buttonStyle(.glassProminent)
+                    .tint(.red)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 4)
+        }
+        .frame(width: 280)
+        .padding(18)
+    }
+}
+
+/// A game still being copied into the library.
+private struct PendingCard: View {
+    let name: String
+    let coverSize: Double
+
+    var body: some View {
+        VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.quaternary)
+                .aspectRatio(0.8, contentMode: .fit)
+                .overlay { ProgressView() }
+                .frame(height: coverSize * 1.25, alignment: .bottom)
+            Text("Adding \(name)…")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
     }
 }
 

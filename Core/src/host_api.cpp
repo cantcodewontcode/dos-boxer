@@ -173,6 +173,18 @@ void dbx_mount_folder(const char drive_letter, const char* const path)
 	});
 }
 
+void dbx_trigger(const char* const action)
+{
+	if (!is_running || !action) {
+		return;
+	}
+	queue_request([name = std::string(action)] {
+		if (!DOSBOXER_TriggerHandler(name.c_str())) {
+			LOG_WARNING("DOS BOXER: No action called '%s'", name.c_str());
+		}
+	});
+}
+
 void dbx_pull_audio(float* const interleaved_stereo, const int32_t frame_count)
 {
 	if (!is_running) {

@@ -44,6 +44,12 @@ final class AudioOutput {
         }
     }
 
+    /// 0 (silent) to 1 (full).
+    var volume: Float {
+        get { engine.mainMixerNode.outputVolume }
+        set { engine.mainMixerNode.outputVolume = newValue }
+    }
+
     func stop() {
         engine.pause()
     }

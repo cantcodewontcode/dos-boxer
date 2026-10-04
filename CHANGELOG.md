@@ -2,13 +2,27 @@
 
 ## Unreleased
 
-- **Game library.** Drop game folders, ZIP files (including eXoDOS archives) or gameboxes onto the library window, and DOS Boxer keeps a copy of each as a `.dosgame` gamebox in `~/DOSBoxer` (you can choose another location, including iCloud Drive, Dropbox or OneDrive). Box art that comes with a game becomes its cover. Double-click a game to play it in its own window; several games can run at once.
+- Remove Cover Art, for a wrong cover or none at all; the game then stays without one until you look for art again.
+
+- **Game library.** Drop game folders, ZIP files (including eXoDOS archives) or gameboxes onto the library window, and DOS Boxer keeps a copy of each as a `.dosgame` gamebox in `~/DOSBoxer/Games` (you can choose another location, including iCloud Drive, Dropbox or OneDrive). Box art that comes with a game becomes its cover. Double-click a game to play it in its own window; several games can run at once.
+- **Game controls in Liquid Glass.** Move the pointer over a running game to show floating controls: slower and faster, volume, next disc (multi-disc games) and screenshot (saved to the library's Screenshots folder). They fade when the pointer rests or the mouse is captured.
+- Rename games in place, as in Finder: click a selected game's name (or right-click > Rename), type, and press Return. Move them to the Trash with right-click > Move to Trash… or ⌘⌫, confirmed in a glass popover. Deleting only removes DOS Boxer's copy; it can be restored from the Trash.
+- **Sorting**: Name, Year, Recently Played, Most Played or Recently Added, from the library's … menu (ties sort by name). DOS Boxer now records how often and how long each game is played; each Mac keeps its own record, so shared libraries don't conflict.
+- **Cover size**: a slider in the library toolbar, or pinch to zoom on a trackpad; remembered between launches.
+- **Box art.** Games without a cover get one automatically from the community libretro-thumbnails collection (about half of eXoDOS's games are covered; edition tags like "SCI" or "CD" in a game's name are ignored when matching). Right-click a game for Find Cover Art, or drop any image onto a game to make it the cover.
 - **Gameboxes** hold a game's files, settings, launchers and cover. Everything a game writes (saves, high scores, settings) goes to a separate Saves folder, so the original files stay untouched and "Revert to Original" can undo it all.
 - When a game quits back to DOS, its window closes and you're back in the library (each gamebox can turn this off). The Programs menu also offers a DOS prompt with the game's drives.
 - Games that start straight away skip DOS Boxer's header, and games started from a batch file now close properly when they end.
 - Games without box art show a floppy-disk placeholder.
 - DOS Boxer picks the program that starts each game (start scripts first, never setup tools), and lists the game's other programs in the toolbar.
-- Opens original Boxer gameboxes (`.boxer`) without changing them.
+- Opens original Boxer gameboxes (`.boxer`) without changing them, and adding one to the library converts it, keeping its box art.
+- Games being added appear in the library straight away with a progress spinner.
+- If another Mac sharing the library is playing a game, DOS Boxer warns before you play it too.
+- A DOS Prompt button in the library toolbar.
+- CD-based games: disc images (CUE, ISO, CCD, MDF) found in a game are mounted as drive D, including multi-disc games.
+- Better at picking the right program: skips DOS extenders, runtimes, patch tools and installers.
+- Fixed: starting several games at once could make one fail to start.
+- DOSBoxerLab, a developer tool that runs a game collection through DOS Boxer unattended and records which games start.
 - Games in a cloud-synced library are fully downloaded before they start, so they never stall mid-game.
 - DOS Boxer is no longer sandboxed (it's distributed outside the App Store with Developer ID signing and notarization).
 

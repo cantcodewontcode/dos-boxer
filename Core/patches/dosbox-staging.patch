@@ -99,10 +99,10 @@ index fd840770e..d32658d25 100644
  	while ((*loop)() == 0 && !is_shutdown_requested)
 diff --git a/src/dosboxer/dosboxer_hooks.h b/src/dosboxer/dosboxer_hooks.h
 new file mode 100644
-index 000000000..1553fdb7d
+index 000000000..f1dbd3c67
 --- /dev/null
 +++ b/src/dosboxer/dosboxer_hooks.h
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,32 @@
 +// DOS Boxer embedding hooks.
 +//
 +// The core provides weak default definitions (stock behaviour), so the plain
@@ -130,7 +130,38 @@ index 000000000..1553fdb7d
 +// change emulator state (e.g. mount drives while DOS is running).
 +void DOSBOXER_ProcessHostRequests();
 +
++// Provided by the mapper: runs a hotkey handler ("cycleup", "cycledown",
++// "pause", "swapimg", …) by name. Emulator thread only.
++bool DOSBOXER_TriggerHandler(const char* name);
++
 +#endif
+diff --git a/src/gui/mapper.cpp b/src/gui/mapper.cpp
+index 1a92e0094..b56aec366 100644
+--- a/src/gui/mapper.cpp
++++ b/src/gui/mapper.cpp
+@@ -2554,6 +2554,22 @@ static void CreateDefaultBinds()
+ 	LOG_MSG("MAPPER: Loaded default key bindings");
+ }
+ 
++// DOS Boxer: runs a registered hotkey handler by name (e.g. "cycleup",
++// "pause", "swapimg") as if its key were pressed and released, so the host
++// can offer the same actions in its own UI. Emulator thread only.
++bool DOSBOXER_TriggerHandler(const char* name)
++{
++	const std::string wanted = std::string("hand_") + name;
++	for (auto* handler_event : handlergroup) {
++		if (wanted == handler_event->GetName()) {
++			handler_event->Active(true);
++			handler_event->Active(false);
++			return true;
++		}
++	}
++	return false;
++}
++
+ void MAPPER_AddHandler(MAPPER_Handler *handler,
+                        SDL_Scancode key,
+                        uint32_t mods,
 diff --git a/src/gui/sdl_gui.cpp b/src/gui/sdl_gui.cpp
 index 433d4a223..43bdfdfec 100644
 --- a/src/gui/sdl_gui.cpp

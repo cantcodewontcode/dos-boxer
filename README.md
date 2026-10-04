@@ -34,4 +34,4 @@ The first build compiles the emulator and its dependencies, which takes a while 
 
 ## License
 
-DOS Boxer is free software, licensed under the GNU General Public License, version 2 or (at your option) any later version. See [LICENSE](LICENSE). DOSBox Staging is licensed under GPL-2.0-or-later. The floppy-disk icon is from [Phosphor Icons](https://phosphoricons.com) (MIT; see `Licenses/`).
+DOS Boxer is free software, licensed under the GNU General Public License, version 2 or (at your option) any later version. See [LICENSE](LICENSE). DOSBox Staging is licensed under GPL-2.0-or-later. Box art is downloaded on demand from the community [libretro-thumbnails](https://github.com/libretro-thumbnails/DOS) collection into your own library; none is bundled with the app. The floppy-disk icon is from [Phosphor Icons](https://phosphoricons.com) (MIT; see `Licenses/`).

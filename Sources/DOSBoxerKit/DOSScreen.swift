@@ -1,11 +1,14 @@
-import DOSBoxerKit
 import SwiftUI
 
 /// The running DOS screen, inset so the rounded window corners never clip it.
-struct DOSScreen: View {
+public struct DOSScreen: View {
     let emulator: Emulator
 
-    var body: some View {
+    public init(emulator: Emulator) {
+        self.emulator = emulator
+    }
+
+    public var body: some View {
         EmulatorView(emulator: emulator)
             .padding(12)
     }
@@ -13,10 +16,14 @@ struct DOSScreen: View {
 
 /// Plain toolbar text (no glass: it's a hint, not a control) telling people
 /// how to get the mouse in and out of DOS.
-struct MouseHint: ToolbarContent {
+public struct MouseHint: ToolbarContent {
     let emulator: Emulator
 
-    var body: some ToolbarContent {
+    public init(emulator: Emulator) {
+        self.emulator = emulator
+    }
+
+    public var body: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Text(hint)
                 .font(.callout)

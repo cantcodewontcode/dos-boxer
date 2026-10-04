@@ -21,6 +21,26 @@ extension UTType {
 public struct Gamebox: Sendable, Identifiable {
     public var url: URL
     public var info: Info
+    /// The box art file, looked up when the gamebox is opened. Stored (not
+    /// computed from disk) so a new cover makes the value change and views
+    /// showing it redraw.
+    public private(set) var coverURL: URL?
+    /// When the cover file last changed, so a replaced cover redraws too.
+    public private(set) var coverDate: Date?
+    /// How much the game has been played, across all Macs.
+    public private(set) var stats = PlayStats()
+
+    /// When the game joined the library (falling back to the package's
+    /// creation date for games added before this was recorded).
+    public var addedDate: Date? {
+        info.dateAdded ?? (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate)
+    }
+
+    /// The release year from the name, e.g. 1991 for "Crystal Caves (1991)".
+    public var year: Int? {
+        name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
+            .flatMap { Int(name[$0].dropFirst().prefix(4)) }
+    }
     /// Where writes go when they can't live inside the package (original
     /// Boxer gameboxes, which we only read). Nil means `<package>/Saves`.
     var externalSavesURL: URL?
@@ -40,6 +60,11 @@ public struct Gamebox: Sendable, Identifiable {
         /// Close the game when its program ends, instead of leaving people
         /// at a DOS prompt. Missing means yes.
         public var quitsWhenGameEnds: Bool?
+        /// When the game was added to the library.
+        public var dateAdded: Date?
+        /// Set when someone removed the cover on purpose, so it isn't
+        /// fetched again automatically.
+        public var noCover: Bool?
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
     }
@@ -49,8 +74,19 @@ public struct Gamebox: Sendable, Identifiable {
         /// "C", "D", …
         public var letter: String
         public var kind: Kind
-        /// Path inside the gamebox, e.g. "Drives/C".
+        /// Path inside the gamebox: a folder ("Drives/C") or, for CD-ROMs, a
+        /// disc image ("Drives/C/cd/game.cue").
         public var path: String
+        /// Further disc images for multi-disc games (swapped in DOS with
+        /// Ctrl+F4).
+        public var moreDiscs: [String]?
+
+        public init(letter: String, kind: Kind, path: String, moreDiscs: [String]? = nil) {
+            self.letter = letter
+            self.kind = kind
+            self.path = path
+            self.moreDiscs = moreDiscs
+        }
     }
 
     /// A program people start the game with.
@@ -69,13 +105,29 @@ public struct Gamebox: Sendable, Identifiable {
     static let savesFolder = "Saves"
     static let coverBaseName = "Cover"
 
+    /// True when the package itself must not be written to (original Boxer
+    /// gameboxes). Their saves live elsewhere.
+    public var isReadOnly: Bool {
+        externalSavesURL != nil || url.pathExtension.lowercased() != "dosgame"
+    }
+
     public var savesURL: URL {
         externalSavesURL ?? url.appending(path: Self.savesFolder, directoryHint: .isDirectory)
     }
 
-    public var coverURL: URL? {
+    public init(url: URL, info: Info) {
+        self.url = url
+        self.info = info
+        self.coverURL = Self.findCover(in: url)
+        self.coverDate = coverURL.flatMap {
+            try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        }
+        self.stats = PlayStats.load(for: url)
+    }
+
+    private static func findCover(in url: URL) -> URL? {
         ["jpeg", "jpg", "png", "heic"]
-            .map { url.appending(path: "\(Self.coverBaseName).\($0)") }
+            .map { url.appending(path: "\(coverBaseName).\($0)") }
             .first { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
     }
 
@@ -90,7 +142,9 @@ public struct Gamebox: Sendable, Identifiable {
             return try BoxerGamebox.open(url)
         }
         let data = try Data(contentsOf: url.appending(path: infoFileName))
-        let info = try JSONDecoder().decode(Info.self, from: data)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let info = try decoder.decode(Info.self, from: data)
         return Gamebox(url: url, info: info)
     }
 
@@ -98,7 +152,25 @@ public struct Gamebox: Sendable, Identifiable {
     public func save() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
         try encoder.encode(info).write(to: url.appending(path: Self.infoFileName), options: .atomic)
+    }
+
+    /// Saves a screenshot as "<game> <date> <time>.png" in `folder`
+    /// (normally the library's Screenshots folder). Returns its location.
+    public func saveScreenshot(_ png: Data, in folder: URL) throws -> URL {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let stamp = Date().formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false)
+            .dateTimeSeparator(.space).timeSeparator(.omitted))
+        let safeName = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let file = folder.appending(path: "\(safeName) \(stamp).png")
+        try png.write(to: file, options: .atomic)
+        return file
+    }
+
+    /// Where screenshots go when there's no library.
+    public static var defaultScreenshotsFolder: URL {
+        URL.picturesDirectory.appending(path: "DOS Boxer", directoryHint: .isDirectory)
     }
 
     /// Discards everything the game has written (saves, settings it changed),
@@ -135,7 +207,10 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" >NUL")
                 mounts.append("@MOUNT -t overlay \(drive.letter) \"\(saves.path(percentEncoded: false))\" >NUL")
             case .cdROM:
-                mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t cdrom >NUL")
+                let discs = ([drive.path] + (drive.moreDiscs ?? []))
+                    .map { "\"\(url.appending(path: $0).path(percentEncoded: false))\"" }
+                    .joined(separator: " ")
+                mounts.append("@MOUNT \(drive.letter) \(discs) -t cdrom >NUL")
             case .floppy:
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }

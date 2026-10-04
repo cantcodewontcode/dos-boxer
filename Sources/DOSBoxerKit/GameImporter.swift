@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Turns a game folder, ZIP archive or existing gamebox into a `.dosgame` in
@@ -28,6 +29,8 @@ enum GameImporter {
             let destination = uniqueURL(named: source.deletingPathExtension().lastPathComponent, in: library)
             try fileManager.copyItem(at: source, to: destination)
             return destination
+        case "boxer":
+            return try convertBoxerGamebox(source, library: library)
         case "zip", "exo":
             let unpacked = try unzip(source)
             defer { try? fileManager.removeItem(at: unpacked) }
@@ -54,8 +57,64 @@ enum GameImporter {
         }
 
         var info = Gamebox.Info(name: name)
+        info.dateAdded = Date()
         info.drives = [Gamebox.Drive(letter: "C", kind: .hardDisk, path: "\(Gamebox.drivesFolder)/C")]
+        // CD-based games ship their disc as an image; it becomes drive D
+        let discs = DiscImageFinder.discs(in: driveC)
+        if let first = discs.first {
+            let relative = { (disc: URL) in
+                ([Gamebox.drivesFolder, "C"] + LauncherFinder.relativeComponents(of: disc, under: driveC))
+                    .joined(separator: "/")
+            }
+            info.drives.append(Gamebox.Drive(letter: "D", kind: .cdROM, path: relative(first),
+                                             moreDiscs: discs.count > 1 ? discs.dropFirst().map(relative) : nil))
+        }
         info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
+        try Gamebox(url: destination, info: info).save()
+        return destination
+    }
+
+    /// Copies an original Boxer gamebox into a new `.dosgame`: its drive
+    /// folders, default program and box art (kept as Boxer's custom icon).
+    private static func convertBoxerGamebox(_ source: URL, library: URL) throws -> URL {
+        let fileManager = FileManager.default
+        let boxer = try BoxerGamebox.open(source)
+        let destination = uniqueURL(named: boxer.name, in: library)
+        try fileManager.createDirectory(at: destination.appending(path: Gamebox.drivesFolder),
+                                        withIntermediateDirectories: true)
+
+        var info = boxer.info
+        info.dateAdded = Date()
+        info.drives = []
+        for drive in boxer.info.drives {
+            let target = "\(Gamebox.drivesFolder)/\(drive.letter)"
+            let from = source.appending(path: drive.path, directoryHint: .isDirectory)
+            let to = destination.appending(path: target, directoryHint: .isDirectory)
+            if drive.path == "." {
+                // Old-style gamebox: drive C is the package root, minus Boxer's own files
+                try fileManager.createDirectory(at: to, withIntermediateDirectories: true)
+                let skip: Set<String> = ["Game Info.plist", "Icon\r", "DOSBox Preferences.conf"]
+                for item in try fileManager.contentsOfDirectory(atPath: from.path(percentEncoded: false))
+                where !skip.contains(item) && !["harddisk", "cdrom", "floppy"].contains((item as NSString).pathExtension.lowercased()) {
+                    try fileManager.copyItem(at: from.appending(path: item), to: to.appending(path: item))
+                }
+            } else {
+                try fileManager.copyItem(at: from, to: to)
+            }
+            info.drives.append(Gamebox.Drive(letter: drive.letter, kind: drive.kind, path: target))
+        }
+        if info.launchers.isEmpty, let driveC = info.drives.first(where: { $0.letter == "C" }) {
+            info.launchers = LauncherFinder.launchers(inDrive: "C", root: destination.appending(path: driveC.path),
+                                                      gameName: info.name)
+        }
+
+        // Boxer kept box art as the package's custom Finder icon
+        if let icon = try? source.resourceValues(forKeys: [.customIconKey]).customIcon,
+           let tiff = icon.tiffRepresentation,
+           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+            try? png.write(to: destination.appending(path: "\(Gamebox.coverBaseName).png"))
+        }
+
         try Gamebox(url: destination, info: info).save()
         return destination
     }
@@ -107,6 +166,24 @@ enum GameImporter {
     }
 }
 
+/// Finds CD images among a game's files: cue sheets (which describe their
+/// `.bin` data files) and ISO, CCD and MDF images. Several discs come back in
+/// name order.
+enum DiscImageFinder {
+    static func discs(in folder: URL) -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: nil,
+                                                              options: [.skipsHiddenFiles]) else { return [] }
+        var images: [URL] = []
+        for case let file as URL in enumerator {
+            if enumerator.level > 3 { enumerator.skipDescendants(); continue }
+            if ["cue", "iso", "ccd", "mdf"].contains(file.pathExtension.lowercased()) {
+                images.append(file)
+            }
+        }
+        return images.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+}
+
 /// Finds box art shipped alongside a game's files.
 enum CoverArtFinder {
     static func cover(in folder: URL) -> URL? {
@@ -126,9 +203,23 @@ enum CoverArtFinder {
 enum LauncherFinder {
     private static let runnable = ["exe", "com", "bat"]
     private static let startScripts = ["run", "start", "play", "go", "game"]
-    private static let notTheGame = ["setup", "install", "instal", "config", "readme", "help", "uninst",
-                                     "order", "catalog", "vendor", "patch", "register", "info", "sound",
-                                     "setsound", "network", "manual", "doc"]
+    /// Name starts that mark a program as something other than the game:
+    /// installers and setup tools, documentation, and support programs games
+    /// rely on (DOS extenders, runtimes, unpackers). Found by running the
+    /// compatibility lab over a few hundred games.
+    private static let notTheGame = [
+        // installing and configuring
+        "setup", "install", "instal", "inst", "config", "cfg", "uninst", "setsound", "sound", "fix",
+        "patch", "update", "upgrade", "register", "network",
+        // documentation and printing
+        "readme", "read", "help", "manual", "doc", "info", "order", "catalog", "vendor", "print", "intro",
+        // support programs: DOS extenders, runtimes, memory managers, unpackers
+        "cwsdpmi", "dos4gw", "dos32a", "pmode", "rtm", "dpmi", "brun", "qbrun", "himem", "emm", "mouse",
+        "lharc", "lha", "pkunzip", "unzip", "arj", "decrunch", "unpack", "loadfix", "cdrom", "mscdex",
+        "autoexec", "reset", "desinst", "loadpat",
+    ]
+    /// Words that mark a support program anywhere in its name (MPSFIX, KOFIX).
+    private static let notTheGameAnywhere = ["fix", "patch", "setup", "install"]
 
     static func launchers(inDrive letter: String, root: URL, gameName: String) -> [Gamebox.Launcher] {
         let candidates = programs(in: root, depth: 4)
@@ -139,7 +230,8 @@ enum LauncherFinder {
             let stem = program.deletingPathExtension().lastPathComponent.lowercased()
             let depth = relativeComponents(of: program, under: root).count - 1
             var score = 0
-            if notTheGame.contains(where: { stem.hasPrefix($0) }) { score -= 100 }
+            if notTheGame.contains(where: { stem.hasPrefix($0) })
+                || notTheGameAnywhere.contains(where: { stem.contains($0) }) { score -= 100 }
             if startScripts.contains(stem) && depth == 0 { score += 50 }
             // A batch file at the top of the game is almost always its start
             // script (eXoDOS archives put theirs there)

@@ -23,8 +23,7 @@ struct DOSBoxerApp: App {
 
         WindowGroup("Game", for: URL.self) { $url in
             if let url {
-                GameWindow(url: url)
-                    .frame(minWidth: 640, minHeight: 480)
+                GameWindowScene(url: url, screenshotsFolder: library.screenshotsURL)
             }
         }
         .defaultSize(width: 960, height: 720)
@@ -38,6 +37,18 @@ struct DOSBoxerApp: App {
         }
         .defaultSize(width: 960, height: 720)
         .defaultLaunchBehavior(.suppressed)
+    }
+}
+
+/// A game window that returns to the library when the game ends.
+private struct GameWindowScene: View {
+    let url: URL
+    let screenshotsFolder: URL
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        GameWindow(url: url, screenshotsFolder: screenshotsFolder) { openWindow(id: "library") }
+            .frame(minWidth: 640, minHeight: 480)
     }
 }
 

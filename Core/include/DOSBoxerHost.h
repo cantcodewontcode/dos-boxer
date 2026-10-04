@@ -46,6 +46,11 @@ bool dbx_is_running(void);
 /// to the new drive.
 void dbx_mount_folder(char drive_letter, const char* path);
 
+/// Runs one of the emulator's built-in actions by name, as if its hotkey
+/// were pressed: "cycleup" (faster), "cycledown" (slower), "swapimg" (next
+/// disc).
+void dbx_trigger(const char* action);
+
 /// Fills `frame_count` interleaved stereo float frames. Real-time safe:
 /// call this from the audio render thread. Writes silence when not running.
 void dbx_pull_audio(float* interleaved_stereo, int32_t frame_count);

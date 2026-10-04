@@ -123,6 +123,9 @@ typedef enum : int32_t {
 	DBXCommandQuit        = 4,
 	DBXCommandMountFolder = 5, // a = drive letter, b = byte count of the
 	                           // UTF-8 folder path that follows
+	DBXCommandTrigger     = 6, // b = byte count of the UTF-8 action name that
+	                           // follows ("cycleup", "cycledown", "swapimg")
+	DBXCommandVolume      = 7, // a = volume, 0–100
 } DBXCommandType;
 
 /// Largest payload a command may carry (a folder path).

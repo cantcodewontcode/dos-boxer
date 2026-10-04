@@ -99,6 +99,24 @@ struct GameboxTests {
         #expect(launchers.dropFirst().first?.dosPath == "C:\\DUKE1\\DUKE1.BAT")
     }
 
+    /// eXoDOS CD games: the disc image sits in a cd folder beside the game.
+    @Test func mountsDiscImagesAsDriveD() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let folder = scratch.appending(path: "fullt", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder.appending(path: "cd"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: folder.appending(path: "THROTTLE"), withIntermediateDirectories: true)
+        for file in ["cd/fullt.cue", "cd/fullt.BIN", "THROTTLE/THROTTLE.EXE"] {
+            try Data("x".utf8).write(to: folder.appending(path: file))
+        }
+
+        let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: folder, inLibrary: library))
+
+        #expect(gamebox.info.drives.last == Gamebox.Drive(letter: "D", kind: .cdROM, path: "Drives/C/cd/fullt.cue"))
+        let commands = try gamebox.sessionArguments().joined(separator: "\n")
+        #expect(commands.contains("@MOUNT D \"\(gamebox.url.appending(path: "Drives/C/cd/fullt.cue").path(percentEncoded: false))\" -t cdrom >NUL"))
+    }
+
     @Test func sameNameGetsANumber() throws {
         let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
@@ -153,6 +171,83 @@ struct GameboxTests {
         #expect(!gamebox.savesURL.path(percentEncoded: false).hasPrefix(boxer.path(percentEncoded: false)))
         // The same Boxer game always gets the same ID
         #expect(try Gamebox.open(boxer).id == gamebox.id)
+    }
+
+    @Test func convertsBoxerGameboxesIntoTheLibrary() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let boxer = scratch.appending(path: "Epic Pinball.boxer", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: boxer.appending(path: "C.harddisk/PINBALL"),
+                                                withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: boxer.appending(path: "Disc 1.cdrom"), withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: boxer.appending(path: "C.harddisk/PINBALL/PINBALL.EXE"))
+        let plist = ["BXDefaultProgramPath": "C.harddisk/PINBALL/PINBALL.EXE"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: boxer.appending(path: "Game Info.plist"))
+
+        let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: boxer, inLibrary: library))
+
+        #expect(gamebox.url.pathExtension == "dosgame")
+        #expect(gamebox.info.drives == [
+            Gamebox.Drive(letter: "C", kind: .hardDisk, path: "Drives/C"),
+            Gamebox.Drive(letter: "D", kind: .cdROM, path: "Drives/D"),
+        ])
+        #expect(gamebox.defaultLauncher?.dosPath == "C:\\PINBALL\\PINBALL.EXE")
+        #expect(FileManager.default.fileExists(
+            atPath: gamebox.url.appending(path: "Drives/C/PINBALL/PINBALL.EXE").path(percentEncoded: false)))
+    }
+
+    @Test func renamingChangesTheNameAndThePackage() throws {
+        let root = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        _ = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Keen1"), inLibrary: root)
+        let library = GameLibrary()
+        library.useLibrary(at: root)
+        defer { UserDefaults.standard.removeObject(forKey: "LibraryPath") }
+
+        library.rename(library.games[0], to: "Commander Keen: Marooned on Mars")
+
+        #expect(library.games.map(\.name) == ["Commander Keen: Marooned on Mars"])
+        // Games at the top of the library were tidied into Games
+        #expect(library.games[0].url.deletingLastPathComponent().lastPathComponent == "Games")
+        #expect(library.games[0].url.lastPathComponent == "Commander Keen- Marooned on Mars.dosgame")
+    }
+
+    @Test func playStatsAddUpAcrossMacs() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        let url = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Game (1991)"), inLibrary: library)
+        let start = Date(timeIntervalSinceNow: -600)
+        PlayStats.recordSession(of: try Gamebox.open(url), startedAt: start)
+        // Another Mac's stats file, synced in
+        let other = PlayStats(launches: 2, lastPlayed: Date(timeIntervalSinceNow: -86_400), secondsPlayed: 100)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(other).write(to: url.appending(path: "Stats/other-mac.json"))
+
+        let gamebox = try Gamebox.open(url)
+
+        #expect(gamebox.stats.launches == 3)
+        #expect(gamebox.stats.secondsPlayed >= 699)
+        #expect(gamebox.year == 1991)
+        #expect(gamebox.info.dateAdded != nil)
+    }
+
+    /// Read-only gameboxes (saves kept elsewhere) must never be written to.
+    @Test func gamesWithOutsideSavesAreNeverWrittenTo() throws {
+        let library = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        var gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: try makeGameFolder(named: "Game"),
+                                                                    inLibrary: library))
+        gamebox.externalSavesURL = scratch.appending(path: "Outside Saves", directoryHint: .isDirectory)
+        let before = try FileManager.default.contentsOfDirectory(atPath: gamebox.url.path(percentEncoded: false))
+
+        _ = try gamebox.sessionArguments()
+        GameboxPresence.markInUse(gamebox)
+        PlayStats.recordSession(of: gamebox, startedAt: Date())
+
+        #expect(gamebox.isReadOnly)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: gamebox.url.path(percentEncoded: false)) == before)
     }
 
     @Test func revertingDeletesOnlySaves() throws {

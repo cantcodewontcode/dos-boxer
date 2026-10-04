@@ -46,6 +46,26 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
 
+  # Command-line tool that runs a game collection through DOS Boxer and
+  # records which games start (see Sources/DOSBoxerLab/main.swift).
+  DOSBoxerLab:
+    type: tool
+    platform: macOS
+    sources:
+      - Sources/DOSBoxerLab
+    dependencies:
+      - target: DOSBoxerKit
+        embed: false
+      - target: DOS Boxer
+        link: false
+    settings:
+      base:
+        PRODUCT_NAME: DOSBoxerLab
+        CODE_SIGN_IDENTITY: "-"
+        SWIFT_INCLUDE_PATHS: $(SRCROOT)/Core/include
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path"
+        SKIP_INSTALL: YES
+
   # Helper process that runs one DOS session (the emulator core can only run
   # once per process). Lives in the app's Contents/MacOS.
   DOS Boxer Engine:
@@ -104,23 +124,16 @@ targets:
         LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
     postBuildScripts:
       - name: Embed emulator core and resources
-        script: |
-          set -e
-          FRAMEWORKS="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH"
-          RESOURCES="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH"
-          mkdir -p "$FRAMEWORKS" "$RESOURCES"
-          cp -f "$CORE_BUILD_DIR/libDOSBoxerCore.dylib" "$FRAMEWORKS/"
-          codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" "$FRAMEWORKS/libDOSBoxerCore.dylib"
-          # The engine (in Contents/MacOS) finds dosbox-staging's fonts, keyboard
-          # layouts and shaders in Contents/Resources
-          rsync -a --delete-excluded --exclude meson.build --exclude webserver \
-            "$SRCROOT/Vendor/dosbox-staging/resources/" "$RESOURCES/dosbox/"
-          for item in "$RESOURCES/dosbox/"*; do
-            ln -sfh "dosbox/$(basename "$item")" "$RESOURCES/$(basename "$item")"
-          done
+        script: '"$SRCROOT/Scripts/embed-core.sh"'
         basedOnDependencyAnalysis: false
 
 schemes:
+  DOSBoxerLab:
+    build:
+      targets:
+        DOSBoxerLab: all
+    run:
+      config: Release
   DOS Boxer:
     build:
       targets:
