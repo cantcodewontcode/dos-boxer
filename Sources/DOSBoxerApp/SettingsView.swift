@@ -123,8 +123,8 @@ struct MusicSettings: View {
     private func install(_ urls: [URL]) {
         let added = (try? MT32Setup.install(from: urls)) ?? 0
         refresh()
-        let recognised = urls.contains { MT32Setup.roms(in: $0) != nil }
-        message = added == 0 ? (recognised ? "Those ROMs are already installed." : "Those files don't look like MT-32 ROMs.")
+        let recognized = urls.contains { MT32Setup.roms(in: $0) != nil }
+        message = added == 0 ? (recognized ? "Those ROMs are already installed." : "Those files don't look like MT-32 ROMs.")
             : added == 1 ? "Added 1 ROM." : "Added \(added) ROMs."
     }
 

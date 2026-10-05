@@ -10,7 +10,7 @@ struct LibraryView: View {
     @Environment(\.openSettings) private var openSettings
 
     /// What the file panel is open for. (One panel per view: SwiftUI only
-    /// honours the last `.fileImporter` attached to a view.)
+    /// honors the last `.fileImporter` attached to a view.)
     enum FilePanel { case addGames }
     @State private var filePanel: FilePanel?
     @State private var searchText = ""
@@ -628,7 +628,7 @@ private struct GameCard: View {
     /// Called when the name is clicked, with whether the game was already
     /// selected before this click.
     let clickName: (_ wasSelected: Bool) -> Void
-    /// Called with the new name, or nil if renaming was cancelled.
+    /// Called with the new name, or nil if renaming was canceled.
     let finishRename: (String?) -> Void
 
     @State private var editedName = ""

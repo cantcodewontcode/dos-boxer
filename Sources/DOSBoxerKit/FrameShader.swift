@@ -23,7 +23,7 @@ struct FrameUniforms {
     float2 outputSize;   // pixels being drawn
 };
 
-/// "Sharp bilinear": nearest-neighbour inside each source pixel, with a
+/// "Sharp bilinear": nearest-neighbor inside each source pixel, with a
 /// one-output-pixel blend at the edges. Crisp pixels without uneven sizes
 /// when the scale factor isn't a whole number.
 static float4 sharpSample(texture2d<float> frame, float2 uv, float2 outputSize) {
@@ -82,7 +82,7 @@ fragment float4 tvFragment(VertexOut in [[stage_in]],
                            constant FrameUniforms& uniforms [[buffer(0)]]) {
     constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
 
-    // Curved glass: push the picture outward from the centre
+    // Curved glass: push the picture outward from the center
     float2 centered = in.texCoord * 2.0 - 1.0;
     centered *= 1.0 + 0.045 * dot(centered.yx, centered.yx);
     const float2 uv = centered * 0.5 + 0.5;
@@ -90,7 +90,7 @@ fragment float4 tvFragment(VertexOut in [[stage_in]],
         return float4(0, 0, 0, 1);
     }
 
-    // A soft beam: blend each pixel a little with its neighbours
+    // A soft beam: blend each pixel a little with its neighbors
     const float2 texelSize = 1.0 / float2(frame.get_width(), frame.get_height());
     float3 color = frame.sample(linearSampler, uv).rgb * 0.6
                  + frame.sample(linearSampler, uv + float2(texelSize.x, 0)).rgb * 0.2
@@ -98,7 +98,7 @@ fragment float4 tvFragment(VertexOut in [[stage_in]],
     color *= scanline(uv, frame.get_height(), 0.3);
     color *= apertureMask(in.position.xy, 0.12);
 
-    // Darker towards the edges, and rounded corners
+    // Darker toward the edges, and rounded corners
     const float2 edge = uv * (1.0 - uv);
     const float vignette = pow(edge.x * edge.y * 16.0, 0.25);
     const float2 corner = abs(centered) - (1.0 - 0.06);

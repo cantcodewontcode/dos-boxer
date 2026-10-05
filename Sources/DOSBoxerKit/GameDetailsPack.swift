@@ -135,7 +135,7 @@ public final class GameDetailsPack {
         return nil
     }
 
-    /// The game whose program or installer is one of `files`, recognised by
+    /// The game whose program or installer is one of `files`, recognized by
     /// its contents (so it works whatever the folder is called), or nil.
     nonisolated public static func details(forFilesIn folder: URL) -> Entry? {
         guard let index = loadIndex(),

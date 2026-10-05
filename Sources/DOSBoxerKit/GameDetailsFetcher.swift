@@ -23,7 +23,7 @@ public actor GameDetailsFetcher {
     public func fillDetails(of gamebox: Gamebox) async -> Bool {
         let info = gamebox.info
         guard !gamebox.isReadOnly else { return false }
-        // Matched before genres were standardised: take LaunchBox's over the
+        // Matched before genres were standardized: take LaunchBox's over the
         // older free-text one
         if let id = info.launchBoxID {
             guard info.genres == nil, info.genre != nil,

@@ -334,7 +334,7 @@ enum LauncherFinder {
     /// When the game starts with a BASIC interpreter, adds a way to start
     /// each BASIC program beside it (run through the interpreter), the one
     /// named after the game first and as the default. Programs are
-    /// recognised by their contents, whatever they're called (Draw Poker's
+    /// recognized by their contents, whatever they're called (Draw Poker's
     /// is POKER.COL).
     static func withBASICPrograms(_ launchers: [Gamebox.Launcher], root: URL, gameName: String) -> [Gamebox.Launcher] {
         guard let interpreter = launchers.first(where: \.isDefault),

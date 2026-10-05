@@ -102,7 +102,7 @@ final class FrameRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    /// The largest rectangle with `aspect` that fits centred in `size`.
+    /// The largest rectangle with `aspect` that fits centered in `size`.
     static func aspectFit(aspect: Double, in size: CGSize) -> CGRect {
         guard size.width > 0, size.height > 0, aspect > 0 else { return .zero }
         var width = size.width

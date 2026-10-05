@@ -56,7 +56,7 @@ public enum StartupScript {
         return ["@\(parts[0])", "@CD \\\(folder)", run]
     }
 
-    /// A blue band across the top of the screen, drawn with ANSI colours.
+    /// A blue band across the top of the screen, drawn with ANSI colors.
     /// Each row is filled to the edge with "erase to end of line".
     private static func header(title: String, detail: String) -> [String] {
         let esc = "\u{1B}"

@@ -59,7 +59,7 @@ struct GameboxTests {
         #expect(DiscImageFinder.discs(in: folder).map(\.lastPathComponent) == ["ATLANTIS.cue", "DISC2.iso"])
     }
 
-    /// GW-BASIC games start their program, recognised by its saved format
+    /// GW-BASIC games start their program, recognized by its saved format
     /// whatever its name (Draw Poker's is POKER.COL).
     @Test func shippedSettingsMatchByNameThenUnambiguousLaunchBoxEntry() throws {
         let games = scratch.appending(path: "Games", directoryHint: .isDirectory)

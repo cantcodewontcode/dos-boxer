@@ -90,6 +90,13 @@ struct LibrarySidebar: View {
     /// The collection whose name is being edited.
     @Binding var renamingCollection: GameCollection.ID?
 
+    // Which sections are open, remembered between launches
+    @AppStorage("SidebarCollectionsExpanded") private var collectionsExpanded = true
+    @AppStorage("SidebarYearsExpanded") private var yearsExpanded = true
+    @AppStorage("SidebarGenresExpanded") private var genresExpanded = true
+    /// The collection waiting for a yes to Delete.
+    @State private var deletingCollection: GameCollection?
+
     var body: some View {
         List(selection: Binding(get: { filter }, set: { if let new = $0 { filter = new } })) {
             Section("Library") {
@@ -97,7 +104,7 @@ struct LibrarySidebar: View {
                     row(item)
                 }
             }
-            Section {
+            Section(isExpanded: $collectionsExpanded) {
                 ForEach(library.collections) { collection in
                     collectionRow(collection)
                 }
@@ -117,14 +124,14 @@ struct LibrarySidebar: View {
                 }
             }
             if !years.isEmpty {
-                Section("Years") {
+                Section("Years", isExpanded: $yearsExpanded) {
                     ForEach(years, id: \.self) { year in
                         row(.year(year))
                     }
                 }
             }
             if !genres.isEmpty {
-                Section("Genres") {
+                Section("Genres", isExpanded: $genresExpanded) {
                     ForEach(genres, id: \.self) { genre in
                         row(.genre(genre))
                     }
@@ -132,6 +139,21 @@ struct LibrarySidebar: View {
             }
         }
         .listStyle(.sidebar)
+        // Delete with a collection selected: confirm, then delete it
+        .onDeleteCommand {
+            if case .collection(let id) = filter {
+                deletingCollection = library.collections.first { $0.id == id }
+            }
+        }
+        .alert("Delete “\(deletingCollection?.name ?? "")”?",
+               isPresented: Binding(get: { deletingCollection != nil }, set: { if !$0 { deletingCollection = nil } }),
+               presenting: deletingCollection) { collection in
+            Button("Delete", role: .destructive) {
+                filter = .all
+                library.deleteCollection(collection.id)
+            }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 
     private func row(_ item: LibraryFilter) -> some View {
@@ -147,6 +169,7 @@ struct LibrarySidebar: View {
     }
 
     private func newCollection() {
+        collectionsExpanded = true  // show the new one
         let collection = library.createCollection()
         filter = .collection(collection.id)
         renamingCollection = collection.id
@@ -190,7 +213,7 @@ private struct CollectionRow: View {
                 .padding(.horizontal, 10)
         )
         // Selected-row text while a drop is over it; otherwise the list's own
-        // colours, which dim with the rest when the window isn't in front
+        // colors, which dim with the rest when the window isn't in front
         .environment(\.backgroundProminence, isDropTarget ? .increased : .standard)
         // Drop games from the grid onto a collection to add them
         .dropDestination(for: String.self) { payloads, _ in

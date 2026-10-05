@@ -20,7 +20,7 @@ The first release. Everything's new, so here's what DOS Boxer does, what it does
 **Running games**
 - Built on DOSBox Staging 0.83.0, with a small set of patches so it can run inside a Mac app. Each game runs in its own helper process, so several games can run at once and one crashing can't take the others down.
 - Apple Silicon only, macOS 26 or later.
-- Video is drawn with Metal. Four display looks: Crisp Pixels, Smooth, Arcade Monitor (scanlines and a colour mask) and Family TV (curved, glowing screen), app-wide or per game.
+- Video is drawn with Metal. Four display looks: Crisp Pixels, Smooth, Arcade Monitor (scanlines and a color mask) and Family TV (curved, glowing screen), app-wide or per game.
 - Sound is played by macOS directly. Sound Blaster, AdLib, Gravis Ultrasound and the PC speaker all come from DOSBox Staging. Roland MT-32 and CM-32L work once you add your own ROMs (any version; drop the archive.org collection ZIP straight onto the app).
 - Games from 1993 on get 64 MB of memory; earlier ones get DOSBox's standard 16 MB.
 - DOS uses the keyboard layout you're typing with on your Mac. Paste (⌘V) types the clipboard into DOS, handy for copy-protection answers. US characters only for now.
@@ -41,7 +41,7 @@ The first release. Everything's new, so here's what DOS Boxer does, what it does
 
 **Game details**
 - Optional download of the LaunchBox Games Database (about 7,200 DOS games), kept on your Mac. Nothing is sent anywhere.
-- Games are recognised by their program files (name and checksum), then by collection folder name (like eXoDOS's), then by name. Wikidata fills in what LaunchBox doesn't have.
+- Games are recognized by their program files (name and checksum), then by collection folder name (like eXoDOS's), then by name. Wikidata fills in what LaunchBox doesn't have.
 - Each game gets its release year, developer, publisher, genres, players (and co-op), age rating, community rating and description, all editable.
 - Box art comes from the libretro-thumbnails collection, or drop any image on a game.
 

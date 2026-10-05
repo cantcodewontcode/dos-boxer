@@ -23,7 +23,7 @@ public enum DisplayLook: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .crispPixels: "Sharp, even pixels."
         case .smooth: "Softened pixels."
-        case .arcadeMonitor: "Scanlines and a colour mask, like a CRT monitor."
+        case .arcadeMonitor: "Scanlines and a color mask, like a CRT monitor."
         case .familyTV: "A curved, glowing screen, like a home TV."
         }
     }

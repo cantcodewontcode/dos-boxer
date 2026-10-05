@@ -251,7 +251,7 @@ final class Lab {
     }
 
     /// Size and SHA-256 of every program in the game: the seed data for
-    /// recognising games later.
+    /// recognizing games later.
     nonisolated private static func fingerprints(of gamebox: Gamebox) -> [ProgramPrint] {
         guard let drive = gamebox.info.drives.first(where: { $0.letter == "C" }) else { return [] }
         let root = gamebox.url.appending(path: drive.path, directoryHint: .isDirectory).resolvingSymlinksInPath()

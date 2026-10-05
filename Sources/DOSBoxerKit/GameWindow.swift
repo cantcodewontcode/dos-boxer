@@ -185,7 +185,7 @@ public struct GameWindow: View {
         }
     }
 
-    /// Counts a finished session towards the game's play stats.
+    /// Counts a finished session toward the game's play stats.
     private func endSession(_ gamebox: Gamebox) {
         guard let start = sessionStart else { return }
         sessionStart = nil
