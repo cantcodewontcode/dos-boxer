@@ -15,7 +15,9 @@
   <a href="https://paypal.me/williamspry36">Buy me a coffee</a>
 </p>
 
-<!-- Screenshot: the library with a handful of games and the info panel open -->
+<p align="center">
+  <img src="Resources/Screenshots/library-dark.jpg" alt="The DOS Boxer library: a grid of box art, with the info panel showing Freddy Pharkas's details">
+</p>
 
 ## About DOS Boxer
 
@@ -32,6 +34,10 @@ It's designed as a successor to [Boxer](https://github.com/alinebee/Boxer), the 
 - **Roland MT-32 music.** Drop in your MT-32 ROMs once and every game that supports it sounds the way it was meant to.
 - **Lives anywhere.** Keep your library in iCloud Drive, Dropbox or OneDrive and play on any of your Macs.
 - **Opens your old Boxer games.** Existing `.boxer` gameboxes open as they are.
+
+<p align="center">
+  <img src="Resources/Screenshots/game-digger.jpg" width="720" alt="Digger running in a DOS Boxer game window">
+</p>
 
 ## Requirements
 
