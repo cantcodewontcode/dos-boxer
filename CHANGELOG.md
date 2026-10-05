@@ -1,53 +1,72 @@
 # Changelog
 
-## Unreleased
+## [0.1.0]
 
-- **Game window**: no more controls floating over the game (a slightly-off click could capture the mouse). The toolbar holds Programs, Pause, Display Look, Screenshot, Full Screen and Turn Off; speed and next disc are in the new Game menu. When the mouse is captured, a short note shows how to release it.
-- **Menu bar and shortcuts**: File (New Collection ⌘N, New DOS Prompt ⌥⌘N, Import Games ⇧⌘I, Play ⌘O, Get Info ⌘I, Show in Finder ⌥⌘R), Edit (Move to Trash ⌘⌫, Find Games ⌘F, Select All ⌘A), View (Show Info Panel ⌥⌘I, Bigger/Smaller Covers ⌘+/⌘−) and Game (Toggle Full Screen ⌘↩, Pause ⌘P, Take Screenshot ⇧⌘S, Faster ⌘] / Slower ⌘[, Next Disc ⇧⌘D, Display Look, Programs, Restart ⌘R, Turn Off).
+The first release. Everything's new, so here's what DOS Boxer does, what it doesn't do yet, and a few details for the curious.
 
-- **Collections**: hand-built lists of games in the sidebar, like playlists. Make one with the + button or File › New Collection (⌘N), drag games onto it or use right-click › Add to Collection, and rename or delete it from its right-click menu.
-- **Tidier library window**: Import and DOS Prompt, Sort, and Info buttons in the toolbar; search at the top of the sidebar; the game count and cover size slider in a footer. The File and View menus now hold Import Games (⇧⌘I), New DOS Prompt (⌥⌘N), Show Info (⌘I), Bigger/Smaller Covers (⌘+ / ⌘−), sorting, and the library's Finder and location commands.
-- The info panel shows each game's publisher, developer and genre, which you can fill in yourself.
-- New DOS Prompt windows start straight at the DOS prompt.
+### What works
 
-- **Library sidebar**: All Games, Favorites, Recently Played, Never Played, and one list per decade.
-- **Info panel**: a fold-out panel on the right (the ⓘ button, or right-click > Get Info) with the game's cover, Play and Favorite buttons, play stats, which program it starts with, its own display look, whether it returns to the library when it ends, and the readmes and manuals that came with it.
-- **Roland MT-32 music**: add your own MT-32 or CM-32L ROMs once in Settings › Music (drop the files, or the ZIP from archive.org, onto the tab or onto the library), and every game set up for the MT-32 uses them. Remove them from the same tab.
-- **Pause**: the pause button in the game controls, or ⌘P. The sound stops and a "Paused" badge shows until you resume.
-- **Paste into DOS**: Edit › Paste (⌘V) types the clipboard's text into the game, handy for long commands or copy-protection answers.
-- **Game controllers**: Xbox, PlayStation, Switch and other controllers macOS supports work as a DOS joystick in the game that's in front. About 200 games that came from eXoDOS also get DOSBox Staging's tailored controller layouts (games added from now on).
-- **Full screen**: a toolbar button (or ⌃⌘F); the toolbar stays hidden until you point at the top of the screen.
-- **Display looks**: Crisp Pixels, Smooth, Arcade Monitor (scanlines and a colour mask) and Family TV (a curved, glowing screen). Choose one for all games in Settings, or for a single game from the in-game controls or the info panel.
-- **Named programs for menu games**: games whose start script offers a menu ("Press 1 for… with Sound Blaster, Press 2 for… with MT-32") get each option as a named program, and the first one starts by default.
-- Games no longer pick up settings from your own DOSBox Staging configuration, and DOS uses the keyboard layout you're typing with (it used to pick a non-US layout if one was merely enabled).
+**Running games**
+- Built on DOSBox Staging 0.83.0, with a small set of patches so it can run inside a Mac app. Each game runs in its own helper process, so several games can run at once and one crashing can't take the others down.
+- Apple Silicon only, macOS 26 or later.
+- Video is drawn with Metal. Four display looks: Crisp Pixels, Smooth, Arcade Monitor (scanlines and a colour mask) and Family TV (curved, glowing screen), app-wide or per game.
+- Sound is played by macOS directly. Sound Blaster, AdLib, Gravis Ultrasound and the PC speaker all come from DOSBox Staging. Roland MT-32 and CM-32L work once you add your own ROMs (any version; drop the archive.org collection ZIP straight onto the app).
+- Games from 1993 on get 64 MB of memory; earlier ones get DOSBox's standard 16 MB.
+- DOS uses the keyboard layout you're typing with on your Mac. Paste (⌘V) types the clipboard into DOS, handy for copy-protection answers. US characters only for now.
+- Your own DOSBox Staging config files are ignored, so games behave the same for everyone.
 
-- Remove Cover Art, for a wrong cover or none at all; the game then stays without one until you look for art again.
+**Importing**
+- Folders, ZIP files and CD images (`.cue`, `.iso`, `.mdf`, `.ccd`; one file per disc, cue sheets preferred). Multi-disc games can swap discs with Game › Next Disc.
+- DOS Boxer picks the program that starts the game: start scripts first, then programs named after the game (or its initials), never setup or install tools.
+- Start scripts with menus ("Press 1 for Sound Blaster, 2 for MT-32") become separate, named ways to start the game.
+- eXoDOS-style ZIPs are understood, including their folder layout and menus.
+- Original Boxer gameboxes (`.boxer`) open as they are and can be converted.
 
-- **Game library.** Drop game folders, ZIP files (including eXoDOS archives) or gameboxes onto the library window, and DOS Boxer keeps a copy of each as a `.dosgame` gamebox in `~/DOSBoxer/Games` (you can choose another location, including iCloud Drive, Dropbox or OneDrive). Box art that comes with a game becomes its cover. Double-click a game to play it in its own window; several games can run at once.
-- **Game controls in Liquid Glass.** Move the pointer over a running game to show floating controls: slower and faster, volume, next disc (multi-disc games) and screenshot (saved to the library's Screenshots folder). They fade when the pointer rests or the mouse is captured.
-- Rename games in place, as in Finder: click a selected game's name (or right-click > Rename), type, and press Return. Move them to the Trash with right-click > Move to Trash… or ⌘⌫, confirmed in a glass popover. Deleting only removes DOS Boxer's copy; it can be restored from the Trash.
-- **Sorting**: Name, Year, Recently Played, Most Played or Recently Added, from the library's … menu (ties sort by name). DOS Boxer now records how often and how long each game is played; each Mac keeps its own record, so shared libraries don't conflict.
-- **Cover size**: a slider in the library toolbar, or pinch to zoom on a trackpad; remembered between launches.
-- **Box art.** Games without a cover get one automatically from the community libretro-thumbnails collection (about half of eXoDOS's games are covered; edition tags like "SCI" or "CD" in a game's name are ignored when matching). Right-click a game for Find Cover Art, or drop any image onto a game to make it the cover.
-- **Gameboxes** hold a game's files, settings, launchers and cover. Everything a game writes (saves, high scores, settings) goes to a separate Saves folder, so the original files stay untouched and "Revert to Original" can undo it all.
-- When a game quits back to DOS, its window closes and you're back in the library (each gamebox can turn this off). The Programs menu also offers a DOS prompt with the game's drives.
-- Games that start straight away skip DOS Boxer's header, and games started from a batch file now close properly when they end.
-- Games without box art show a floppy-disk placeholder.
-- DOS Boxer picks the program that starts each game (start scripts first, never setup tools), and lists the game's other programs in the toolbar.
-- Opens original Boxer gameboxes (`.boxer`) without changing them, and adding one to the library converts it, keeping its box art.
-- Games being added appear in the library straight away with a progress spinner.
-- If another Mac sharing the library is playing a game, DOS Boxer warns before you play it too.
-- A DOS Prompt button in the library toolbar.
-- CD-based games: disc images (CUE, ISO, CCD, MDF) found in a game are mounted as drive D, including multi-disc games.
-- Better at picking the right program: skips DOS extenders, runtimes, patch tools and installers.
-- Fixed: starting several games at once could make one fail to start.
-- DOSBoxerLab, a developer tool that runs a game collection through DOS Boxer unattended and records which games start.
-- Games in a cloud-synced library are fully downloaded before they start, so they never stall mid-game.
-- DOS Boxer is no longer sandboxed (it's distributed outside the App Store with Developer ID signing and notarization).
+**The library**
+- Games are stored as `.dosgame` packages in `~/DOSBoxer` (or anywhere you like, including iCloud Drive, Dropbox and OneDrive). There's no database to corrupt: each game's details live in its own `Game.json`, and play stats are kept per Mac so shared libraries don't clash.
+- Games never write to their own files. Saves, high scores and settings go to a separate folder, and Revert to Original undoes it all.
+- If another Mac sharing the library is playing a game, DOS Boxer warns you first.
+- Sidebar: All Games, Favorites, Recently Played, Never Played, your own Collections, Years and Genres. Sort by name, year, rating, developer, publisher, recently played, most played or recently added.
 
-- Choosing a game folder while DOS is running mounts it as drive C straight away, with no restart. At the Z: prompt, DOS switches to the new drive.
-- Each DOS session runs in its own helper process (DOS Boxer Engine), so Restart and choosing a folder happen in the same window, and a crashing game can't take the app down.
-- ⌘⌥ releases the mouse without pressing Alt in the game. A hint next to the toolbar buttons explains how to capture and release the mouse.
-- DOS Boxer's own header replaces the emulator's welcome banner.
-- The DOS screen sits below the toolbar and clear of the rounded window corners.
-- Proof of concept: DOSBox Staging is embedded as a library and runs a DOS prompt in a SwiftUI and Metal window, with AVAudioEngine sound and keyboard and mouse input.
+**Game details**
+- Optional download of the LaunchBox Games Database (about 7,200 DOS games), kept on your Mac. Nothing is sent anywhere.
+- Games are recognised by their program files (name and checksum), then by collection folder name (like eXoDOS's), then by name. Wikidata fills in what LaunchBox doesn't have.
+- Each game gets its release year, developer, publisher, genres, players (and co-op), age rating, community rating and description, all editable.
+- Box art comes from the libretro-thumbnails collection, or drop any image on a game.
+
+**Controllers**
+- Anything macOS supports: Xbox, PlayStation, Switch and more. Up to two players, each with their own joystick in DOS.
+- Per-game controls: make any button or stick direction press a key, act as another button, or do nothing. Saved by player and button position, so they carry over to whatever controller you plug in.
+- About 200 eXoDOS games also get DOSBox Staging's tailored controller layouts.
+
+**Everything else**
+- Pause, screenshots (saved to the library's Screenshots folder), full screen (⌘↩), faster and slower, and a DOS prompt with the game's drives.
+- Updates are checked in the background at launch (Settings › Updates to turn off).
+
+### How well does it work?
+
+DOS Boxer's compatibility lab boots games unattended and checks whether they get going. Run over the 7,514 games in eXoDOS:
+
+| | Games | Share |
+|---|---|---|
+| Reach graphics | 4,619 | 61.5% |
+| Reach a text screen (usually a menu or "press a key") | 2,184 | 29.0% |
+| Quit straight away | 542 | 7.2% |
+| No program to start | 164 | 2.2% |
+
+So about 90% get going on their own, with no settings. "Reach graphics" doesn't promise the game is fully playable, just that it starts.
+
+### Not yet
+
+- **PC booter games** (bootable floppy images, mostly 1981–85) and **IBM PCjr cartridges** don't start yet.
+- **CD-only games** that need installing from the CD first don't have a program to start yet.
+- **Interactive fiction** that needs a story file passed to its interpreter (Frotz, Scott Adams games) quits straight away.
+- **Speed by era.** Older games run at DOSBox's default speed, which can be too fast. Use Game › Slower (⌘[) for now.
+- **Joystick types.** Games always see a standard joystick, not a flight stick or racing wheel.
+- **Save states**, **GOG/Steam importing**, **printing** and **multiplayer networking** aren't here yet.
+- **Intel Macs** and macOS versions before 26 aren't supported.
+
+### Known issues
+
+- Some wired Xbox 360 controllers show up as just "Controller".
+- Game details come from community data, so the odd game gets the wrong match. You can edit anything in the info panel.
