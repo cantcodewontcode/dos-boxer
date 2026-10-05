@@ -133,6 +133,6 @@ cat <<EOF
 
 To publish (in this order, so the download exists before the feed points at it):
 
-  gh release create v$VERSION "$OUT/$ZIP" --repo $REPO --title "DOS Boxer $VERSION" --notes-file <(awk -v v="$VERSION" '\$0 ~ "^## \\\\[?"v"\\\\]?" {on=1; next} on && /^## / {exit} on' CHANGELOG.md)
-  git add appcast.xml && git commit -m "Release $VERSION" && git push
+  cd "$(pwd)" && gh release create v$VERSION "$OUT/$ZIP" --repo $REPO --title "DOS Boxer $VERSION" --notes-file <(awk -v v="$VERSION" '\$0 ~ "^## \\\\[?"v"\\\\]?" {on=1; next} on && /^## / {exit} on' CHANGELOG.md)
+  cd "$(pwd)" && git add appcast.xml && git commit -m "Release $VERSION" && git push
 EOF
