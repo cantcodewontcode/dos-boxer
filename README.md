@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="Resources/Screenshots/library-dark.jpg" alt="The DOS Boxer library: a grid of box art, with the info panel showing Freddy Pharkas's details">
+  <img src="Resources/Screenshots/library-dark.png" alt="The DOS Boxer library: a grid of box art, with the info panel showing Freddy Pharkas's details">
 </p>
 
 ## About DOS Boxer
@@ -36,7 +36,7 @@ It's designed as a successor to [Boxer](https://github.com/alinebee/Boxer), the 
 - **Opens your old Boxer games.** Existing `.boxer` gameboxes open as they are.
 
 <p align="center">
-  <img src="Resources/Screenshots/game-digger.jpg" width="720" alt="Digger running in a DOS Boxer game window">
+  <img src="Resources/Screenshots/game-digger.png" width="720" alt="Digger running in a DOS Boxer game window">
 </p>
 
 ## Requirements
