@@ -8,6 +8,13 @@ struct DOSBoxerApp: App {
     init() {
         // DOS Boxer's windows don't use tabs; drop View › Show Tab Bar
         NSWindow.allowsAutomaticWindowTabbing = false
+        // macOS draws the app icon (made in Icon Composer) the first time
+        // it's asked for and hands out a blank placeholder meanwhile; ask now,
+        // so the update window and About show the real one
+        if let icon = NSImage(named: NSImage.applicationIconName) {
+            var rect = CGRect(x: 0, y: 0, width: 128, height: 128)
+            _ = icon.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+        }
         // Starts Sparkle, which checks for updates in the background
         _ = Updates.shared
     }
