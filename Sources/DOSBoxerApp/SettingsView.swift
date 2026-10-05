@@ -67,10 +67,15 @@ struct MusicSettings: View {
                     case .notInstalled: Text("Not set up").foregroundStyle(.secondary)
                     }
                 }
-                ForEach(installed, id: \.self) { name in
-                    Label(name, systemImage: "memorychip")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                if let summary = MT32Setup.summary() {
+                    DisclosureGroup(summary) {
+                        ForEach(installed, id: \.self) { name in
+                            Label(name, systemImage: "memorychip")
+                        }
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .id(installed)  // a fresh summary after changes
                 }
                 HStack {
                     Button("Add ROMs…") { choosingROMs = true }
@@ -122,7 +127,8 @@ struct MusicSettings: View {
     private func install(_ urls: [URL]) {
         let added = (try? MT32Setup.install(from: urls)) ?? 0
         refresh()
-        message = added == 0 ? "Those files don't look like MT-32 ROMs."
+        let recognised = urls.contains { MT32Setup.roms(in: $0) != nil }
+        message = added == 0 ? (recognised ? "Those ROMs are already installed." : "Those files don't look like MT-32 ROMs.")
             : added == 1 ? "Added 1 ROM." : "Added \(added) ROMs."
     }
 

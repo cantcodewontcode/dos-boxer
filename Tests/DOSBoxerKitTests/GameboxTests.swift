@@ -24,6 +24,30 @@ struct GameboxTests {
         return folder
     }
 
+    @Test func theProgramNamedAfterTheGameBeatsGenericNames() throws {
+        let folder = scratch.appending(path: "covertac", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for file in ["GAME.EXE", "COVERT.EXE", "INTRO.EXE", "TAC.EXE"] {
+            try Data("x".utf8).write(to: folder.appending(path: file))
+        }
+        let launchers = LauncherFinder.launchers(inDrive: "C", root: folder, gameName: "Covert Action (1990)")
+        #expect(launchers.first(where: \.isDefault)?.dosPath == "C:\\COVERT.EXE")
+
+        let dredd = scratch.appending(path: "dredd", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dredd, withIntermediateDirectories: true)
+        for file in ["3DLEV.EXE", "JD.EXE", "VIDCOM.EXE"] {
+            try Data("x".utf8).write(to: dredd.appending(path: file))
+        }
+        let dreddLaunchers = LauncherFinder.launchers(inDrive: "C", root: dredd, gameName: "Judge Dredd (1997)")
+        #expect(dreddLaunchers.first(where: \.isDefault)?.dosPath == "C:\\JD.EXE")
+    }
+
+    @Test func newerGamesGetMoreMemory() {
+        #expect(Gamebox.eraSettings(year: 1995)["dosbox memsize"] == "64")
+        #expect(Gamebox.eraSettings(year: 1990).isEmpty)
+        #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=port""#)
+    }
+
     @Test func aDiscInSeveralFormatsIsMountedOnceAsItsCueSheet() throws {
         let folder = scratch.appending(path: "cd", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

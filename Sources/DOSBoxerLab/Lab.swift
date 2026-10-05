@@ -14,6 +14,8 @@ struct LabOptions {
     var year: String?
     /// Take every Nth game, to sample the whole collection evenly.
     var every = 1
+    /// Only the archives named in this file (one file name per line).
+    var only: Set<String>?
 
     init<S: Sequence>(_ arguments: S) where S.Element == String {
         var iterator = arguments.makeIterator()
@@ -29,6 +31,9 @@ struct LabOptions {
             case "--filter": filter = value.lowercased()
             case "--year": year = value
             case "--every": every = max(1, Int(value) ?? 1)
+            case "--only":
+                only = Set(((try? String(contentsOfFile: value, encoding: .utf8)) ?? "")
+                    .split(separator: "\n").map(String.init))
             default: print("Unknown option \(flag)"); exit(EX_USAGE)
             }
         }
@@ -105,6 +110,7 @@ final class Lab {
 
         let archives = findArchives().enumerated()
             .filter { $0.offset % options.every == 0 }.map(\.element)
+            .filter { options.only?.contains($0.lastPathComponent) ?? true }
             .filter { !done.contains($0.lastPathComponent) }.prefix(options.limit)
         print("DOS Boxer Lab: \(archives.count) games to try (\(done.count) already done), \(options.jobs) at a time")
 

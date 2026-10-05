@@ -348,6 +348,19 @@ public struct Gamebox: Sendable, Identifiable {
 
     /// dosbox arguments that mount the drives (with saves overlaid) and then
     /// run the game, a specific launcher, or just give a prompt.
+    /// Settings games from a period usually need, before the game's own.
+    /// DOSBox's 16 MB isn't enough for many mid-90s games, which quit at once.
+    static func eraSettings(year: Int?) -> [String: String] {
+        guard let year, year >= 1993 else { return [:] }
+        return ["dosbox memsize": "64"]
+    }
+
+    /// Menu scripts written for other DOSBox versions can set values this
+    /// one doesn't accept ("mididevice=default" is "port" here).
+    static func fixingSettings(_ command: String) -> String {
+        command.replacingOccurrences(of: "mididevice=default", with: "mididevice=port", options: .caseInsensitive)
+    }
+
     public func sessionArguments(_ start: Start = .game) throws -> [String] {
         let fileManager = FileManager.default
         var mounts: [String] = []
@@ -368,7 +381,8 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }
         }
-        var settings = info.settings.sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
+        var settings = Self.eraSettings(year: year).merging(info.settings) { $1 }
+            .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
         if let mapping = controllerMapping {
             settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]
         }
@@ -384,7 +398,7 @@ public struct Gamebox: Sendable, Identifiable {
         return settings + StartupScript.arguments(
             mounts: mounts,
             title: name,
-            programCommands: program?.commands,
+            programCommands: program?.commands?.map(Self.fixingSettings),
             detail: program == nil ? "Type DIR to see the game's files."
                 : exitsAfterwards ? "Starting the game…" : "When the game ends, you'll be back at the DOS prompt.",
             program: program?.dosPath,

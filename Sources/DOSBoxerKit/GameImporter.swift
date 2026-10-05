@@ -217,7 +217,7 @@ enum CoverArtFinder {
 /// the game, skipping setup, install and readme tools.
 enum LauncherFinder {
     private static let runnable = ["exe", "com", "bat"]
-    private static let startScripts = ["run", "start", "play", "go", "game"]
+    private static let startScripts = ["run", "start", "play", "go"]
     /// Name starts that mark a program as something other than the game:
     /// installers and setup tools, documentation, and support programs games
     /// rely on (DOS extenders, runtimes, unpackers). Found by running the
@@ -240,7 +240,11 @@ enum LauncherFinder {
         let candidates = programs(in: root, depth: 4)
         guard !candidates.isEmpty else { return [] }
 
-        let gameWords = Set(gameName.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+        let words = gameName.replacingOccurrences(of: #"\s*\(\d{3}[\dx]\)\s*$"#, with: "", options: .regularExpression)
+            .lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+        let gameWords = Set(words)
+        // "JD" for Judge Dredd
+        let initials = String(words.filter { !["the", "of", "and", "a"].contains($0) }.compactMap(\.first))
         func score(_ program: URL) -> Int {
             let stem = program.deletingPathExtension().lastPathComponent.lowercased()
             let depth = relativeComponents(of: program, under: root).count - 1
@@ -252,6 +256,11 @@ enum LauncherFinder {
             // script (eXoDOS archives put theirs there)
             if program.pathExtension.lowercased() == "bat" && depth == 0 { score += 30 }
             if gameWords.contains(where: { $0.count >= 3 && stem.hasPrefix(String($0.prefix(3))) }) { score += 20 }
+            // Named after the game outright ("COVERT" for Covert Action)
+            if stem.count >= 4, gameWords.contains(where: { $0.hasPrefix(stem) }) {
+                score += 25
+            }
+            if initials.count >= 2, stem == initials { score += 25 }
             if program.pathExtension.lowercased() == "exe" { score += 5 }
             score -= depth * 10
             return score

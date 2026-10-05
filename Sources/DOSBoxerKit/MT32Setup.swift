@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Roland MT-32 music: many late-80s and early-90s games sound their best
@@ -37,17 +38,22 @@ public enum MT32Setup {
         return sizes.isEmpty ? .notInstalled : .incomplete
     }
 
-    /// Copies ROM files from `urls` (files, or folders containing them).
-    /// Returns how many were added; files that aren't MT-32 ROMs are skipped.
+    /// Copies ROM files from `urls` (files, or folders or ZIPs of them).
+    /// Returns how many were added; files that aren't MT-32 ROMs, and copies
+    /// of ROMs already installed, are skipped.
     @discardableResult
     public static func install(from urls: [URL]) throws -> Int {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: romsFolder, withIntermediateDirectories: true)
+        var installed = Set(romFiles().compactMap(contentID))
         var added = 0
         for url in urls.flatMap({ roms(in: $0) ?? candidates($0) }) {
-            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            guard controlSizes.contains(size) || size == mt32PCMSize || size == cm32lPCMSize else { continue }
-            let destination = romsFolder.appending(path: url.lastPathComponent)
+            guard hasROMSize(url), let id = contentID(url), installed.insert(id).inserted else { continue }
+            var destination = romsFolder.appending(path: url.lastPathComponent)
+            // Keep the ".rom" ending DOSBox looks for
+            if !["rom", "bin"].contains(destination.pathExtension.lowercased()) {
+                destination = destination.appendingPathExtension("rom")
+            }
             if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
                 try fileManager.removeItem(at: destination)
             }
@@ -58,9 +64,10 @@ public enum MT32Setup {
     }
 
     /// The MT-32 ROMs in `url`, if that's what it is: a ROM file, or a
-    /// folder or ZIP holding only ROMs (as the archive.org download does).
-    /// Nil for anything else, such as a game. ZIPs are unpacked into a
-    /// temporary folder, so the URLs are only good until the app quits.
+    /// folder or ZIP of ROMs (like the archive.org download, which holds
+    /// several collections with their own file naming). Nil for anything
+    /// else, such as a game. ZIPs are unpacked into a temporary folder, so
+    /// the URLs are only good until the app quits.
     public static func roms(in url: URL) -> [URL]? {
         if url.pathExtension.lowercased() == "zip" {
             let folder = FileManager.default.temporaryDirectory
@@ -85,12 +92,39 @@ public enum MT32Setup {
         for case let file as URL in enumerator
         where (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
             if file.path(percentEncoded: false).contains("__MACOSX") { continue }
-            if isROM(file) { found.append(file) }
-            else if !["txt", "md", "nfo", "diz", "pdf", "url"].contains(file.pathExtension.lowercased()) {
-                return nil  // something else in there: probably a game
-            }
+            // Programs mean this is a game, not a ROM collection
+            if ["exe", "com", "bat"].contains(file.pathExtension.lowercased()) { return nil }
+            if hasROMSize(file) { found.append(file) }
         }
+        // Prefer ".rom" names when the same ROM appears twice
+        found.sort { ($0.pathExtension.lowercased() == "rom" ? 0 : 1) < ($1.pathExtension.lowercased() == "rom" ? 0 : 1) }
+        var seen = Set<String>()
+        found = found.filter { contentID($0).map { seen.insert($0).inserted } ?? false }
         return found.isEmpty ? nil : found
+    }
+
+    /// The sizes ROMs come in. (Collections also hold half-chip dumps of
+    /// other sizes, which DOSBox can't use.)
+    private static func hasROMSize(_ url: URL) -> Bool {
+        let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        return controlSizes.contains(size) || size == mt32PCMSize || size == cm32lPCMSize
+    }
+
+    private static func contentID(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// What's installed, in words: "MT-32 and CM-32L, 13 ROMs".
+    public static func summary() -> String? {
+        let files = romFiles()
+        guard !files.isEmpty else { return nil }
+        let sizes = files.compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }
+        var models: [String] = []
+        if sizes.contains(mt32PCMSize) { models.append("MT-32") }
+        if sizes.contains(cm32lPCMSize) { models.append("CM-32L") }
+        let count = files.count == 1 ? "1 ROM" : "\(files.count) ROMs"
+        return models.isEmpty ? count : "\(models.joined(separator: " and ")), \(count)"
     }
 
     private static func isROM(_ url: URL) -> Bool {

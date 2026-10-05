@@ -51,4 +51,23 @@ struct MT32SetupTests {
         #expect(MT32Setup.roms(in: roms.appending(path: "MT32_PCM.ROM"))?.count == 1)
         #expect(MT32Setup.roms(in: game) == nil)
     }
+
+    /// archive.org's download: proper ROMs in one folder, and in another the
+    /// same ROMs under chip names (".ic28") plus half-chip dumps.
+    @Test func readsTheArchiveCollectionOnce() throws {
+        let scratch = FileManager.default.temporaryDirectory.appending(path: "mt32-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let pi = scratch.appending(path: "mt32pi", directoryHint: .isDirectory)
+        let mame = scratch.appending(path: "MAME", directoryHint: .isDirectory)
+        for folder in [pi, mame] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let control = Data((0..<131_072).map { UInt8($0 % 251) })
+        let sound = Data((0..<524_288).map { UInt8($0 % 241) })
+        try control.write(to: pi.appending(path: "ctrl_mt32_2_04.rom"))
+        try sound.write(to: pi.appending(path: "pcm_mt32.rom"))
+        try control.write(to: mame.appending(path: "mt32_2.0.4.ic28"))        // same ROM, chip name
+        try Data(count: 32_768).write(to: mame.appending(path: "mt32_1.0.4.ic26.bin"))  // half a chip
+
+        let found = try #require(MT32Setup.roms(in: scratch))
+        #expect(Set(found.map(\.lastPathComponent)) == ["ctrl_mt32_2_04.rom", "pcm_mt32.rom"])
+    }
 }
