@@ -4,6 +4,16 @@
     <title>DOS Boxer</title>
     <!-- newest first -->
     <item>
+      <title>Version 0.1.1</title>
+      <pubDate>Mon, 05 Oct 2026 14:50:03 +0000</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Fixes and polish from the first round of real use.</p>
+<ul><li><b>Speed sticks.</b> Slow a game down (⌘[) or speed it up (⌘]) and it remembers, every time you play. Reset it from the info panel.</li><li><b>Better box art.</b> Covers now come from the LaunchBox Games Database first, including fan-made art for games with no box scan.</li><li><b>Duplicates.</b> Adding a game you already have asks whether to replace it, keep both or skip it. Libraries that ended up with duplicates fix themselves.</li><li><b>Genres.</b> All 28 LaunchBox genres. Type to add one in the info panel.</li><li><b>Libraries.</b> File › New Library, Open Library and Move Library.</li><li><b>Fixes.</b> ⌘⌥ always releases the mouse; long names no longer spill out of the info panel; Collections dim with the rest of the sidebar.</li></ul>]]></description>
+      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.1.1/DOS-Boxer-0.1.1.zip" type="application/octet-stream" sparkle:edSignature="XpINjSJfq+HCoi43CCTF/BgB3ej3hB1JaEfXtK5NAqW10tdDRkAfYwz6xJDIheiETRD5lDpwGgGm7ZmI07XXBw==" length="10546745"/>
+    </item>
+    <item>
       <title>Version 0.1.0</title>
       <pubDate>Mon, 05 Oct 2026 13:26:03 +0000</pubDate>
       <sparkle:version>1</sparkle:version>
