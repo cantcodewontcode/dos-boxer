@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.1]
+
+Fixes and polish from the first round of real use.
+
+- **Speed sticks.** Slow a game down (⌘[) or speed it up (⌘]) and it remembers, every time you play. Reset it from the info panel.
+- **Better box art.** Covers now come from the LaunchBox Games Database first, including fan-made art for games with no box scan.
+- **Duplicates.** Adding a game you already have asks whether to replace it, keep both or skip it. Libraries that ended up with duplicates fix themselves.
+- **Genres.** All 28 LaunchBox genres. Type to add one in the info panel.
+- **Libraries.** File › New Library, Open Library and Move Library.
+- **Fixes.** ⌘⌥ always releases the mouse; long names no longer spill out of the info panel; Collections dim with the rest of the sidebar.
+
 ## [0.1.0]
 
 The first release. Everything's new, so here's what DOS Boxer does, what it doesn't do yet, and a few details for the curious.
