@@ -109,6 +109,10 @@ targets:
       - path: Resources/AppIcon/AppIcon.icon
         type: file
         buildPhase: resources
+      # Licence notices for the open-source code shipped inside the app
+      - path: Licenses
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: Sparkle
       - target: DOSBoxerKit

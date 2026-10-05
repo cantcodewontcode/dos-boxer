@@ -89,7 +89,7 @@ DOS Boxer stands on the shoulders of some great projects:
 
 ## License
 
-DOS Boxer is free software, licensed under the GNU General Public License, version 2 or later. See [LICENSE](LICENSE).
+DOS Boxer is free software, licensed under the GNU General Public License, version 2 or later. See [LICENSE](LICENSE). Sparkle and Phosphor Icons are MIT-licensed; their notices are in [Licenses](Licenses) and inside the app.
 
 Box art and game details are downloaded into your own library; none of it ships with the app.
 

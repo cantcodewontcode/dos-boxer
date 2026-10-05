@@ -86,11 +86,18 @@ SIGN_UPDATE=$DATA/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update
 SIGNATURE=$("$SIGN_UPDATE" "$OUT/$ZIP")   # sparkle:edSignature="…" length="…"
 
 step "Adding $VERSION to appcast.xml"
-# Release notes: this version's CHANGELOG section, as a simple list
+# Update notes (what Sparkle shows): the top of this version's CHANGELOG
+# section, up to its first "###" heading. Lists become bullets, other lines
+# paragraphs; **bold** is kept.
 NOTES=$(awk -v v="$VERSION" '
   $0 ~ "^## \\[?"v"\\]?" { on = 1; next }
-  on && /^## / { exit }
-  on && /^[-*] / { sub(/^[-*] /, ""); print "<li>" $0 "</li>" }
+  on && /^##/ { exit }
+  !on || /^[[:space:]]*$/ { next }
+  { line = $0; while (match(line, /\*\*[^*]+\*\*/)) {
+      line = substr(line, 1, RSTART - 1) "<b>" substr(line, RSTART + 2, RLENGTH - 4) "</b>" substr(line, RSTART + RLENGTH) } }
+  /^[-*] / { sub(/^[-*] /, "", line); items = items "<li>" line "</li>"; next }
+  { print "<p>" line "</p>" }
+  END { if (items != "") print "<ul>" items "</ul>" }
 ' CHANGELOG.md)
 ITEM="    <item>
       <title>Version $VERSION</title>
@@ -98,7 +105,7 @@ ITEM="    <item>
       <sparkle:version>$BUILD</sparkle:version>
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-      <description><![CDATA[<ul>$NOTES</ul>]]></description>
+      <description><![CDATA[$NOTES]]></description>
       <enclosure url=\"https://github.com/$REPO/releases/download/v$VERSION/$ZIP\" type=\"application/octet-stream\" $SIGNATURE/>
     </item>"
 if [ ! -f appcast.xml ]; then
