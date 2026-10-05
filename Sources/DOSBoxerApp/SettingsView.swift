@@ -13,6 +13,7 @@ struct SettingsView: View {
             Tab("Music", systemImage: "music.note", value: .music) { MusicSettings() }
             Tab("Controllers", systemImage: "gamecontroller", value: .controllers) { ControllerSettings() }
             Tab("Game Details", systemImage: "text.book.closed", value: .gameDetails) { GameDetailsSettings() }
+            Tab("Updates", systemImage: "arrow.down.circle", value: .updates) { UpdateSettings() }
         }
         .frame(width: 460)
     }
@@ -43,7 +44,7 @@ private struct DisplaySettings: View {
 }
 
 enum SettingsTab: String {
-    case display, music, controllers, gameDetails
+    case display, music, controllers, gameDetails, updates
     static let defaultsKey = "SettingsTab"
 }
 

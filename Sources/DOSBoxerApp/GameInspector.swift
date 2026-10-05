@@ -421,7 +421,7 @@ private struct GenrePills: View {
                 }
                 if enabled {
                     Menu {
-                        ForEach(GameGenres.all.filter { !genres.contains($0) }, id: \.self) { genre in
+                        ForEach(GameGenres.all.filter { !genres.contains($0) }.sorted(), id: \.self) { genre in
                             Button(genre) { save(genres + [genre]) }
                         }
                     } label: {

@@ -8,6 +8,8 @@ struct DOSBoxerApp: App {
     init() {
         // DOS Boxer's windows don't use tabs; drop View › Show Tab Bar
         NSWindow.allowsAutomaticWindowTabbing = false
+        // Starts Sparkle, which checks for updates in the background
+        _ = Updates.shared
     }
 
     var body: some Scene {
@@ -23,7 +25,17 @@ struct DOSBoxerApp: App {
         .commands {
             LibraryCommands(library: library)
             GameCommands()
+            AboutCommands()
+            UpdateCommands()
         }
+
+        Window("About DOS Boxer", id: "about") {
+            AboutView()
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .restorationBehavior(.disabled)
+        .defaultPosition(.center)
 
         WindowGroup("Game", for: URL.self) { $url in
             if let url {

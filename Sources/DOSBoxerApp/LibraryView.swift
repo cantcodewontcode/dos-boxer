@@ -31,7 +31,6 @@ struct LibraryView: View {
     /// The games waiting for delete confirmation, and the card the
     /// confirmation is anchored to.
     @State private var deleting: [Gamebox.ID] = []
-    @State private var deletingAnchor: Gamebox.ID?
     @State private var renamingCollection: GameCollection.ID?
     @FocusState private var searchFocused: Bool
 
@@ -121,7 +120,6 @@ struct LibraryView: View {
                 selectAll: { selection = Set(filteredGames.map(\.id)) },
                 moveToTrash: {
                     deleting = selectedGames.map(\.id)
-                    deletingAnchor = deleting.first
                 },
                 find: { searchFocused = true },
                 chooseLocation: { filePanel = .chooseLocation },
@@ -177,6 +175,20 @@ struct LibraryView: View {
             #if DEBUG
             .task { runDebugLaunchOptions() }
             #endif
+            // Moving games to the Trash: always asked in the middle of the
+            // window, wherever the games are in the grid
+            .alert(deletingTitle, isPresented: Binding(get: { !deleting.isEmpty }, set: { if !$0 { deleting = [] } })) {
+                Button("Move to Trash", role: .destructive) {
+                    let doomed = library.games.filter { deleting.contains($0.id) }
+                    deleting = []
+                    selection.subtract(doomed.map(\.id))
+                    library.delete(doomed)
+                }
+                Button("Cancel", role: .cancel) { deleting = [] }
+            } message: {
+                Text(deleting.count == 1 ? "Its saved games will also be moved to the Trash."
+                     : "Their saved games will also be moved to the Trash.")
+            }
             .alert("Something went wrong", isPresented: .constant(library.lastError != nil)) {
                 Button("OK") { library.dismissError() }
             } message: {
@@ -258,6 +270,13 @@ struct LibraryView: View {
     /// The selected games, in grid order.
     private var selectedGames: [Gamebox] {
         filteredGames.filter { selection.contains($0.id) }
+    }
+
+    private var deletingTitle: String {
+        if deleting.count == 1, let game = library.games.first(where: { $0.id == deleting[0] }) {
+            return "Move “\(game.title)” to the Trash?"
+        }
+        return "Move \(deleting.count) games to the Trash?"
     }
 
     private func fallBackIfFilterIsGone() {
@@ -347,20 +366,6 @@ struct LibraryView: View {
                 }) else { return false }
                 library.setCover(of: game, to: image)
                 return true
-            }
-            .popover(isPresented: Binding(get: { deletingAnchor == game.id },
-                                          set: { if !$0 { deletingAnchor = nil; deleting = [] } }),
-                     arrowEdge: .bottom) {
-                DeletePopover(games: library.games.filter { deleting.contains($0.id) }) {
-                    let doomed = library.games.filter { deleting.contains($0.id) }
-                    deletingAnchor = nil
-                    deleting = []
-                    selection.subtract(doomed.map(\.id))
-                    library.delete(doomed)
-                } cancel: {
-                    deletingAnchor = nil
-                    deleting = []
-                }
             }
             .onTapGesture(count: 2) { play(game) }
             .simultaneousGesture(TapGesture().onEnded { click(game) })
@@ -471,7 +476,6 @@ struct LibraryView: View {
         Divider()
         Button(single ? "Move to Trash…" : "Move \(games.count) Games to Trash…") {
             deleting = games.map(\.id)
-            deletingAnchor = game.id
         }
         if single {
             Button("Revert to Original…") { gameToRevert = game }
@@ -618,37 +622,6 @@ private struct GameCard: View {
 }
 
 /// Confirms moving games to the Trash, in a glass popover by a cover.
-private struct DeletePopover: View {
-    let games: [Gamebox]
-    let delete: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(games.count == 1 ? "Move “\(games[0].name)” to the Trash?" : "Move \(games.count) games to the Trash?")
-                .font(.headline)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(games.count == 1 ? "Its saved games will also be moved to the Trash."
-                 : "Their saved games will also be moved to the Trash.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Spacer()
-                Button("Cancel", action: cancel)
-                    .buttonStyle(.glass)
-                    .keyboardShortcut(.cancelAction)
-                Button("Move to Trash", role: .destructive, action: delete)
-                    .buttonStyle(.glassProminent)
-                    .tint(.red)
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.top, 4)
-        }
-        .frame(width: 280)
-        .padding(18)
-    }
-}
 
 /// What follows the pointer when dragging games: the cover, with a count
 /// badge for several.
