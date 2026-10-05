@@ -55,6 +55,10 @@ xcodebuild -project DOSBoxer.xcodeproj -scheme "DOS Boxer" -configuration Releas
 [ -d "$DATA/Build/Products/Release/DOS Boxer.app" ] || fail "build failed"
 rm -rf "$OUT" && mkdir -p "$OUT"
 ditto "$DATA/Build/Products/Release/DOS Boxer.app" "$APP"
+# No extended attributes anywhere, links included: Archive Utility can't put
+# them back on links and writes them out as "._" files instead, which breaks
+# the frameworks' seals and makes Gatekeeper refuse the app
+xattr -crs "$APP"
 
 step "Signing"
 sign() { codesign --force --timestamp --options runtime --sign "$IDENTITY" "$@"; }
@@ -73,13 +77,19 @@ codesign --verify --deep --strict "$APP" || fail "signature check failed"
 if $SIGN_ONLY; then step "Signed (test run): $APP"; exit 0; fi
 
 step "Notarizing (a few minutes)"
-ditto -c -k --keepParent "$APP" "$OUT/notarize.zip"
+ditto -c -k --keepParent --norsrc --noextattr "$APP" "$OUT/notarize.zip"
 xcrun notarytool submit "$OUT/notarize.zip" --keychain-profile "$NOTARY_PROFILE" --wait | tee "$OUT/notary.log"
 grep -q "status: Accepted" "$OUT/notary.log" || fail "notarization failed; see $OUT/notary.log"
 xcrun stapler staple "$APP"
 spctl --assess --type execute "$APP" || fail "Gatekeeper rejected the app"
 rm "$OUT/notarize.zip"
-ditto -c -k --keepParent "$APP" "$OUT/$ZIP"
+ditto -c -k --keepParent --norsrc --noextattr "$APP" "$OUT/$ZIP"
+# Check it the way people will open it: unzipped by Archive Utility
+CHECK="$OUT/check" && rm -rf "$CHECK" && mkdir -p "$CHECK"
+cp "$OUT/$ZIP" "$CHECK/" && xattr -w com.apple.quarantine "0081;00000000;Safari;" "$CHECK/$ZIP"
+open -W -g -a "Archive Utility" "$CHECK/$ZIP"
+spctl --assess --type execute "$CHECK/DOS Boxer.app" || fail "the ZIP doesn't open cleanly after unzipping"
+rm -rf "$CHECK"
 
 step "Signing the update"
 SIGN_UPDATE=$DATA/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update
@@ -119,10 +129,15 @@ if [ ! -f appcast.xml ]; then
 </rss>
 EOF
 fi
-ITEM="$ITEM" python3 - <<'EOF'
+ITEM="$ITEM" VERSION="$VERSION" python3 - <<'EOF'
 import os
 path = "appcast.xml"
 text = open(path).read()
+import re
+# Re-releasing a version replaces its entry
+version = os.environ["VERSION"]
+text = re.sub(r"\n    <item>(?:(?!</item>).)*<sparkle:shortVersionString>" + re.escape(version)
+              + r"</sparkle:shortVersionString>.*?</item>", "", text, flags=re.S)
 marker = "<!-- newest first -->"
 text = text.replace(marker, marker + "\n" + os.environ["ITEM"], 1)
 open(path, "w").write(text)
