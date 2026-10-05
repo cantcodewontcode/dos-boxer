@@ -5,6 +5,7 @@ import SwiftUI
 enum LibraryFilter: Hashable, Codable, RawRepresentable {
     case all, favorites, recentlyPlayed, neverPlayed
     case year(Int)
+    case genre(String)
     case collection(UUID)
 
     init?(rawValue: String) {
@@ -18,6 +19,8 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
                 self = .collection(id)
             } else if rawValue.hasPrefix("year-"), let year = Int(rawValue.dropFirst(5)) {
                 self = .year(year)
+            } else if rawValue.hasPrefix("genre-") {
+                self = .genre(String(rawValue.dropFirst(6)))
             } else {
                 return nil
             }
@@ -31,6 +34,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .recentlyPlayed: "recentlyPlayed"
         case .neverPlayed: "neverPlayed"
         case .year(let year): "year-\(year)"
+        case .genre(let genre): "genre-\(genre)"
         case .collection(let id): "collection-\(id.uuidString)"
         }
     }
@@ -49,6 +53,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .recentlyPlayed: "Recently Played"
         case .neverPlayed: "Never Played"
         case .year(let year): String(year)
+        case .genre(let genre): genre
         case .collection: "Collection"
         }
     }
@@ -60,6 +65,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .recentlyPlayed: "clock"
         case .neverPlayed: "sparkles"
         case .year: "calendar"
+        case .genre: "tag"
         case .collection: "rectangle.stack"
         }
     }
@@ -71,6 +77,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .recentlyPlayed: game.stats.lastPlayed != nil
         case .neverPlayed: game.stats.launches == 0
         case .year(let year): game.year == year
+        case .genre(let genre): game.info.genreList.contains(genre)
         case .collection(let id): library.collections.first { $0.id == id }?.gameIDs.contains(game.id) ?? false
         }
     }
@@ -116,6 +123,13 @@ struct LibrarySidebar: View {
                     }
                 }
             }
+            if !genres.isEmpty {
+                Section("Genres") {
+                    ForEach(genres, id: \.self) { genre in
+                        row(.genre(genre))
+                    }
+                }
+            }
         }
         .listStyle(.sidebar)
     }
@@ -136,6 +150,12 @@ struct LibrarySidebar: View {
         let collection = library.createCollection()
         filter = .collection(collection.id)
         renamingCollection = collection.id
+    }
+
+    /// Genres the library's games have, in the standard order.
+    private var genres: [String] {
+        let present = Set(library.games.flatMap(\.info.genreList))
+        return GameGenres.all.filter(present.contains) + present.subtracting(GameGenres.all).sorted()
     }
 
     private var years: [Int] {

@@ -48,6 +48,8 @@ public final class GameDetailsPack {
     private init() {
         if let file = Self.load() {
             state = .installed(gameCount: file.games.count, updated: file.sourceDate)
+            // Made by an earlier DOS Boxer: get the details again for what's new
+            if file.version ?? 1 < File.currentVersion { install() }
         }
     }
 
@@ -104,6 +106,8 @@ public final class GameDetailsPack {
     /// "Crystal Caves (1991)"), or nil.
     nonisolated public static func details(forName name: String, year: Int?) -> Entry? {
         guard let index = loadIndex() else { return nil }
+        // Named the way collections name it, year and all
+        if let exact = index.byFolderName[CoverArtFetcher.loose(name)] { return exact }
         // eXoDOS names episodes "Duke Nukem - Episode 1 - Shrapnel City";
         // fall back to the main title
         var keys = CoverArtFetcher.lookupKeys(for: name)
@@ -140,6 +144,8 @@ public final class GameDetailsPack {
         public var launchBoxID: Int
         public var name: String
         public var alternateNames: [String]?
+        /// Folder names the game goes by in collections, e.g. "Hexxagon (1993)".
+        public var folderNames: [String]?
         /// "1991-10-22", or just "1991".
         public var released: String?
         public var publisher: String?
@@ -180,6 +186,9 @@ public final class GameDetailsPack {
     // MARK: Storage
 
     struct File: Codable {
+        /// 2 added the folder names games are known by.
+        static let currentVersion = 2
+        var version: Int? = currentVersion
         /// When LaunchBox last updated its database.
         var sourceDate: Date
         var games: [Entry]
@@ -203,6 +212,8 @@ public final class GameDetailsPack {
     struct Index {
         /// Keyed by a loose form of each of their names.
         var byName: [String: [Entry]] = [:]
+        /// Keyed by a loose form of their folder names (exact matches).
+        var byFolderName: [String: Entry] = [:]
         /// Keyed by their program's and installer's file names.
         var byFileName: [String: [Entry]] = [:]
     }
@@ -218,6 +229,9 @@ public final class GameDetailsPack {
         for game in file.games {
             for name in [game.name] + (game.alternateNames ?? []) {
                 index.byName[CoverArtFetcher.loose(name), default: []].append(game)
+            }
+            for folder in game.folderNames ?? [] {
+                index.byFolderName[CoverArtFetcher.loose(folder)] = game
             }
             for file in [game.startupFile, game.setupFile].compactMap({ $0 }) {
                 index.byFileName[file.uppercased(), default: []].append(game)
@@ -263,7 +277,7 @@ public final class GameDetailsPack {
         report(.extracting, nil)
         let unzip = Process()
         unzip.executableURL = URL(filePath: "/usr/bin/unzip")
-        unzip.arguments = ["-o", "-q", zip.path(percentEncoded: false), "Metadata.xml", "-d",
+        unzip.arguments = ["-o", "-q", zip.path(percentEncoded: false), "Metadata.xml", "Files.xml", "-d",
                            work.path(percentEncoded: false)]
         try await withTaskCancellationHandler {
             try unzip.run()
@@ -294,6 +308,17 @@ public final class GameDetailsPack {
                 games[index].alternateNames = names
             }
         }
+        // Folder names games are known by in collections, e.g. "Hexxagon (1993)"
+        if let files = InputStream(url: work.appending(path: "Files.xml")) {
+            let folders = FolderNamesReader()
+            let parser = XMLParser(stream: files)
+            parser.delegate = folders
+            if parser.parse() {
+                for index in games.indices {
+                    games[index].folderNames = folders.names[games[index].name]
+                }
+            }
+        }
         return File(sourceDate: lastModified(http) ?? Date(), games: games)
     }
 }
@@ -319,6 +344,39 @@ private final class DownloadProgress: NSObject, URLSessionDownloadDelegate, Send
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {}
+}
+
+/// Reads LaunchBox's Files.xml: the folder names of MS-DOS games in
+/// collections, by LaunchBox game name.
+private final class FolderNamesReader: NSObject, XMLParserDelegate {
+    var names: [String: [String]] = [:]
+    private var fields: [String: String]?
+    private var text = ""
+
+    func parser(_ parser: XMLParser, didStartElement element: String, namespaceURI: String?,
+                qualifiedName: String?, attributes: [String: String] = [:]) {
+        if element == "File" { fields = [:] }
+        text = ""
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if fields != nil { text += string }
+    }
+
+    func parser(_ parser: XMLParser, didEndElement element: String, namespaceURI: String?,
+                qualifiedName: String?) {
+        guard var current = fields else { return }
+        if element == "File" {
+            if current["Platform"] == "MS-DOS", let file = current["FileName"], let game = current["GameName"] {
+                names[game, default: []].append(file)
+            }
+            fields = nil
+        } else {
+            current[element] = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            fields = current
+        }
+        text = ""
+    }
 }
 
 /// Reads LaunchBox's Metadata.xml, keeping MS-DOS games and every

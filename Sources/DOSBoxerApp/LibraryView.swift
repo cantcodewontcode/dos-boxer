@@ -164,6 +164,7 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $offeringGameDetails) { GameDetailsPrompt() }
             .task {
+                _ = GameDetailsPack.shared  // brings old game details up to date
                 if !gameDetailsOffered {
                     gameDetailsOffered = true
                     offeringGameDetails = true
@@ -499,7 +500,7 @@ struct LibraryView: View {
 
 /// How the library grid is ordered. Ties always fall back to the name.
 enum SortOrder: String, CaseIterable, Identifiable {
-    case name, year, recentlyPlayed, mostPlayed, recentlyAdded
+    case name, year, rating, developer, publisher, recentlyPlayed, mostPlayed, recentlyAdded
 
     var id: Self { self }
 
@@ -507,6 +508,9 @@ enum SortOrder: String, CaseIterable, Identifiable {
         switch self {
         case .name: "Name"
         case .year: "Year"
+        case .rating: "Rating"
+        case .developer: "Developer"
+        case .publisher: "Publisher"
         case .recentlyPlayed: "Recently Played"
         case .mostPlayed: "Most Played"
         case .recentlyAdded: "Recently Added"
@@ -531,6 +535,9 @@ enum SortOrder: String, CaseIterable, Identifiable {
         switch self {
         case .name: return games.sorted(by: byName)
         case .year: return by({ $0.year }, descending: false)
+        case .rating: return by({ $0.info.communityRating }, descending: true)
+        case .developer: return by({ $0.info.developer?.lowercased() }, descending: false)
+        case .publisher: return by({ $0.info.publisher?.lowercased() }, descending: false)
         case .recentlyPlayed: return by({ $0.stats.lastPlayed }, descending: true)
         case .mostPlayed: return by({ $0.stats.launches > 0 ? $0.stats.launches : nil }, descending: true)
         case .recentlyAdded: return by({ $0.addedDate }, descending: true)
