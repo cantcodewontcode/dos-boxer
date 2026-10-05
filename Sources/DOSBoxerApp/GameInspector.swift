@@ -17,6 +17,7 @@ struct GameInspector: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header(game)
                     details(game)
+                        .zIndex(1)
                     overview(game)
                     stats(game)
                     programs(game)
@@ -24,7 +25,9 @@ struct GameInspector: View {
                     documents(game)
                 }
                 .padding(20)
-                .frame(maxWidth: .infinity)
+                // Exactly the panel's width: long values truncate and
+                // genres wrap rather than pushing the panel wider
+                .containerRelativeFrame(.horizontal)
                 .contentShape(.rect)
                 // Clicking anywhere else in the panel ends editing
                 .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
@@ -108,6 +111,7 @@ AddToCollectionButton(library: library, games: [game])
             GenrePills(genres: info.genreList, enabled: !game.isReadOnly) { genres in
                 library.update(game) { $0.setGenres(genres) }
             }
+            .zIndex(1)  // its suggestions list draws over the rows below
             if let players = info.maxPlayers {
                 row("Players", (players == 1 ? "1" : "Up to \(players)") + (info.cooperative == true ? " (co-op)" : ""))
             }
@@ -179,6 +183,22 @@ AddToCollectionButton(library: library, games: [game])
             Toggle("Return to the library when the game ends", isOn: Binding(
                 get: { game.info.closesWhenGameEnds },
                 set: { on in library.update(game) { $0.quitsWhenGameEnds = on ? nil : false } }))
+            if let speed = game.info.settings["cpu cpu_cycles"] {
+                HStack {
+                    Text("Speed").foregroundStyle(.secondary)
+                    Spacer()
+                    Text(speed == "max" ? "Fastest" : "Adjusted")
+                        .help("Set with Faster (⌘]) and Slower (⌘[) while playing")
+                    Button("Reset") {
+                        library.update(game) {
+                            $0.settings["cpu cpu_cycles"] = nil
+                            $0.settings["cpu cpu_cycles_protected"] = nil
+                        }
+                    }
+                    .buttonStyle(.link)
+                }
+                .font(.callout)
+            }
             ControlsButton(controls: game.info.controls) { controls in
                 library.update(game) { $0.controls = controls.isEmpty ? nil : controls }
             }
@@ -228,9 +248,9 @@ AddToCollectionButton(library: library, games: [game])
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack {
-            Text(label).foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
+            Text(label).foregroundStyle(.secondary).fixedSize()
+            Spacer(minLength: 12)
+            Text(value).lineLimit(1).truncationMode(.tail)
         }
         .font(.callout)
     }
@@ -251,6 +271,8 @@ private struct DetailField: View {
             Spacer()
             TextField(label, text: $text, prompt: Text("Add \(label.lowercased())"))
                 .textFieldStyle(.plain)
+                .lineLimit(1)
+                .frame(minWidth: 40)
                 .multilineTextAlignment(.trailing)
                 .focused($focused)
                 .editingFrame(focused)
@@ -420,26 +442,105 @@ private struct GenrePills: View {
                     Pill(title: genre, removable: enabled) { save(genres.filter { $0 != genre }) }
                 }
                 if enabled {
-                    Menu {
-                        ForEach(GameGenres.all.filter { !genres.contains($0) }.sorted(), id: \.self) { genre in
-                            Button(genre) { save(genres + [genre]) }
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.caption.weight(.semibold))
-                            .frame(width: 22, height: 20)
-                            .background(.quaternary, in: .capsule)
-                            .contentShape(.capsule)
-                    }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .help("Add Genre")
+                    GenreAdder(existing: genres) { save(genres + [$0]) }
                 }
             }
         }
         .font(.callout)
+    }
+}
+
+/// "+": becomes a small field to type a genre into, with the matching
+/// genres listed below it. Return (or a click) adds the highlighted one.
+private struct GenreAdder: View {
+    let existing: [String]
+    let add: (String) -> Void
+    @State private var adding = false
+    @State private var text = ""
+    @State private var highlighted = 0
+    @FocusState private var focused: Bool
+
+    private var matches: [String] { Array(GameGenres.matching(text, excluding: existing).prefix(8)) }
+
+    var body: some View {
+        if adding {
+            TextField("Genre", text: $text)
+                .textFieldStyle(.plain)
+                .font(.caption)
+                .frame(width: 120)
+                .padding(.horizontal, 8)
+                .frame(height: 20)
+                .background(.quaternary, in: .capsule)
+                .focused($focused)
+                .onAppear { focused = true }
+                .onChange(of: text) { highlighted = 0 }
+                .onKeyPress(.downArrow) {
+                    highlighted = min(highlighted + 1, max(matches.count - 1, 0))
+                    return .handled
+                }
+                .onKeyPress(.upArrow) {
+                    highlighted = max(highlighted - 1, 0)
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    close()
+                    return .handled
+                }
+                .onSubmit {
+                    if matches.indices.contains(highlighted) { add(matches[highlighted]) }
+                    close()
+                }
+                // Clicking elsewhere closes it (after a click on a match lands)
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { close() } }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if !matches.isEmpty { suggestions.offset(y: 26) }
+                }
+        } else {
+            Button {
+                adding = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.caption.weight(.semibold))
+                    .frame(width: 22, height: 20)
+                    .background(.quaternary, in: .capsule)
+                    .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .help("Add Genre")
+        }
+    }
+
+    private var suggestions: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(matches.enumerated()), id: \.element) { index, genre in
+                Text(genre)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .foregroundStyle(index == highlighted ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(index == highlighted ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear),
+                                in: .rect(cornerRadius: 6))
+                    .contentShape(.rect)
+                    .onHover { if $0 { highlighted = index } }
+                    .onTapGesture {
+                        add(genre)
+                        close()
+                    }
+            }
+        }
+        .padding(5)
+        .frame(width: 230)
+        .glassEffect(in: .rect(cornerRadius: 12))
+    }
+
+    private func close() {
+        adding = false
+        text = ""
+        highlighted = 0
     }
 }
 

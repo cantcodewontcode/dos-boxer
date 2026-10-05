@@ -149,8 +149,8 @@ public struct Gamebox: Sendable, Identifiable {
         public var developer: String?
         /// Kinds of game, from `GameGenres.all` (e.g. "Action", "Platform").
         public var genres: [String]?
-        /// Older gameboxes kept genres as one line of text; read through
-        /// `genreList`.
+        /// Older gameboxes kept genres as one line of free text; read through
+        /// `genreList`, which maps it onto the known genres.
         public var genre: String?
         /// The game's entry in the LaunchBox Games Database, once matched.
         public var launchBoxID: Int?
@@ -185,8 +185,15 @@ public struct Gamebox: Sendable, Identifiable {
 
         /// The game's genres, including ones saved by older versions.
         public var genreList: [String] {
-            genres ?? genre.map { $0.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty } } ?? []
+            if let genres { return genres }
+            // Older free-form genres, mapped onto the known ones
+            var list: [String] = []
+            for part in (genre ?? "").components(separatedBy: ",") {
+                if let known = GameGenres.closest(part.trimmingCharacters(in: .whitespaces)), !list.contains(known) {
+                    list.append(known)
+                }
+            }
+            return list
         }
 
         /// Replaces the genres (clearing the older one-line form).

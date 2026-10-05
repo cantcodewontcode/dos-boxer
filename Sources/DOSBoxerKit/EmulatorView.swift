@@ -26,6 +26,9 @@ public final class EmulatorMTKView: MTKView {
     private let emulator: Emulator
     private var renderer: FrameRenderer?
     private var mouseLocked = false
+    /// Watches for ⌘⌥ in this window whatever has keyboard focus, so the
+    /// mouse can always be let go.
+    private var releaseMonitor: Any?
 
     init(emulator: Emulator) {
         self.emulator = emulator
@@ -47,6 +50,14 @@ public final class EmulatorMTKView: MTKView {
 
     public override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if let releaseMonitor { NSEvent.removeMonitor(releaseMonitor) }
+        releaseMonitor = window == nil ? nil : NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            if let self, event.window === self.window,
+               event.modifierFlags.isSuperset(of: [.command, .option]) {
+                self.unlockMouse()
+            }
+            return event
+        }
         window?.makeFirstResponder(self)
         NotificationCenter.default.addObserver(self, selector: #selector(windowLostFocus),
                                                name: NSWindow.didResignKeyNotification, object: window)

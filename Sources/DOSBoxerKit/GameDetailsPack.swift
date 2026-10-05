@@ -104,7 +104,15 @@ public final class GameDetailsPack {
 
     /// The details for a game called `name` (which may end in a year, like
     /// "Crystal Caves (1991)"), or nil.
-    nonisolated public static func details(forName name: String, year: Int?) -> Entry? {
+    /// The game with this LaunchBox ID, if the details are downloaded.
+    nonisolated public static func entry(launchBoxID: Int) -> Entry? {
+        loadIndex()?.byID[launchBoxID]
+    }
+
+    /// The details for a game called `name` (which may end in a year). When
+    /// several games share the name and there's no year to tell them apart,
+    /// the one whose program is among `programs` (file names) wins.
+    nonisolated public static func details(forName name: String, year: Int?, programs: Set<String> = []) -> Entry? {
         guard let index = loadIndex() else { return nil }
         // Named the way collections name it, year and all
         if let exact = index.byFolderName[CoverArtFetcher.loose(name)] { return exact }
@@ -117,6 +125,10 @@ public final class GameDetailsPack {
         for key in keys {
             guard let matches = index.byName[key], !matches.isEmpty else { continue }
             if let year, let exact = matches.first(where: { $0.year == year }) { return exact }
+            if year == nil, matches.count > 1,
+               let byProgram = matches.first(where: { $0.startupFile.map(programs.contains) ?? false }) {
+                return byProgram
+            }
             // Only trust a different year when it's the only game by that name
             if year == nil || matches.count == 1 { return matches[0] }
         }
@@ -164,6 +176,13 @@ public final class GameDetailsPack {
         public var startupMD5: String?
         public var setupFile: String?
         public var setupMD5: String?
+        /// LaunchBox's front box art (or fan-made box art when there's no
+        /// scan), a file name on images.launchbox-app.com.
+        public var boxFront: String?
+
+        public var boxFrontURL: URL? {
+            boxFront.flatMap { URL(string: "https://images.launchbox-app.com/" + $0) }
+        }
 
         public var year: Int? { released.flatMap { Int($0.prefix(4)) } }
 
@@ -187,7 +206,8 @@ public final class GameDetailsPack {
 
     struct File: Codable {
         /// 2 added the folder names games are known by.
-        static let currentVersion = 2
+        /// 2 added the folder names games are known by; 3 box art; 4 fan art.
+        static let currentVersion = 4
         var version: Int? = currentVersion
         /// When LaunchBox last updated its database.
         var sourceDate: Date
@@ -216,6 +236,7 @@ public final class GameDetailsPack {
         var byFolderName: [String: Entry] = [:]
         /// Keyed by their program's and installer's file names.
         var byFileName: [String: [Entry]] = [:]
+        var byID: [Int: Entry] = [:]
     }
     nonisolated(unsafe) private static var cache: Index?
     nonisolated private static let cacheLock = NSLock()
@@ -227,6 +248,7 @@ public final class GameDetailsPack {
         guard let file = load() else { return nil }
         var index = Index()
         for game in file.games {
+            index.byID[game.launchBoxID] = game
             for name in [game.name] + (game.alternateNames ?? []) {
                 index.byName[CoverArtFetcher.loose(name), default: []].append(game)
             }
@@ -307,6 +329,7 @@ public final class GameDetailsPack {
             if let names = reader.alternateNames[reader.ids[index]] {
                 games[index].alternateNames = names
             }
+            games[index].boxFront = reader.boxFronts[reader.ids[index]]?.file
         }
         // Folder names games are known by in collections, e.g. "Hexxagon (1993)"
         if let files = InputStream(url: work.appending(path: "Files.xml")) {
@@ -386,6 +409,8 @@ private final class MetadataReader: NSObject, XMLParserDelegate {
     /// LaunchBox's ID for each of `games`.
     var ids: [String] = []
     var alternateNames: [String: [String]] = [:]
+    /// The best front box art per LaunchBox ID, with how well its region fits.
+    var boxFronts: [String: (file: String, rank: Int)] = [:]
 
     private var fields: [String: String]?
     private var record: String?
@@ -393,7 +418,7 @@ private final class MetadataReader: NSObject, XMLParserDelegate {
 
     func parser(_ parser: XMLParser, didStartElement element: String, namespaceURI: String?,
                 qualifiedName: String?, attributes: [String: String] = [:]) {
-        if element == "Game" || element == "GameAlternateName" {
+        if element == "Game" || element == "GameAlternateName" || element == "GameImage" {
             record = element
             fields = [:]
         }
@@ -420,6 +445,21 @@ private final class MetadataReader: NSObject, XMLParserDelegate {
 
     private func finish(_ f: [String: String]) {
         func value(_ key: String) -> String? { f[key].flatMap { $0.isEmpty ? nil : $0 } }
+        if record == "GameImage" {
+            // Real box scans first, fan-made box art when there's none
+            let type = value("Type")
+            guard type == "Box - Front" || type == "Fanart - Box - Front",
+                  let id = value("DatabaseID"), let file = value("FileName") else { return }
+            // English-speaking releases first
+            var rank = switch value("Region") {
+            case nil, "North America", "United States": 0
+            case "World", "United Kingdom", "Europe", "Australia", "Canada": 1
+            default: 2
+            }
+            if type == "Fanart - Box - Front" { rank += 10 }
+            if rank < boxFronts[id]?.rank ?? .max { boxFronts[id] = (file, rank) }
+            return
+        }
         if record == "GameAlternateName" {
             if let id = value("DatabaseID"), let name = value("AlternateName") {
                 alternateNames[id, default: []].append(name)

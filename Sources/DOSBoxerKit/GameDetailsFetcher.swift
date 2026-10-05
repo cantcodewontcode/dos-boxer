@@ -22,11 +22,22 @@ public actor GameDetailsFetcher {
     @discardableResult
     public func fillDetails(of gamebox: Gamebox) async -> Bool {
         let info = gamebox.info
-        guard !gamebox.isReadOnly, info.launchBoxID == nil else { return false }
+        guard !gamebox.isReadOnly else { return false }
+        // Matched before genres were standardised: take LaunchBox's over the
+        // older free-text one
+        if let id = info.launchBoxID {
+            guard info.genres == nil, info.genre != nil,
+                  let genres = GameDetailsPack.entry(launchBoxID: id)?.genres else { return false }
+            var updated = gamebox
+            updated.info.setGenres(genres)
+            try? updated.save()
+            return true
+        }
 
         // The downloaded LaunchBox details: by the game's files, then its name
         if let entry = GameDetailsPack.details(forFilesIn: gamebox.url.appending(path: "Drives"))
-            ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year) {
+            ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year,
+                                       programs: Self.programNames(in: gamebox)) {
             var updated = gamebox
             entry.fill(&updated.info)
             // A game that hasn't been played yet starts with the program
@@ -151,6 +162,17 @@ public actor GameDetailsFetcher {
         return games.first { result in
             year == nil || result.description.range(of: #"\b(19|20)\d\d\b"#, options: .regularExpression) == nil
         }?.id
+    }
+
+    /// The game's program file names, uppercased (e.g. "OREGON.EXE").
+    static func programNames(in gamebox: Gamebox) -> Set<String> {
+        let drives = gamebox.url.appending(path: "Drives")
+        guard let files = FileManager.default.enumerator(at: drives, includingPropertiesForKeys: nil) else { return [] }
+        var names = Set<String>()
+        for case let file as URL in files where ["exe", "com", "bat"].contains(file.pathExtension.lowercased()) {
+            names.insert(file.lastPathComponent.uppercased())
+        }
+        return names
     }
 
     /// The title as people would search for it: no edition tags (SCI, CD…)

@@ -11,3 +11,4 @@ _dbx_request_quit
 _dbx_set_paused
 _dbx_start
 _dbx_trigger
+_dbx_cpu_cycles

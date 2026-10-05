@@ -12,7 +12,9 @@ struct LibraryActions {
     var selectAll: () -> Void
     var moveToTrash: () -> Void
     var find: () -> Void
-    var chooseLocation: () -> Void
+    var newLibrary: () -> Void
+    var openLibrary: () -> Void
+    var moveLibrary: () -> Void
     var newCollection: () -> Void
     var toggleInfo: () -> Void
     /// true for bigger covers, false for smaller.
@@ -61,7 +63,12 @@ struct LibraryCommands: Commands {
                 try? FileManager.default.createDirectory(at: library.screenshotsURL, withIntermediateDirectories: true)
                 NSWorkspace.shared.activateFileViewerSelecting([library.screenshotsURL])
             }
-            Button("Choose Library Location…") { actions?.chooseLocation() }
+            Divider()
+            Button("New Library…") { actions?.newLibrary() }
+                .disabled(actions == nil)
+            Button("Open Library…") { actions?.openLibrary() }
+                .disabled(actions == nil)
+            Button("Move Library…") { actions?.moveLibrary() }
                 .disabled(actions == nil)
         }
         CommandGroup(after: .pasteboard) {

@@ -23,6 +23,16 @@ public final class GameLibrary {
 
     /// Games still being added, for progress UI.
     public private(set) var pendingImports: [PendingImport] = []
+
+    /// A game just added that's already in the library, waiting for the
+    /// person to choose what to do. Shown one at a time.
+    public struct DuplicateImport: Identifiable, Sendable {
+        public let id = UUID()
+        public let added: Gamebox
+        public let existing: Gamebox
+    }
+    public enum DuplicateChoice: Sendable { case replace, keepBoth, skip }
+    public private(set) var duplicates: [DuplicateImport] = []
     public private(set) var lastError: String? {
         didSet { if let lastError { FileHandle.standardError.write(Data("DOS Boxer library: \(lastError)\n".utf8)) } }
     }
@@ -33,7 +43,7 @@ public final class GameLibrary {
         var id = UUID()
     }
 
-    static let markerFileName = "Library.json"
+    nonisolated static let markerFileName = "Library.json"
     private static let locationKey = "LibraryPath"
 
     /// The gameboxes, in their own folder so the library's top level stays
@@ -51,9 +61,11 @@ public final class GameLibrary {
         URL.homeDirectory.appending(path: "DOSBoxer", directoryHint: .isDirectory)
     }
 
-    public init() {
+    /// Opens the library at `location`, or by default the one last used.
+    /// (Tests pass a scratch folder, so they never touch a real library.)
+    public init(location: URL? = nil) {
         let saved = UserDefaults.standard.string(forKey: Self.locationKey)
-        rootURL = saved.map { URL(filePath: $0, directoryHint: .isDirectory) } ?? Self.defaultLocation
+        rootURL = location ?? saved.map { URL(filePath: $0, directoryHint: .isDirectory) } ?? Self.defaultLocation
         reload()
         // Keep "Recently Played" and "Most Played" current
         NotificationCenter.default.addObserver(forName: .gameDetailsPackChanged, object: nil,
@@ -80,10 +92,13 @@ public final class GameLibrary {
             let entries = try fileManager.contentsOfDirectory(at: gamesURL, includingPropertiesForKeys: nil,
                                                               options: [.skipsHiddenFiles])
             collections = GameCollectionsFile.load(from: rootURL)
-            games = entries
+            // Games waiting on a duplicate question stay out of sight
+            let waiting = Set(duplicates.map(\.added.url.standardizedFileURL))
+            games = Self.withUniqueIDs(entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
+                .filter { !waiting.contains($0.standardizedFileURL) }
                 .compactMap { try? Gamebox.open($0) }
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
             lastError = nil
             fetchMissingCovers()
             fetchMissingDetails()
@@ -126,7 +141,9 @@ public final class GameLibrary {
     /// downloaded.
     public func lookUpDetailsAgain() {
         detailLookupsTried = []
+        coverLookupsTried = []  // new details can bring box art
         fetchMissingDetails()
+        fetchMissingCovers()
     }
 
     /// Fills in missing publishers, developers and genres, one game at a
@@ -134,7 +151,8 @@ public final class GameLibrary {
     private func fetchMissingDetails() {
         guard !isFetchingDetails else { return }
         let missing = games.filter { game in
-            !game.isReadOnly && !detailLookupsTried.contains(game.id) && game.info.launchBoxID == nil
+            !game.isReadOnly && !detailLookupsTried.contains(game.id)
+                && (game.info.launchBoxID == nil || game.info.genres == nil && game.info.genre != nil)
         }
         guard !missing.isEmpty else { return }
         isFetchingDetails = true
@@ -143,6 +161,8 @@ public final class GameLibrary {
             var foundAny = false
             for game in missing where await GameDetailsFetcher.shared.fillDetails(of: game) {
                 foundAny = true
+                // Now matched, it may have box art of its own: look again
+                coverLookupsTried.remove(game.id)
             }
             isFetchingDetails = false
             if foundAny { reload() } else { fetchMissingDetails() }
@@ -341,6 +361,24 @@ public final class GameLibrary {
         }
     }
 
+    /// Whether `folder` holds a DOS Boxer library.
+    nonisolated public static func isLibrary(_ folder: URL) -> Bool {
+        let fileManager = FileManager.default
+        return fileManager.fileExists(atPath: folder.appending(path: markerFileName).path(percentEncoded: false))
+            || fileManager.fileExists(atPath: folder.appending(path: "Games").path(percentEncoded: false))
+    }
+
+    /// Moves the whole library into `folder` (as a folder of the same name)
+    /// and carries on using it there.
+    public func moveLibrary(into folder: URL) throws {
+        let destination = folder.appending(path: rootURL.lastPathComponent, directoryHint: .isDirectory)
+        guard !FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)) else {
+            throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: destination.path(percentEncoded: false)])
+        }
+        try FileManager.default.moveItem(at: rootURL, to: destination)
+        useLibrary(at: destination)
+    }
+
     public func game(withID id: UUID) -> Gamebox? {
         games.first { $0.id == id }
     }
@@ -371,6 +409,58 @@ public final class GameLibrary {
 
     // MARK: Adding games
 
+    /// A game already in the library that `added` is a copy of: the same
+    /// game converted again, or one with the same title.
+    private func existingGame(like added: Gamebox) -> Gamebox? {
+        let others = games.filter { $0.url.standardizedFileURL != added.url.standardizedFileURL }
+        return others.first { $0.id == added.id }
+            ?? others.first { $0.title.localizedCaseInsensitiveCompare(added.title) == .orderedSame }
+    }
+
+    /// Settles a duplicate: replace the game already there (the new copy
+    /// takes its place in collections), keep both, or skip the new one.
+    public func resolve(_ duplicate: DuplicateImport, _ choice: DuplicateChoice) {
+        duplicates.removeAll { $0.id == duplicate.id }
+        let fileManager = FileManager.default
+        switch choice {
+        case .skip:
+            try? fileManager.trashItem(at: duplicate.added.url, resultingItemURL: nil)
+        case .replace:
+            var added = duplicate.added
+            added.info.id = duplicate.existing.id
+            added.info.isFavorite = duplicate.existing.info.isFavorite
+            try? added.save()
+            if (try? fileManager.trashItem(at: duplicate.existing.url, resultingItemURL: nil)) != nil,
+               duplicate.existing.url.pathExtension == added.url.pathExtension {
+                try? fileManager.moveItem(at: added.url, to: duplicate.existing.url)
+            }
+        case .keepBoth:
+            if duplicate.added.id == duplicate.existing.id {
+                var added = duplicate.added
+                added.info.id = UUID()
+                try? added.save()
+            }
+        }
+        reload()
+    }
+
+    /// Two games can't share an ID (the grid would show one blank and
+    /// select both): the one added first keeps it, later copies get new
+    /// ones, saved where possible.
+    private static func withUniqueIDs(_ games: [Gamebox]) -> [Gamebox] {
+        var seen = Set<Gamebox.ID>()
+        var renumbered: [URL: Gamebox] = [:]
+        let oldestFirst = games.sorted { ($0.addedDate ?? .distantPast) < ($1.addedDate ?? .distantPast) }
+        for game in oldestFirst where !seen.insert(game.id).inserted {
+            var fixed = game
+            fixed.info.id = UUID()
+            if !fixed.isReadOnly { try? fixed.save() }
+            seen.insert(fixed.id)
+            renumbered[game.url] = fixed
+        }
+        return games.map { renumbered[$0.url] ?? $0 }
+    }
+
     /// Makes a gamebox in `library` (a folder of gameboxes) from a game folder, ZIP file or gamebox,
     /// without a `GameLibrary` (for tools like the compatibility lab).
     nonisolated public static func importGame(from source: URL, into library: URL) throws -> URL {
@@ -389,8 +479,13 @@ public final class GameLibrary {
                 let result = Result { try GameImporter.makeGamebox(from: url, inLibrary: games) }
                 await MainActor.run {
                     self.pendingImports.removeAll { $0.id == pending.id }
-                    if case .failure(let error) = result {
+                    switch result {
+                    case .failure(let error):
                         self.lastError = "Couldn't import \(url.lastPathComponent): \(error.localizedDescription)"
+                    case .success(let added):
+                        if let added = try? Gamebox.open(added), let existing = self.existingGame(like: added) {
+                            self.duplicates.append(DuplicateImport(added: added, existing: existing))
+                        }
                     }
                     self.reload()
                 }

@@ -11,7 +11,7 @@ struct LibraryView: View {
 
     /// What the file panel is open for. (One panel per view: SwiftUI only
     /// honours the last `.fileImporter` attached to a view.)
-    enum FilePanel { case addGames, chooseLocation }
+    enum FilePanel { case addGames }
     @State private var filePanel: FilePanel?
     @State private var searchText = ""
     @State private var isDropTargeted = false
@@ -122,7 +122,9 @@ struct LibraryView: View {
                     deleting = selectedGames.map(\.id)
                 },
                 find: { searchFocused = true },
-                chooseLocation: { filePanel = .chooseLocation },
+                newLibrary: newLibrary,
+                openLibrary: openLibrary,
+                moveLibrary: moveLibrary,
                 newCollection: newCollection,
                 toggleInfo: { showInfo.toggle() },
                 zoom: { bigger in
@@ -141,12 +143,11 @@ struct LibraryView: View {
                 return true
             } isTargeted: { isDropTargeted = $0 }
             .fileImporter(isPresented: Binding(get: { filePanel != nil }, set: { if !$0 { filePanel = nil } }),
-                          allowedContentTypes: filePanel == .chooseLocation ? [.folder] : [.folder, .zip, .dosGame, .boxerGame],
+                          allowedContentTypes: [.folder, .zip, .dosGame, .boxerGame],
                           allowsMultipleSelection: filePanel == .addGames) { result in
                 guard case .success(let urls) = result, let panel = filePanel else { return }
                 switch panel {
                 case .addGames: importDropped(urls)
-                case .chooseLocation: if let url = urls.first { library.useLibrary(at: url) }
                 }
                 filePanel = nil
             }
@@ -188,6 +189,16 @@ struct LibraryView: View {
             } message: {
                 Text(deleting.count == 1 ? "Its saved games will also be moved to the Trash."
                      : "Their saved games will also be moved to the Trash.")
+            }
+            // A game that's already in the library: asked one at a time
+            .alert(library.duplicates.first.map { "“\($0.existing.title)” is already in your library" } ?? "",
+                   isPresented: Binding(get: { !library.duplicates.isEmpty }, set: { _ in }),
+                   presenting: library.duplicates.first) { duplicate in
+                Button("Replace") { library.resolve(duplicate, .replace) }
+                Button("Keep Both") { library.resolve(duplicate, .keepBoth) }
+                Button("Skip", role: .cancel) { library.resolve(duplicate, .skip) }
+            } message: { _ in
+                Text("Replace the one you have with this copy, keep both, or skip this one?")
             }
             .alert("Something went wrong", isPresented: .constant(library.lastError != nil)) {
                 Button("OK") { library.dismissError() }
@@ -277,6 +288,51 @@ struct LibraryView: View {
             return "Move “\(game.title)” to the Trash?"
         }
         return "Move \(deleting.count) games to the Trash?"
+    }
+
+    // MARK: Libraries
+
+    /// File › New Library…: an empty library in a folder you choose (or make).
+    private func newLibrary() {
+        chooseFolder(message: "Choose or create a folder for the new library.", prompt: "Create") { folder in
+            library.useLibrary(at: folder)
+        }
+    }
+
+    /// File › Open Library…: switch to another library.
+    private func openLibrary() {
+        chooseFolder(message: "Choose a DOS Boxer library to open.", prompt: "Open") { folder in
+            guard GameLibrary.isLibrary(folder) else {
+                library.reportError("That folder isn't a DOS Boxer library. To start one there, use File › New Library.")
+                return
+            }
+            library.useLibrary(at: folder)
+        }
+    }
+
+    /// File › Move Library…: move this library, games and all, elsewhere.
+    private func moveLibrary() {
+        chooseFolder(message: "Choose where to move your library. It keeps its name, “\(library.rootURL.lastPathComponent)”.",
+                     prompt: "Move") { folder in
+            do {
+                try library.moveLibrary(into: folder)
+            } catch {
+                library.reportError("Couldn't move the library: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func chooseFolder(message: String, prompt: String, then action: @escaping (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.message = message
+        panel.prompt = prompt
+        guard let window = NSApp.keyWindow else { return }
+        panel.beginSheetModal(for: window) { response in
+            if response == .OK, let folder = panel.url { action(folder) }
+        }
     }
 
     private func fallBackIfFilterIsGone() {

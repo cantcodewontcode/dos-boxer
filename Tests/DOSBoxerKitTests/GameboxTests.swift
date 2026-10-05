@@ -269,8 +269,7 @@ struct GameboxTests {
         let root = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         _ = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Keen1"), inLibrary: root)
-        let library = GameLibrary()
-        library.useLibrary(at: root)
+        let library = GameLibrary(location: root)
         defer { UserDefaults.standard.removeObject(forKey: "LibraryPath") }
 
         library.rename(library.games[0], to: "Commander Keen: Marooned on Mars")
@@ -322,8 +321,7 @@ struct GameboxTests {
         let root = scratch.appending(path: "Library", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: root.appending(path: "Games"), withIntermediateDirectories: true)
         _ = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Keen"), inLibrary: root.appending(path: "Games"))
-        let library = GameLibrary()
-        library.useLibrary(at: root)
+        let library = GameLibrary(location: root)
         defer { UserDefaults.standard.removeObject(forKey: "LibraryPath") }
 
         let collection = library.createCollection(named: "Apogee")
@@ -339,6 +337,29 @@ struct GameboxTests {
         library.deleteCollection(collection.id)
         library.reload()
         #expect(library.collections.isEmpty)
+    }
+
+    /// Two games with the same ID (the same Boxer game converted twice):
+    /// the second gets a new one; games with their own IDs keep them.
+    @Test func duplicateIDsAreRepairedAndOthersKept() throws {
+        let root = scratch.appending(path: "Library", directoryHint: .isDirectory)
+        let games = root.appending(path: "Games")
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        let keen = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Keen"), inLibrary: games)
+        let copy = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Copy"), inLibrary: games)
+        let other = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Other"), inLibrary: games)
+        var duplicate = try Gamebox.open(copy)
+        duplicate.info.id = try Gamebox.open(keen).id
+        duplicate.info.dateAdded = Date().addingTimeInterval(60)  // added later
+        try duplicate.save()
+        let keenID = try Gamebox.open(keen).id, otherID = try Gamebox.open(other).id
+
+        let library = GameLibrary(location: root)
+        #expect(Set(library.games.map(\.id)).count == 3)
+        #expect(try Gamebox.open(keen).id == keenID)
+        #expect(try Gamebox.open(other).id == otherID)
+        library.reload()
+        #expect(Set(library.games.map(\.id)) == Set([keenID, otherID, try Gamebox.open(copy).id]))
     }
 
     @Test func renamingByTitleKeepsTheYear() throws {

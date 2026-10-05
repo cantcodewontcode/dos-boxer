@@ -54,6 +54,11 @@ void dbx_trigger(const char* action);
 /// Pauses or resumes the emulator (sound stops while paused).
 void dbx_set_paused(bool paused);
 
+/// The CPU speed now, as DOSBox Staging's cpu_cycles and
+/// cpu_cycles_protected settings (e.g. "3000", "max", "auto"; empty if
+/// unset), written into the buffers. Call on the emulator thread.
+void dbx_cpu_cycles(char* real_mode, int32_t real_mode_size, char* protected_mode, int32_t protected_mode_size);
+
 /// Types `text` (UTF-8; printable ASCII, tabs and line breaks) into DOS, as
 /// if typed on the keyboard.
 void dbx_paste_text(const char* text);

@@ -115,6 +115,14 @@ private let publishFrame: DBXFrameCallback = { context, frame in
     guard let context, let frame = frame?.pointee, let pixels = frame.pixels else { return }
     dbx_shared_publish(context, pixels, frame.width, frame.height, frame.bytes_per_row,
                        frame.display_aspect)
+    // Report the speed too, so the app can remember changes made in the game
+    let header = context.assumingMemoryBound(to: DBXSharedHeader.self)
+    withUnsafeMutablePointer(to: &header.pointee.cpu_cycles) { real in
+        withUnsafeMutablePointer(to: &header.pointee.cpu_cycles_protected) { protected in
+            dbx_cpu_cycles(UnsafeMutableRawPointer(real).assumingMemoryBound(to: CChar.self), 32,
+                           UnsafeMutableRawPointer(protected).assumingMemoryBound(to: CChar.self), 32)
+        }
+    }
 }
 
 private let sessionEnded: DBXExitCallback = { _, exitCode in

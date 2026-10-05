@@ -6,6 +6,7 @@
 #include "host_state.h"
 
 #include "dosbox.h"
+#include "config/setup.h"
 #include "audio/mixer.h"
 #include "dosboxer/dosboxer_hooks.h"
 
@@ -278,4 +279,17 @@ void dbx_mouse_button(const int32_t button, const bool down)
 	event.button.state   = down ? SDL_PRESSED : SDL_RELEASED;
 	event.button.clicks  = 1;
 	push_event(event);
+}
+
+void dbx_cpu_cycles(char* const real_mode, const int32_t real_mode_size, char* const protected_mode,
+                    const int32_t protected_mode_size)
+{
+	auto copy = [](const std::string& value, char* const out, const int32_t size) {
+		if (out && size > 0) {
+			std::snprintf(out, static_cast<size_t>(size), "%s", value.c_str());
+		}
+	};
+	const auto section = get_section("cpu");
+	copy(section ? section->GetString("cpu_cycles") : "", real_mode, real_mode_size);
+	copy(section ? section->GetString("cpu_cycles_protected") : "", protected_mode, protected_mode_size);
 }

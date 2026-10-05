@@ -291,6 +291,20 @@ public final class SharedFrames {
         public var count: UInt64
     }
 
+    /// The CPU speed the game is running at: DOSBox Staging's cpu_cycles
+    /// and cpu_cycles_protected values ("3000", "max", "auto"…).
+    public func speed() -> (realMode: String, protectedMode: String) {
+        let header = base.assumingMemoryBound(to: DBXSharedHeader.self)
+        func read<T>(_ field: UnsafePointer<T>) -> String {
+            String(cString: UnsafeRawPointer(field).assumingMemoryBound(to: CChar.self))
+        }
+        return withUnsafePointer(to: &header.pointee.cpu_cycles) { real in
+            withUnsafePointer(to: &header.pointee.cpu_cycles_protected) { protected in
+                (read(real), read(protected))
+            }
+        }
+    }
+
     public func latestFrame() -> Frame? {
         var info = DBXSharedSlot()
         var pixels: UnsafePointer<UInt8>?

@@ -31,6 +31,9 @@ typedef struct {
 	uint32_t magic;
 	uint32_t latest_slot; // slot holding the newest complete frame
 	uint64_t frame_count; // increments with every published frame
+	// The CPU speed now ("3000", "max", "auto"…), updated with each frame
+	char cpu_cycles[32];
+	char cpu_cycles_protected[32];
 	DBXSharedSlot slots[DBX_SHARED_SLOTS];
 } DBXSharedHeader;
 

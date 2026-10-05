@@ -39,6 +39,7 @@ public struct GameWindow: View {
     /// switching programs), so the window stays open instead of closing.
     @State private var stoppedByUser = false
     @State private var editingControls = false
+    @State private var speedSave: Task<Void, Never>?
     /// The game was paused for the controls sheet, so resume it after.
     @State private var pausedForControls = false
 
@@ -169,6 +170,21 @@ public struct GameWindow: View {
         emulator.controls = controls
     }
 
+    /// Saves the speed the game is running at, a moment after it changed,
+    /// so it starts at that speed next time.
+    private func rememberSpeed() {
+        speedSave?.cancel()
+        speedSave = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, var updated = gamebox, let speed = emulator.frames?.speed() else { return }
+            for (key, value) in [("cpu cpu_cycles", speed.realMode), ("cpu cpu_cycles_protected", speed.protectedMode)] {
+                updated.info.settings[key] = value.isEmpty ? nil : value
+            }
+            if !updated.isReadOnly { try? updated.save() }
+            gamebox = updated
+        }
+    }
+
     /// Counts a finished session towards the game's play stats.
     private func endSession(_ gamebox: Gamebox) {
         guard let start = sessionStart else { return }
@@ -190,6 +206,7 @@ public struct GameWindow: View {
             changeSpeed: { faster in
                 emulator.changeSpeed(faster: faster)
                 show(faster ? "Faster" : "Slower")
+                rememberSpeed()
             },
             nextDisc: {
                 emulator.nextDisc()

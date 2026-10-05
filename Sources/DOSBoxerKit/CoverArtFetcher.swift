@@ -30,13 +30,22 @@ public actor CoverArtFetcher {
     public func fetchCover(for gamebox: Gamebox, evenIfRemoved: Bool = false) async -> Bool {
         guard gamebox.coverURL == nil,
               evenIfRemoved || gamebox.info.noCover != true,
-              gamebox.url.pathExtension.lowercased() == "dosgame",
-              let name = await bestMatch(for: gamebox.name) else { return false }
-
+              gamebox.url.pathExtension.lowercased() == "dosgame" else { return false }
+        // The game's own box art from LaunchBox, when its details matched
+        if let id = gamebox.info.launchBoxID, let url = GameDetailsPack.entry(launchBoxID: id)?.boxFrontURL,
+           await save(from: url, to: gamebox) {
+            return true
+        }
+        guard let name = await bestMatch(for: gamebox.name) else { return false }
         let fileName = Self.libretroFileName(name) + ".png"
         guard let encoded = fileName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-              let url = URL(string: Self.imageBase + encoded),
-              let (data, response) = try? await URLSession.shared.data(from: url),
+              let url = URL(string: Self.imageBase + encoded) else { return false }
+        return await save(from: url, to: gamebox)
+    }
+
+    /// Downloads an image and makes it `gamebox`'s cover.
+    private func save(from url: URL, to gamebox: Gamebox) async -> Bool {
+        guard let (data, response) = try? await URLSession.shared.data(from: url),
               (response as? HTTPURLResponse)?.statusCode == 200,
               // Some files named .png are really JPEGs; keep the true type
               let ext = data.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "png"
@@ -74,6 +83,13 @@ public actor CoverArtFetcher {
         for variant in [name, withoutYear] {
             if let range = variant.range(of: ", The", options: [.caseInsensitive]) {
                 variants.append("The " + variant.replacingCharacters(in: range, with: ""))
+            }
+            // "The Oregon Trail" is filed as "Oregon Trail, The"
+            if variant.lowercased().hasPrefix("the ") {
+                let rest = String(variant.dropFirst(4))
+                let year = rest.range(of: #"\s*\(\d{3}[\dx]\)\s*$"#, options: .regularExpression)
+                variants.append(year.map { rest.replacingCharacters(in: $0, with: "") + ", The" + rest[$0] }
+                                ?? rest + ", The")
             }
         }
         // Edition tags eXoDOS adds that cover collections usually leave out,

@@ -189,7 +189,9 @@ private struct CollectionRow: View {
                 .fill(Color.accentColor.opacity(isDropTarget ? 0.9 : 0))
                 .padding(.horizontal, 10)
         )
-        .foregroundStyle(isDropTarget ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+        // Selected-row text while a drop is over it; otherwise the list's own
+        // colours, which dim with the rest when the window isn't in front
+        .environment(\.backgroundProminence, isDropTarget ? .increased : .standard)
         // Drop games from the grid onto a collection to add them
         .dropDestination(for: String.self) { payloads, _ in
             // Each payload is one or more game IDs, one per line
