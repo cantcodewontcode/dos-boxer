@@ -5,12 +5,12 @@
     <!-- newest first -->
     <item>
       <title>Version 0.1.0</title>
-      <pubDate>Mon, 05 Oct 2026 13:19:25 +0000</pubDate>
+      <pubDate>Mon, 05 Oct 2026 13:26:03 +0000</pubDate>
       <sparkle:version>1</sparkle:version>
       <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
       <description><![CDATA[<p>The first release. Everything's new, so here's what DOS Boxer does, what it doesn't do yet, and a few details for the curious.</p>]]></description>
-      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.1.0/DOS-Boxer-0.1.0.zip" type="application/octet-stream" sparkle:edSignature="XsbL4dShQfPN1OoS5T9raEgEMCKES75+dP2KyTHMe+3SrvSZhV0aCiyffuuzmnA+29Q8Y9vBb2EYCLVqklFJAw==" length="10678144"/>
+      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.1.0/DOS-Boxer-0.1.0.zip" type="application/octet-stream" sparkle:edSignature="bLQ6vMDPMQdOUj+M2wsCod0dMRBsE+CDTRkbd77ovVgQhwiZ0rMcyHfdjdl4NhLFfV9MZR34Cp760fR2A3XQAg==" length="10481485"/>
     </item>
   </channel>
 </rss>
