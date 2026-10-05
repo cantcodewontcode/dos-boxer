@@ -30,6 +30,9 @@ targets:
     platform: macOS
     sources:
       - Sources/DOSBoxerKit
+      # Settings for particular games, found by playing them
+      - path: Resources/GameSettings/GameSettings.json
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.DOSBoxerKit

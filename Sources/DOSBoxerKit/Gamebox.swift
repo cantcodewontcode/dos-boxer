@@ -358,8 +358,22 @@ public struct Gamebox: Sendable, Identifiable {
     /// Settings games from a period usually need, before the game's own.
     /// DOSBox's 16 MB isn't enough for many mid-90s games, which quit at once.
     static func eraSettings(year: Int?) -> [String: String] {
-        guard let year, year >= 1993 else { return [:] }
-        return ["dosbox memsize": "64"]
+        guard let year else { return [:] }
+        // Games up to 1983 were written for the original IBM PC (4.77 MHz,
+        // about 300 on DOSBox's scale); many run as fast as the machine
+        // allows and are unplayable at DOSBox's usual speed
+        if year <= 1983 { return ["cpu cpu_cycles": Self.originalPCSpeed] }
+        if year >= 1993 { return ["dosbox memsize": "64"] }
+        return [:]
+    }
+
+    /// The original IBM PC's speed on DOSBox Staging's scale.
+    public static let originalPCSpeed = "300"
+
+    /// The speed the game starts at: its own (adjusted while playing), else
+    /// its era's. Nil means DOSBox's usual speed.
+    public var speed: String? {
+        info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
     }
 
     /// Menu scripts written for other DOSBox versions can set values this

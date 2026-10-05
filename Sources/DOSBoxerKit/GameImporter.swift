@@ -75,7 +75,9 @@ enum GameImporter {
         }
         info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
         info.launchers = LauncherFinder.expandingMenus(info.launchers, root: driveC)
-        try Gamebox(url: destination, info: info).save()
+        var gamebox = Gamebox(url: destination, info: info)
+        _ = ShippedGameSettings.apply(to: &gamebox)  // speeds and start programs found by playing
+        try gamebox.save()
         return destination
     }
 
@@ -120,7 +122,9 @@ enum GameImporter {
             try? png.write(to: destination.appending(path: "\(Gamebox.coverBaseName).png"))
         }
 
-        try Gamebox(url: destination, info: info).save()
+        var gamebox = Gamebox(url: destination, info: info)
+        _ = ShippedGameSettings.apply(to: &gamebox)  // speeds and start programs found by playing
+        try gamebox.save()
         return destination
     }
 
@@ -168,6 +172,42 @@ enum GameImporter {
             counter += 1
         }
         return candidate
+    }
+}
+
+extension GameImporter {
+    /// What to import for a dropped item. A folder holding games (ZIPs or
+    /// gameboxes) but no programs of its own, like a folder of downloads, is
+    /// a collection: each game in it, and in folders like it inside, is
+    /// imported separately. Anything else is one game.
+    static func gamesInCollection(_ url: URL) -> [URL] {
+        let fileManager = FileManager.default
+        var isFolder: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isFolder),
+              isFolder.boolValue, !["dosgame", "boxer"].contains(url.pathExtension.lowercased()),
+              let entries = try? fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: [.isDirectoryKey],
+                                                                 options: [.skipsHiddenFiles])
+        else { return [url] }
+
+        let isSubfolder = { (entry: URL) in
+            !["dosgame", "boxer"].contains(entry.pathExtension.lowercased())
+                && (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        }
+        let games = entries.filter { ["zip", "dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
+        let subfolders = entries.filter(isSubfolder)
+        // Any other file (a program, game data) means this is a game itself
+        let notes = ["txt", "md", "nfo", "diz", "pdf", "url", "rtf"]
+        let hasPrograms = entries.contains { entry in
+            !isSubfolder(entry) && !games.contains(entry) && !notes.contains(entry.pathExtension.lowercased())
+        }
+        // Folders inside that are collections themselves (e.g. one per year)
+        let nested = subfolders.flatMap { folder in
+            let inside = gamesInCollection(folder)
+            return inside == [folder] ? [] : inside
+        }
+        guard !hasPrograms, !games.isEmpty || !nested.isEmpty else { return [url] }
+        return games.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            + nested
     }
 }
 
@@ -272,12 +312,81 @@ enum LauncherFinder {
             return left != right ? left > right
                 : $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending
         }
-        return ranked.enumerated().map { index, program in
+        let launchers = ranked.enumerated().map { index, program in
             let relative = relativeComponents(of: program, under: root).joined(separator: "\\")
             let stem = program.deletingPathExtension().lastPathComponent
             return Gamebox.Launcher(title: title(for: stem, gameName: gameName),
                                     dosPath: "\(letter):\\\(relative)",
                                     isDefault: index == 0 && score(program) > -100)
+        }
+        return withBASICPrograms(launchers, root: root, gameName: gameName)
+    }
+
+    // MARK: BASIC games
+
+    /// BASIC interpreters games ship with, and how each runs a program.
+    /// The command that runs a program, before its file name.
+    private static let interpreters: [String: String] = [
+        "GWBASIC.EXE": "GWBASIC", "BASICA.COM": "BASICA", "BASICA.EXE": "BASICA",
+        "BASIC.COM": "BASIC", "QBASIC.EXE": "QBASIC /RUN",
+    ]
+
+    /// When the game starts with a BASIC interpreter, adds a way to start
+    /// each BASIC program beside it (run through the interpreter), the one
+    /// named after the game first and as the default. Programs are
+    /// recognised by their contents, whatever they're called (Draw Poker's
+    /// is POKER.COL).
+    static func withBASICPrograms(_ launchers: [Gamebox.Launcher], root: URL, gameName: String) -> [Gamebox.Launcher] {
+        guard let interpreter = launchers.first(where: \.isDefault),
+              interpreter.commands == nil,
+              let fileName = interpreter.dosPath.split(separator: "\\").last.map({ String($0).uppercased() }),
+              let command = interpreters[fileName] else { return launchers }
+        let parts = interpreter.dosPath.split(separator: "\\").dropFirst().dropLast().map(String.init)
+        let folder = root.appending(path: parts.joined(separator: "/"), directoryHint: .isDirectory)
+        let programs = basicPrograms(in: folder)
+        guard !programs.isEmpty else { return launchers }
+
+        let words = gameName.replacingOccurrences(of: #"\s*\(\d{3}[\dx]\)\s*$"#, with: "", options: .regularExpression)
+            .lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+        let initials = String(words.filter { !["the", "of", "and", "a", "to"].contains($0) }.compactMap(\.first))
+        let fullInitials = String(words.compactMap(\.first))
+        func score(_ program: URL) -> Int {
+            let stem = program.deletingPathExtension().lastPathComponent.lowercased()
+            var score = 0
+            if stem == initials || stem == fullInitials { score += 30 }
+            if words.contains(where: { $0.count >= 3 && (stem.hasPrefix($0) || $0.hasPrefix(stem) && stem.count >= 3) }) {
+                score += 20
+            }
+            if ["menu", "start", "run", "main", "play"].contains(stem) { score += 15 }
+            return score
+        }
+        let ranked = programs.sorted { score($0) != score($1) ? score($0) > score($1)
+            : $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        let basic = ranked.enumerated().map { index, program in
+            Gamebox.Launcher(title: program.lastPathComponent.uppercased(), dosPath: interpreter.dosPath,
+                             isDefault: index == 0, commands: ["\(command) \(program.lastPathComponent.uppercased())"])
+        }
+        return basic + launchers.map { launcher in
+            var launcher = launcher
+            launcher.isDefault = false
+            return launcher
+        }
+    }
+
+    /// BASIC programs in `folder`: GW-BASIC's saved format (first byte FF,
+    /// or FE when protected), or a text .BAS file.
+    static func basicPrograms(in folder: URL) -> [URL] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isRegularFileKey]))
+            ?? []
+        return files.filter { file in
+            let ext = file.pathExtension.lowercased()
+            guard !["exe", "com", "bat", "sys", "ovl", "dll", "zip", "txt", "doc"].contains(ext),
+                  (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true,
+                  let handle = try? FileHandle(forReadingFrom: file) else { return false }
+            defer { try? handle.close() }
+            let head = (try? handle.read(upToCount: 2)) ?? Data()
+            if let first = head.first, first == 0xFF || first == 0xFE, head.count == 2 { return true }
+            return ext == "bas"
         }
     }
 

@@ -183,19 +183,22 @@ AddToCollectionButton(library: library, games: [game])
             Toggle("Return to the library when the game ends", isOn: Binding(
                 get: { game.info.closesWhenGameEnds },
                 set: { on in library.update(game) { $0.quitsWhenGameEnds = on ? nil : false } }))
-            if let speed = game.info.settings["cpu cpu_cycles"] {
+            if let speed = game.speed {
                 HStack {
                     Text("Speed").foregroundStyle(.secondary)
                     Spacer()
-                    Text(speed == "max" ? "Fastest" : "Adjusted")
-                        .help("Set with Faster (⌘]) and Slower (⌘[) while playing")
-                    Button("Reset") {
-                        library.update(game) {
-                            $0.settings["cpu cpu_cycles"] = nil
-                            $0.settings["cpu cpu_cycles_protected"] = nil
+                    Text(speed == Gamebox.originalPCSpeed ? "Original IBM PC" : speed == "max" ? "Fastest" : "Adjusted")
+                        .help("Change with Faster (⌘]) and Slower (⌘[) while playing")
+                    // Back to the game's usual speed, when it was changed
+                    if game.info.settings["cpu cpu_cycles"] != nil {
+                        Button("Reset") {
+                            library.update(game) {
+                                $0.settings["cpu cpu_cycles"] = nil
+                                $0.settings["cpu cpu_cycles_protected"] = nil
+                            }
                         }
+                        .buttonStyle(.link)
                     }
-                    .buttonStyle(.link)
                 }
                 .font(.callout)
             }

@@ -384,6 +384,7 @@ struct LibraryView: View {
     /// One game in the grid, with its clicks, drags, drops and menus.
     private func card(for game: Gamebox) -> some View {
         GameCard(gamebox: game, isSelected: selection.contains(game.id), coverSize: coverSize,
+                 isFindingCover: library.findingCovers.contains(game.id),
                  isRenaming: renaming == game.id,
                  clickName: { _ in
                      // Like Finder: clicking the name of the one selected
@@ -621,6 +622,8 @@ private struct GameCard: View {
     let gamebox: Gamebox
     let isSelected: Bool
     let coverSize: Double
+    /// Looking for box art: the cover shows a spinner.
+    let isFindingCover: Bool
     let isRenaming: Bool
     /// Called when the name is clicked, with whether the game was already
     /// selected before this click.
@@ -634,6 +637,14 @@ private struct GameCard: View {
     var body: some View {
         VStack(spacing: 10) {
             CoverImage(gamebox: gamebox)
+                .overlay {
+                    if isFindingCover {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(10)
+                            .glassEffect(in: .circle)
+                    }
+                }
                 .frame(height: coverSize * 1.25, alignment: .bottom)
             if isRenaming {
                 // Grows to a second line only when the name needs it

@@ -40,6 +40,8 @@ public actor GameDetailsFetcher {
                                        programs: Self.programNames(in: gamebox)) {
             var updated = gamebox
             entry.fill(&updated.info)
+            // Now matched, shipped settings can be found by LaunchBox entry
+            _ = ShippedGameSettings.apply(to: &updated)
             // A game that hasn't been played yet starts with the program
             // LaunchBox knows starts it
             if gamebox.stats.launches == 0, let startup = entry.startupFile,

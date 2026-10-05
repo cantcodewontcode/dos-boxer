@@ -94,11 +94,11 @@ public final class GameLibrary {
             collections = GameCollectionsFile.load(from: rootURL)
             // Games waiting on a duplicate question stay out of sight
             let waiting = Set(duplicates.map(\.added.url.standardizedFileURL))
-            games = Self.withUniqueIDs(entries
+            games = Self.withBASICPrograms(Self.withUniqueIDs(entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
                 .filter { !waiting.contains($0.standardizedFileURL) }
                 .compactMap { try? Gamebox.open($0) }
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending })
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }))
             lastError = nil
             fetchMissingCovers()
             fetchMissingDetails()
@@ -169,14 +169,23 @@ public final class GameLibrary {
         }
     }
 
+    /// Games whose box art is being looked for on request (their covers
+    /// show a spinner).
+    public private(set) var findingCovers: Set<Gamebox.ID> = []
+
     /// Looks online for `game`'s box art again, replacing nothing it has.
+    /// Finding none isn't an error: the spinner stops and the cover stays
+    /// as it was.
     public func findCoverArt(for game: Gamebox) {
+        findingCovers.insert(game.id)
         Task {
-            if await CoverArtFetcher.shared.fetchCover(for: game, evenIfRemoved: true) {
-                reload()
-            } else {
-                lastError = "No box art was found for \(game.name). You can drop an image onto the game to use it as the cover."
-            }
+            let started = Date()
+            let found = await CoverArtFetcher.shared.fetchCover(for: game, evenIfRemoved: true)
+            // Spin long enough to see that it looked
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed < 0.8 { try? await Task.sleep(for: .seconds(0.8 - elapsed)) }
+            findingCovers.remove(game.id)
+            if found { reload() }
         }
     }
 
@@ -444,6 +453,22 @@ public final class GameLibrary {
         reload()
     }
 
+    /// Games added before DOS Boxer knew about BASIC programs, still set to
+    /// start the bare interpreter: give them their programs (saved).
+    private static func withBASICPrograms(_ games: [Gamebox]) -> [Gamebox] {
+        games.map { game in
+            guard !game.isReadOnly, !game.info.launchers.contains(where: { $0.commands != nil }),
+                  let drive = game.info.drives.first(where: { $0.kind == .hardDisk }) else { return game }
+            let launchers = LauncherFinder.withBASICPrograms(game.info.launchers, root: game.url.appending(path: drive.path),
+                                                             gameName: game.name)
+            guard launchers.count != game.info.launchers.count else { return game }
+            var updated = game
+            updated.info.launchers = launchers
+            try? updated.save()
+            return updated
+        }
+    }
+
     /// Two games can't share an ID (the grid would show one blank and
     /// select both): the one added first keeps it, later copies get new
     /// ones, saved where possible.
@@ -471,7 +496,7 @@ public final class GameLibrary {
     /// or existing gameboxes. Each becomes a `.dosgame` in the library; the
     /// originals are copied, never moved or changed.
     public func add(_ urls: [URL]) {
-        for url in urls {
+        for url in urls.flatMap(GameImporter.gamesInCollection) {
             let pending = PendingImport(name: url.deletingPathExtension().lastPathComponent)
             pendingImports.append(pending)
             let games = gamesURL

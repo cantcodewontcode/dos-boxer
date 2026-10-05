@@ -1,0 +1,229 @@
+{
+ "about": "Settings for games, found by playing them in DOS Boxer. 'start' is the program the game starts with; games without one were checked and play fine as they are. (Games up to 1983 start at original IBM PC speed on their own.)",
+ "games": [
+  {
+   "name": "Adventure in Serenia (1982)",
+   "launchBoxID": 122070,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Alien (1982)",
+   "launchBoxID": 127836,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Andromeda Conquest (1982)",
+   "launchBoxID": 19270,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Apple Panic (1982)",
+   "launchBoxID": 116515,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Astro-Dodge (1982)",
+   "launchBoxID": 121439,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Battle of the Bulge - Tigers in the Snow (1982)",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Bullseye (1982)",
+   "launchBoxID": 480262,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Call to Arms (1982)",
+   "launchBoxID": 135015,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Casino Games (1982)",
+   "launchBoxID": 135046,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Championship Blackjack (1982)",
+   "launchBoxID": 465551,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Computer Stocks and Bonds (1982)",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Cosmic Crusader (1982)",
+   "launchBoxID": 135619,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Cyborg (1982)",
+   "launchBoxID": 135872,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Draw Poker (1982)",
+   "launchBoxID": 137172,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Dunjonquest - Curse of Ra (1982)",
+   "launchBoxID": 465656,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Dunjonquest - Temple of Apshai (1982)",
+   "launchBoxID": 465644,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Dunjonquest - Upper Reaches of Apshai (1982)",
+   "launchBoxID": 465649,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Executive Suite (1982)",
+   "launchBoxID": 138392,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Floppy Frenzy (1982)",
+   "launchBoxID": 139035,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Galaxy (1982)",
+   "launchBoxID": 140962,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Hoser (1982)",
+   "launchBoxID": 142016,
+   "start": "C:\\AUTOEXEC.BAT",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Jabbertalky (1982)",
+   "launchBoxID": 142367,
+   "start": "C:\\AUTOEXEC.BAT",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Ken Uston's Professional Blackjack (1982)",
+   "launchBoxID": 199553,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Lost Tomb (1982)",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Lunar Landing (1982)",
+   "launchBoxID": 478034,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Maiden (1982)",
+   "launchBoxID": 143715,
+   "start": "C:\\AUTOEXEC.BAT",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Microsoft Decathlon (1982)",
+   "launchBoxID": 143937,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Millionaire - The Stock Market Simulation (1982)",
+   "launchBoxID": 143983,
+   "start": "C:\\floppy\\SETUP.BAT",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Novatron (1982)",
+   "launchBoxID": 117446,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Original Adventure, The (1982)",
+   "launchBoxID": 145271,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "PC-Man (1982)",
+   "launchBoxID": 122386,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Pac Man (1982)",
+   "launchBoxID": 145294,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Pac-Man (1982)",
+   "launchBoxID": 145294,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Paratrooper (1982)",
+   "launchBoxID": 145410,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Phantom's Revenge, The (1982)",
+   "launchBoxID": 90846,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Snack Attack II (1982)",
+   "launchBoxID": 147871,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Snipes (1982)",
+   "launchBoxID": 116098,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Snooper Troopers (1982)",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Space Guardian (1982)",
+   "launchBoxID": 456158,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Space Strike (1982)",
+   "launchBoxID": 148090,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Story Machine (1982)",
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Ulysses and the Golden Fleece (1982)",
+   "launchBoxID": 150425,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Voyager I - Sabotage of the Robot Ship (1982)",
+   "launchBoxID": 150640,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Warp Factor, The (1982)",
+   "launchBoxID": 150675,
+   "checked": "2026-10-05"
+  },
+  {
+   "name": "Wizardry II - The Knight of Diamonds (1982)",
+   "launchBoxID": 25391,
+   "checked": "2026-10-05"
+  }
+ ]
+}

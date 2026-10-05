@@ -45,6 +45,8 @@ struct GameboxTests {
     @Test func newerGamesGetMoreMemory() {
         #expect(Gamebox.eraSettings(year: 1995)["dosbox memsize"] == "64")
         #expect(Gamebox.eraSettings(year: 1990).isEmpty)
+        #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
+        #expect(Gamebox.eraSettings(year: 1984).isEmpty)
         #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=port""#)
     }
 
@@ -55,6 +57,57 @@ struct GameboxTests {
             try Data("x".utf8).write(to: folder.appending(path: file))
         }
         #expect(DiscImageFinder.discs(in: folder).map(\.lastPathComponent) == ["ATLANTIS.cue", "DISC2.iso"])
+    }
+
+    /// GW-BASIC games start their program, recognised by its saved format
+    /// whatever its name (Draw Poker's is POKER.COL).
+    @Test func shippedSettingsMatchByNameThenUnambiguousLaunchBoxEntry() throws {
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        let url = try GameImporter.makeGamebox(from: try makeGameFolder(named: "Snipes (1982)"), inLibrary: games)
+        var snipes = try Gamebox.open(url)
+        let entries = [
+            ShippedGameSettings.Entry(name: "Snipes (1982)", launchBoxID: nil, speed: "131", start: nil),
+            ShippedGameSettings.Entry(name: "Pac Man (1982)", launchBoxID: 7, speed: "283", start: nil),
+            ShippedGameSettings.Entry(name: "Pac-Man (1982)", launchBoxID: 7, speed: "1005", start: nil),
+        ]
+        #expect(ShippedGameSettings.entry(for: snipes, in: entries)?.speed == "131")
+        snipes.info.name = "Something Else"
+        snipes.info.launchBoxID = 7  // two shipped games share it: no guess
+        #expect(ShippedGameSettings.entry(for: snipes, in: entries) == nil)
+        // The real file ships inside the app and loads
+        #expect(ShippedGameSettings.all.contains { $0.name == "Hoser (1982)" && $0.start == "C:\\AUTOEXEC.BAT" })
+    }
+
+    @Test func basicGamesStartTheirProgram() throws {
+        let folder = scratch.appending(path: "DrawPoke", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("MZ".utf8).write(to: folder.appending(path: "GWBASIC.EXE"))
+        for name in ["LOGO.BAS", "POKER.COL", "POKER.MON"] {
+            try Data([0xFF, 0x60, 0x0F, 0x0A]).write(to: folder.appending(path: name))
+        }
+        try Data([0x24, 0x00]).write(to: folder.appending(path: "MAP1.MAP"))  // data, not a program
+
+        let launchers = LauncherFinder.launchers(inDrive: "C", root: folder, gameName: "Draw Poker (1982)")
+        let start = try #require(launchers.first { $0.isDefault })
+        #expect(start.commands == ["GWBASIC POKER.COL"])
+        #expect(launchers.filter { $0.commands != nil }.count == 3)
+    }
+
+    @Test func aFolderOfGamesIsImportedGameByGame() throws {
+        let downloads = scratch.appending(path: "game-testing", directoryHint: .isDirectory)
+        let year = downloads.appending(path: "1982", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: year, withIntermediateDirectories: true)
+        for name in ["Alien (1982).zip", "Apple Panic (1982).zip"] {
+            try Data("x".utf8).write(to: year.appending(path: name))
+        }
+        try Data("x".utf8).write(to: downloads.appending(path: "Digger (1983).zip"))
+        let game = try makeGameFolder(named: "Keen")
+
+        #expect(GameImporter.gamesInCollection(downloads).map(\.lastPathComponent)
+                == ["Digger (1983).zip", "Alien (1982).zip", "Apple Panic (1982).zip"])
+        #expect(GameImporter.gamesInCollection(year).count == 2)
+        #expect(GameImporter.gamesInCollection(game) == [game])  // a game folder stays one game
     }
 
     @Test func importingAFolderMakesAGamebox() throws {
