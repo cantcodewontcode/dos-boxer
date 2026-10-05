@@ -163,6 +163,10 @@ struct LibraryView: View {
                 Text("Saved games, high scores and settings the game changed will be deleted.")
             }
             .sheet(isPresented: $offeringGameDetails) { GameDetailsPrompt() }
+            // A year, genre or collection that's gone (or from another
+            // library) falls back to All Games
+            .onChange(of: library.games.map(\.id), initial: true) { fallBackIfFilterIsGone() }
+            .onChange(of: library.collections.map(\.id)) { fallBackIfFilterIsGone() }
             .task {
                 _ = GameDetailsPack.shared  // brings old game details up to date
                 if !gameDetailsOffered {
@@ -203,13 +207,8 @@ struct LibraryView: View {
                 // games can be clicked too
                 .frame(maxWidth: .infinity, minHeight: visibleHeight, alignment: .top)
                 .coordinateSpace(.named("grid"))
-                // Edit › Select All (⌘A) selects every game shown, when the
-                // grid has focus (text fields keep their own Select All)
-                .focusable()
-                .focusEffectDisabled()
-                .onCommand(#selector(NSText.selectAll(_:))) {
-                    selection = Set(filteredGames.map(\.id))
-                }
+                // ⌘A selects every game shown (text fields keep their own)
+                .background(SelectAllKey { selection = Set(filteredGames.map(\.id)) })
                 // Clicking empty space clears the selection, as in Finder;
                 // dragging there draws a box that selects the games it touches
                 .background {
@@ -259,6 +258,15 @@ struct LibraryView: View {
     /// The selected games, in grid order.
     private var selectedGames: [Gamebox] {
         filteredGames.filter { selection.contains($0.id) }
+    }
+
+    private func fallBackIfFilterIsGone() {
+        let exists = switch filter {
+        case .year, .genre: library.games.contains { filter.includes($0, in: library) }
+        case .collection(let id): library.collections.contains { $0.id == id }
+        default: true
+        }
+        if !exists, !library.games.isEmpty { filter = .all }
     }
 
     private var filteredGames: [Gamebox] {
@@ -478,7 +486,9 @@ struct LibraryView: View {
         for url in urls {
             if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
         }
-        if !roms.isEmpty, (try? MT32Setup.install(from: roms)) ?? 0 > 0 {
+        if !roms.isEmpty {
+            // Shown even if they were all installed already
+            _ = try? MT32Setup.install(from: roms)
             UserDefaults.standard.set(SettingsTab.music.rawValue, forKey: SettingsTab.defaultsKey)
             NotificationCenter.default.post(name: .mt32ROMsChanged, object: nil)
             openSettings()
@@ -707,5 +717,47 @@ private struct EmptyLibrary: View {
         .padding(32)
         .glassEffect(.regular, in: .rect(cornerRadius: 28))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// ⌘A in this view's window selects all games, unless text is being edited
+/// (where it selects the text, as usual).
+private struct SelectAllKey: NSViewRepresentable {
+    let selectAll: () -> Void
+
+    /// Invisible to clicks, so empty space behind it still clears the selection.
+    final class PassThroughView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = PassThroughView()
+        context.coordinator.view = view
+        context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator = context.coordinator] event in
+            guard let coordinator, let window = coordinator.view?.window, event.window === window,
+                  event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                  event.charactersIgnoringModifiers == "a",
+                  !(window.firstResponder is NSText) else { return event }
+            coordinator.selectAll()
+            return nil
+        }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.selectAll = selectAll
+    }
+
+    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
+        if let monitor = coordinator.monitor { NSEvent.removeMonitor(monitor) }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(selectAll: selectAll) }
+
+    final class Coordinator {
+        var selectAll: () -> Void
+        weak var view: NSView?
+        var monitor: Any?
+        init(selectAll: @escaping () -> Void) { self.selectAll = selectAll }
     }
 }

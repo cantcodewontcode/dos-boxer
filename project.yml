@@ -100,6 +100,10 @@ targets:
       - path: Sources/DOSBoxerApp
         excludes:
           - Info.plist
+      # Made in Icon Composer (layers beside it)
+      - path: Resources/AppIcon/AppIcon.icon
+        type: file
+        buildPhase: resources
     dependencies:
       - target: DOSBoxerKit
         embed: true
@@ -114,6 +118,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: Sources/DOSBoxerApp/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: DOS Boxer
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.games
         INFOPLIST_KEY_NSHumanReadableCopyright: "DOS Boxer is free software under the GNU GPL, version 2 or later."
         MARKETING_VERSION: "0.1.0"

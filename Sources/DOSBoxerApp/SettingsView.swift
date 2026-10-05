@@ -68,14 +68,9 @@ struct MusicSettings: View {
                     }
                 }
                 if let summary = MT32Setup.summary() {
-                    DisclosureGroup(summary) {
-                        ForEach(installed, id: \.self) { name in
-                            Label(name, systemImage: "memorychip")
-                        }
-                    }
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .id(installed)  // a fresh summary after changes
+                    Label(summary, systemImage: "memorychip")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
                 HStack {
                     Button("Add ROMs…") { choosingROMs = true }
