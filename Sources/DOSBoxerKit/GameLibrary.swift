@@ -33,6 +33,16 @@ public final class GameLibrary {
     }
     public enum DuplicateChoice: Sendable { case replace, keepBoth, skip }
     public private(set) var duplicates: [DuplicateImport] = []
+
+    /// A game just added whose music was made for a Roland MT-32, when no
+    /// MT-32 files are installed: suggest setting it up (once).
+    public private(set) var mt32Suggestion: Gamebox?
+    private static let mt32SuggestedKey = "MT32Suggested"
+
+    public func dismissMT32Suggestion() {
+        mt32Suggestion = nil
+        UserDefaults.standard.set(true, forKey: Self.mt32SuggestedKey)
+    }
     public private(set) var lastError: String? {
         didSet { if let lastError { FileHandle.standardError.write(Data("DOS Boxer library: \(lastError)\n".utf8)) } }
     }
@@ -94,11 +104,11 @@ public final class GameLibrary {
             collections = GameCollectionsFile.load(from: rootURL)
             // Games waiting on a duplicate question stay out of sight
             let waiting = Set(duplicates.map(\.added.url.standardizedFileURL))
-            games = Self.withArticlesFirst(Self.withBASICPrograms(Self.withUniqueIDs(entries
+            games = Self.withBestSound(Self.withArticlesFirst(Self.withMenuOptions(Self.withBASICPrograms(Self.withUniqueIDs(entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
                 .filter { !waiting.contains($0.standardizedFileURL) }
                 .compactMap { try? Gamebox.open($0) }
-                .sorted { GameNames.sortKey($0.name).localizedStandardCompare(GameNames.sortKey($1.name)) == .orderedAscending })))
+                .sorted { GameNames.sortKey($0.name).localizedStandardCompare(GameNames.sortKey($1.name)) == .orderedAscending })))))
             lastError = nil
             fetchMissingCovers()
             fetchMissingDetails()
@@ -492,6 +502,34 @@ public final class GameLibrary {
         }
     }
 
+    /// Games not yet played whose best sound option hasn't been picked:
+    /// pick it (saved), once.
+    private static func withBestSound(_ games: [Gamebox]) -> [Gamebox] {
+        let hasMT32 = MT32Setup.isReady
+        return games.map { game in
+            guard !game.isReadOnly, game.info.soundChosen != true, game.stats.launches == 0 else { return game }
+            var updated = game
+            updated.info.chooseBestSound(year: game.year, hasMT32: hasMT32)
+            try? updated.save()
+            return updated
+        }
+    }
+
+    /// Games with a "Press 1 for…" menu script that isn't their default:
+    /// add the menu's options to Starts With (saved). The default stays.
+    private static func withMenuOptions(_ games: [Gamebox]) -> [Gamebox] {
+        games.map { game in
+            guard !game.isReadOnly, !game.info.launchers.contains(where: { $0.commands != nil }),
+                  let drive = game.info.drives.first(where: { $0.kind == .hardDisk }) else { return game }
+            let launchers = LauncherFinder.expandingMenus(game.info.launchers, root: game.url.appending(path: drive.path))
+            guard launchers.count != game.info.launchers.count else { return game }
+            var updated = game
+            updated.info.launchers = launchers
+            try? updated.save()
+            return updated
+        }
+    }
+
     /// Two games can't share an ID (the grid would show one blank and
     /// select both): the one added first keeps it, later copies get new
     /// ones, saved where possible.
@@ -548,8 +586,14 @@ public final class GameLibrary {
                     case .failure(let error):
                         self.lastError = "Couldn't import \(url.lastPathComponent): \(error.localizedDescription)"
                     case .success(let added):
-                        if let added = try? Gamebox.open(added), let existing = self.existingGame(like: added) {
-                            self.duplicates.append(DuplicateImport(added: added, existing: existing))
+                        if let added = try? Gamebox.open(added) {
+                            if let existing = self.existingGame(like: added) {
+                                self.duplicates.append(DuplicateImport(added: added, existing: existing))
+                            }
+                            if self.mt32Suggestion == nil, !UserDefaults.standard.bool(forKey: Self.mt32SuggestedKey),
+                               !MT32Setup.isReady, added.supportsMT32 {
+                                self.mt32Suggestion = added
+                            }
                         }
                     }
                     self.reload()

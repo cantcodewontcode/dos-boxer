@@ -27,6 +27,12 @@ public enum MT32Setup {
     private static let mt32PCMSize = 524_288
     private static let cm32lPCMSize = 1_048_576
 
+    /// MT-32 (or CM-32L) ROMs are installed and usable.
+    public static var isReady: Bool {
+        if case .ready = status() { return true }
+        return false
+    }
+
     public static func status() -> Status {
         let sizes = romFiles().compactMap { try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize }
         let hasControl = sizes.contains(where: controlSizes.contains)

@@ -9,9 +9,19 @@ enum SessionDefaults {
     /// use the keyboard layout they're typing with.
     static func arguments() -> [String] {
         ["--noprimaryconf", "--nolocalconf",
-         "--set", "dos keyboard_layout=\(dosKeyboardLayout(forInputSource: currentInputSourceID()))"]
+         "--set", "dos keyboard_layout=\(dosKeyboardLayout(forInputSource: currentInputSourceID()))",
+         // General MIDI music plays through macOS's built-in synthesizer.
+         // DOSBox's usual choice is an external MIDI device; with none
+         // plugged in, music is switched off and games that wait for a MIDI
+         // device to answer (Blackthorne) hang
+         "--set", "midi mididevice=coreaudio"]
             + MT32Setup.sessionArguments()
     }
+
+    /// Whether a General MIDI SoundFont is installed for Sound Canvas music.
+    /// (Not yet: DOS Boxer doesn't offer one, so Sound Canvas uses the Mac's
+    /// synthesizer.)
+    static var hasSoundFont: Bool { false }
 
     /// The Mac keyboard layout in use right now, e.g. "com.apple.keylayout.US".
     static func currentInputSourceID() -> String? {

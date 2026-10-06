@@ -200,6 +200,7 @@ struct LibraryView: View {
             } message: { _ in
                 Text("Replace the one you have with this copy, keep both, or skip this one?")
             }
+            .modifier(MT32Suggestion(library: library))
             .alert("Something went wrong", isPresented: .constant(library.lastError != nil)) {
                 Button("OK") { library.dismissError() }
             } message: {
@@ -801,5 +802,27 @@ private struct SelectAllKey: NSViewRepresentable {
         weak var view: NSView?
         var monitor: Any?
         init(selectAll: @escaping () -> Void) { self.selectAll = selectAll }
+    }
+}
+
+/// A game made for the MT-32 was added and no MT-32 files are installed:
+/// suggest setting them up in Settings › Music (asked once).
+private struct MT32Suggestion: ViewModifier {
+    let library: GameLibrary
+    @Environment(\.openSettings) private var openSettings
+
+    func body(content: Content) -> some View {
+        content.alert(library.mt32Suggestion.map { "Hear “\($0.title)” with a Roland MT-32?" } ?? "",
+                      isPresented: Binding(get: { library.mt32Suggestion != nil }, set: { _ in }),
+                      presenting: library.mt32Suggestion) { _ in
+            Button("Set Up MT-32…") {
+                library.dismissMT32Suggestion()
+                UserDefaults.standard.set(SettingsTab.music.rawValue, forKey: SettingsTab.defaultsKey)
+                openSettings()
+            }
+            Button("Not Now", role: .cancel) { library.dismissMT32Suggestion() }
+        } message: { _ in
+            Text("Its music was composed for this classic synthesizer. Add the MT-32 files once to hear it, and every game like it, as intended.")
+        }
     }
 }

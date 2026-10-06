@@ -75,6 +75,7 @@ enum GameImporter {
         }
         info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
         info.launchers = LauncherFinder.expandingMenus(info.launchers, root: driveC)
+        info.chooseBestSound(year: Gamebox.year(fromName: name), hasMT32: MT32Setup.isReady)
         var gamebox = Gamebox(url: destination, info: info)
         _ = ShippedGameSettings.apply(to: &gamebox)  // speeds and start programs found by playing
         try gamebox.save()
@@ -394,32 +395,57 @@ enum LauncherFinder {
     /// puts each menu option first as its own launcher, the first one as the
     /// default, and keeps the script itself as "Menu".
     static func expandingMenus(_ launchers: [Gamebox.Launcher], root: URL) -> [Gamebox.Launcher] {
-        guard let script = launchers.first(where: \.isDefault), script.dosPath.lowercased().hasSuffix(".bat") else {
-            return launchers
+        guard !launchers.contains(where: { $0.commands != nil }) else { return launchers }
+        // The default is a menu script: its options come first, the first
+        // one the default
+        if let script = launchers.first(where: \.isDefault), let options = menuOptions(of: script, root: root) {
+            let fromMenu = options.enumerated().map { index, option in
+                Gamebox.Launcher(title: option.title, dosPath: script.dosPath, isDefault: index == 0,
+                                 commands: option.commands)
+            }
+            let rest = launchers.map { launcher in
+                var launcher = launcher
+                if launcher.id == script.id { launcher.title = "Menu" }
+                launcher.isDefault = false
+                return launcher
+            }
+            return fromMenu + rest
         }
+        // Otherwise a start script elsewhere with a menu (Blackthorne's
+        // BTHORNE\RUN.BAT): its options are added after the default, which
+        // stays as it is
+        for script in launchers where !script.isDefault && isStartScript(script) {
+            guard let options = menuOptions(of: script, root: root) else { continue }
+            let fromMenu = options.map { option in
+                Gamebox.Launcher(title: option.title, dosPath: script.dosPath, commands: option.commands)
+            }
+            var result = launchers
+            if let index = result.firstIndex(where: { $0.id == script.id }) { result[index].title = "Menu" }
+            let afterDefault = (result.firstIndex(where: \.isDefault) ?? -1) + 1
+            result.insert(contentsOf: fromMenu, at: afterDefault)
+            return result
+        }
+        return launchers
+    }
+
+    private static func isStartScript(_ launcher: Gamebox.Launcher) -> Bool {
+        let file = launcher.dosPath.split(separator: "\\").last.map { String($0).lowercased() } ?? ""
+        return file.hasSuffix(".bat") && startScripts.contains(String(file.dropLast(4)))
+    }
+
+    /// The options of a "Press 1 for…" menu script, or nil if it isn't one.
+    private static func menuOptions(of script: Gamebox.Launcher, root: URL) -> [BatchMenuReader.Option]? {
+        guard script.dosPath.lowercased().hasSuffix(".bat") else { return nil }
         let parts = script.dosPath.split(separator: "\\").dropFirst().map(String.init)
         let scriptFolder = Array(parts.dropLast())
         guard let text = try? String(contentsOf: root.appending(path: parts.joined(separator: "/")), encoding: .isoLatin1)
-        else { return launchers }
-
+        else { return nil }
         let options = BatchMenuReader.options(in: text) { folder, name in
             let directory = root.appending(path: (scriptFolder + folder).joined(separator: "/"), directoryHint: .isDirectory)
             let entries = (try? FileManager.default.contentsOfDirectory(atPath: directory.path(percentEncoded: false))) ?? []
             return entries.contains { $0.lowercased() == "\(name.lowercased()).bat" }
         }
-        guard !options.isEmpty else { return launchers }
-
-        let fromMenu = options.enumerated().map { index, option in
-            Gamebox.Launcher(title: option.title, dosPath: script.dosPath, isDefault: index == 0,
-                             commands: option.commands)
-        }
-        let rest = launchers.map { launcher in
-            var launcher = launcher
-            if launcher.id == script.id { launcher.title = "Menu" }
-            launcher.isDefault = false
-            return launcher
-        }
-        return fromMenu + rest
+        return options.isEmpty ? nil : options
     }
 
     /// Path components of `file` below `root`, comparing real paths so

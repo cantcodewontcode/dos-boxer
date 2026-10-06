@@ -44,10 +44,12 @@ struct GameboxTests {
 
     @Test func newerGamesGetMoreMemory() {
         #expect(Gamebox.eraSettings(year: 1995)["dosbox memsize"] == "64")
-        #expect(Gamebox.eraSettings(year: 1990).isEmpty)
+        #expect(Gamebox.eraSettings(year: 1989).isEmpty)
+        #expect(Gamebox.eraSettings(year: 1990)["cpu cpu_cycles"] == "8000")
+        #expect(Gamebox.eraSettings(year: 1994)["cpu cpu_cycles"] == "20000")
         #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
         #expect(Gamebox.eraSettings(year: 1984).isEmpty)
-        #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=port""#)
+        #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=coreaudio""#)
     }
 
     @Test func aDiscInSeveralFormatsIsMountedOnceAsItsCueSheet() throws {
@@ -95,6 +97,84 @@ struct GameboxTests {
     }
 
     /// Albion's sound effects are set up for a Gravis Ultrasound.
+    /// Blackthorne: the game's own program is the default; its menu script,
+    /// one folder down, adds its options without taking over.
+    @Test func aMenuScriptThatIsntTheDefaultAddsItsOptions() throws {
+        let folder = scratch.appending(path: "Blackthorne", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder.appending(path: "BTHORNE/SB16"), withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: folder.appending(path: "BTHORNE/BTHORNE.EXE"))
+        let menu = #"""
+        :menu
+        @echo off
+        cls
+        echo.
+        echo Press 1 for Blackthorne w/ SoundBlaster
+        echo Press 2 for Blackthorne w/ Gravis Ultrasound
+        echo Press 3 for Blackthorne w/ Sound Canvas
+        echo Press 4 to Quit
+        echo.
+        choice /C:1234 /N Please Choose:
+        
+        if errorlevel = 4 goto quit
+        if errorlevel = 3 goto SC55
+        if errorlevel = 2 goto GUS
+        if errorlevel = 1 goto SB16
+        
+        :SB16
+        CONFIG -set "mididevice=default"
+        copy .\sb16\*.* .\
+        cls
+        @BTHORNE
+        goto quit
+        
+        :GUS
+        CONFIG -set "mididevice=default"
+        copy .\gus\*.* .\
+        cls
+        @call BTHORNEG
+        goto quit
+        
+        :SC55
+        CONFIG -set "mididevice=fluidsynth"
+        copy .\sc55\*.* .\
+        cls
+        @BTHORNE
+        goto quit
+        
+        :quit
+        exit
+        """#
+        try Data(menu.utf8).write(to: folder.appending(path: "BTHORNE/run.bat"))
+
+        let found = LauncherFinder.launchers(inDrive: "C", root: folder, gameName: "Blackthorne (1994)")
+        let launchers = LauncherFinder.expandingMenus(found, root: folder)
+        #expect(launchers.first(where: \.isDefault)?.dosPath == "C:\\BTHORNE\\BTHORNE.EXE")
+        #expect(launchers.contains { $0.title == "Blackthorne w/ SoundBlaster" && $0.commands != nil && !$0.isDefault }, "\(launchers.map { ($0.title, $0.dosPath, $0.isDefault) })")
+    }
+
+    @Test func theBestSoundOptionIsChosenOnce() {
+        func info(_ titles: [String]) -> Gamebox.Info {
+            var info = Gamebox.Info(name: "Game")
+            info.launchers = [Gamebox.Launcher(title: "GAME.EXE", dosPath: "C:\\GAME.EXE", isDefault: true)]
+                + titles.map { Gamebox.Launcher(title: $0, dosPath: "C:\\run.bat", commands: ["GAME"]) }
+            return info
+        }
+        let titles = ["Game w/ SoundBlaster", "Game w/ MT-32", "Game w/ Sound Canvas"]
+        var early = info(titles)
+        early.chooseBestSound(year: 1990, hasMT32: true)
+        #expect(early.launchers.first(where: \.isDefault)?.title == "Game w/ MT-32")
+        var noROMs = info(titles)
+        noROMs.chooseBestSound(year: 1990, hasMT32: false)
+        #expect(noROMs.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+        var late = info(titles)
+        late.chooseBestSound(year: 1994, hasMT32: true)
+        #expect(late.launchers.first(where: \.isDefault)?.title == "Game w/ Sound Canvas")
+        // Only once: a choice made afterwards is left alone
+        late.launchers = late.launchers.map { var l = $0; l.isDefault = l.title == "GAME.EXE"; return l }
+        late.chooseBestSound(year: 1994, hasMT32: true)
+        #expect(late.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+    }
+
     @Test func gamesSetUpForAGravisUltrasoundGetOne() throws {
         let folder = scratch.appending(path: "Albion", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder.appending(path: "DRIVERS"), withIntermediateDirectories: true)

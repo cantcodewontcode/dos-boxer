@@ -119,7 +119,12 @@ public struct Gamebox: Sendable, Identifiable {
     /// e.g. 1991 for "Crystal Caves (1991)".
     public var year: Int? {
         if let released = info.released, let year = Int(released.prefix(4)) { return year }
-        return name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
+        return Self.year(fromName: name)
+    }
+
+    /// The year at the end of a name: 1991 for "Crystal Caves (1991)".
+    static func year(fromName name: String) -> Int? {
+        name.range(of: #"\((\d{4})\)\s*$"#, options: .regularExpression)
             .flatMap { Int(name[$0].dropFirst().prefix(4)) }
     }
     /// Where writes go when they can't live inside the package (original
@@ -168,6 +173,8 @@ public struct Gamebox: Sendable, Identifiable {
         public var overview: String?
         /// What controller buttons do in this game, if changed.
         public var controls: GameControls?
+        /// DOS Boxer has picked the best of the game's sound options (once).
+        public var soundChosen: Bool?
         /// When the details were last looked up online.
         public var detailsCheckedAt: Date?
         /// The game's short folder name in the collection it came from (e.g.
@@ -182,6 +189,34 @@ public struct Gamebox: Sendable, Identifiable {
         public var noCover: Bool?
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
+
+        /// Starts the game with its best sound option, once: an MT-32 option
+        /// for games from 1987–92 when MT-32 ROMs are installed, a General
+        /// MIDI (Sound Canvas) option for games from 1993 on. Otherwise how
+        /// it starts is left alone. Returns true if anything changed.
+        @discardableResult
+        public mutating func chooseBestSound(year: Int?, hasMT32: Bool) -> Bool {
+            guard soundChosen != true else { return false }
+            soundChosen = true
+            let options = launchers.indices.filter { launchers[$0].commands != nil }
+            guard let year, !options.isEmpty else { return true }
+            func option(_ words: [String]) -> Int? {
+                options.first { index in
+                    let title = launchers[index].title.lowercased()
+                    return words.contains { title.contains($0) }
+                }
+            }
+            let best: Int? = if hasMT32, (1987...1992).contains(year), let mt32 = option(["mt-32", "mt32"]) {
+                mt32
+            } else if year >= 1993 {
+                option(["sound canvas", "general midi", "sc-55", "sc55", "gm"])
+            } else {
+                nil
+            }
+            guard let best else { return true }
+            for index in launchers.indices { launchers[index].isDefault = index == best }
+            return true
+        }
 
         /// The game's genres, including ones saved by older versions.
         public var genreList: [String] {
@@ -363,17 +398,46 @@ public struct Gamebox: Sendable, Identifiable {
         // about 300 on DOSBox's scale); many run as fast as the machine
         // allows and are unplayable at DOSBox's usual speed
         if year <= 1983 { return ["cpu cpu_cycles": Self.originalPCSpeed] }
-        if year >= 1993 { return ["dosbox memsize": "64"] }
+        // Games from the 90s expected a 386 or 486. (This is the speed for
+        // games that run in DOS's real mode; ones using DOS extenders
+        // already get DOSBox's much faster protected-mode speed.) At
+        // DOSBox's usual 286-class speed some crawl: Blackthorne's music
+        // driver takes minutes to load
+        if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "64"] }
+        if year >= 1990 { return ["cpu cpu_cycles": Self.speed386] }
         return [:]
     }
 
-    /// The original IBM PC's speed on DOSBox Staging's scale.
+    /// Machines' speeds on DOSBox Staging's scale.
     public static let originalPCSpeed = "300"
+    public static let speed386 = "8000"
+    public static let speed486 = "20000"
 
     /// The speed the game starts at: its own (adjusted while playing), else
     /// its era's. Nil means DOSBox's usual speed.
     public var speed: String? {
         info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
+    }
+
+    /// Whether the game offers Roland MT-32 music: an MT-32 option in its
+    /// menu, or MT-32 drivers in its sound settings.
+    public var supportsMT32: Bool {
+        let mentions = { (text: String) in
+            let lower = text.lowercased()
+            return lower.contains("mt-32") || lower.contains("mt32")
+        }
+        if info.launchers.contains(where: { mentions($0.title) || ($0.commands ?? []).contains(where: mentions) }) {
+            return true
+        }
+        guard let files = FileManager.default.enumerator(at: url.appending(path: "Drives"), includingPropertiesForKeys: nil,
+                                                         options: [.skipsHiddenFiles]) else { return false }
+        for case let file as URL in files {
+            if files.level > 4 { files.skipDescendants(); continue }
+            guard file.lastPathComponent.uppercased() == "MDI.INI",
+                  let text = try? String(contentsOf: file, encoding: .isoLatin1) else { continue }
+            if text.uppercased().contains("DRIVER      MT32") || text.uppercased().contains("DRIVER MT32") { return true }
+        }
+        return false
     }
 
     /// Sound cards the game is set up for, from its Miles Sound System
@@ -398,9 +462,19 @@ public struct Gamebox: Sendable, Identifiable {
     }
 
     /// Menu scripts written for other DOSBox versions can set values this
-    /// one doesn't accept ("mididevice=default" is "port" here).
+    /// one doesn't accept ("mididevice=default", the system's synthesizer,
+    /// is "coreaudio" here).
     static func fixingSettings(_ command: String) -> String {
-        command.replacingOccurrences(of: "mididevice=default", with: "mididevice=port", options: .caseInsensitive)
+        var command = command.replacingOccurrences(of: "mididevice=default", with: "mididevice=coreaudio",
+                                                   options: .caseInsensitive)
+        // Sound Canvas through a SoundFont: without one installed there'd be
+        // no music, so use the Mac's General MIDI synthesizer
+        if !SessionDefaults.hasSoundFont {
+            for device in ["mididevice=fluidsynth", "mididevice=soundcanvas"] {
+                command = command.replacingOccurrences(of: device, with: "mididevice=coreaudio", options: .caseInsensitive)
+            }
+        }
+        return command
     }
 
     public func sessionArguments(_ start: Start = .game) throws -> [String] {
