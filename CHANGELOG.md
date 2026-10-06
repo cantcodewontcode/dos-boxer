@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0]
+
+Better at recognizing games, and better at running the old ones.
+
+- **Old games at the right speed.** Games from 1983 and earlier start at the speed of the original IBM PC, so early action games are playable out of the box.
+- **Recognizes more games.** Games are identified by their programs, so a renamed folder still gets its proper name, box art and details. Names read naturally ("The Dig", not "Dig, The") and sort by their main word.
+- **BASIC games start.** Games that run on GW-BASIC launch their program instead of a blank BASIC prompt.
+- **More games run.** Games set up for a Gravis Ultrasound get one (Albion), and games that capture the mouse (Abuse) no longer quit.
+- **Mouse feels right.** Movement in games now matches your Mac's pointer.
+- **Easier importing.** Drop a folder of games to add them all, without the app freezing on big batches.
+- **Library touches.** Collapsible sidebar sections, Delete to remove a collection, and a spinner while looking for box art.
+
 ## [0.1.1]
 
 Fixes and polish from the first round of real use.
