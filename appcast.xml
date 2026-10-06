@@ -4,6 +4,16 @@
     <title>DOS Boxer</title>
     <!-- newest first -->
     <item>
+      <title>Version 0.2.0</title>
+      <pubDate>Tue, 06 Oct 2026 11:50:47 +0000</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Better at recognizing games, and better at running the old ones.</p>
+<ul><li><b>Old games at the right speed.</b> Games from 1983 and earlier start at the speed of the original IBM PC, so early action games are playable out of the box.</li><li><b>Recognizes more games.</b> Games are identified by their programs, so a renamed folder still gets its proper name, box art and details. Names read naturally ("The Dig", not "Dig, The") and sort by their main word.</li><li><b>BASIC games start.</b> Games that run on GW-BASIC launch their program instead of a blank BASIC prompt.</li><li><b>More games run.</b> Games set up for a Gravis Ultrasound get one (Albion), and games that capture the mouse (Abuse) no longer quit.</li><li><b>Mouse feels right.</b> Movement in games now matches your Mac's pointer.</li><li><b>Easier importing.</b> Drop a folder of games to add them all, without the app freezing on big batches.</li><li><b>Library touches.</b> Collapsible sidebar sections, Delete to remove a collection, and a spinner while looking for box art.</li></ul>]]></description>
+      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.2.0/DOS-Boxer-0.2.0.zip" type="application/octet-stream" sparkle:edSignature="Ktcq2KJvJ9Zowh/9wo/kDJXWEhL+qhTfcwKkt4g79un0hdvUMJgkg1/pzbd9u2daFaWJQcb6P1PK7E+5300jAg==" length="10840310"/>
+    </item>
+    <item>
       <title>Version 0.1.1</title>
       <pubDate>Mon, 05 Oct 2026 14:50:03 +0000</pubDate>
       <sparkle:version>2</sparkle:version>
