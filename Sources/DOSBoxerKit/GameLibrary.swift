@@ -499,10 +499,27 @@ public final class GameLibrary {
         for url in urls.flatMap(GameImporter.gamesInCollection) {
             let pending = PendingImport(name: url.deletingPathExtension().lastPathComponent)
             pendingImports.append(pending)
+            importQueue.append((url, pending))
+        }
+        startImports()
+    }
+
+    /// Games waiting to be imported, in the order they were added.
+    @ObservationIgnored private var importQueue: [(url: URL, pending: PendingImport)] = []
+    @ObservationIgnored private var importsRunning = 0
+    /// Imports copy and unpack whole games: two at a time keeps the disk
+    /// busy without swamping it (or the app) when 100 are dropped at once.
+    private static let simultaneousImports = 2
+
+    private func startImports() {
+        while importsRunning < Self.simultaneousImports, !importQueue.isEmpty {
+            let (url, pending) = importQueue.removeFirst()
+            importsRunning += 1
             let games = gamesURL
             Task.detached(priority: .userInitiated) {
                 let result = Result { try GameImporter.makeGamebox(from: url, inLibrary: games) }
                 await MainActor.run {
+                    self.importsRunning -= 1
                     self.pendingImports.removeAll { $0.id == pending.id }
                     switch result {
                     case .failure(let error):
@@ -513,6 +530,7 @@ public final class GameLibrary {
                         }
                     }
                     self.reload()
+                    self.startImports()
                 }
             }
         }

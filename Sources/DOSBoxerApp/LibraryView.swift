@@ -542,11 +542,21 @@ struct LibraryView: View {
     /// Dropped files: MT-32 ROMs go to Settings › Music (which opens to
     /// show they're installed); everything else is imported as games.
     private func importDropped(_ urls: [URL]) {
-        var games: [URL] = []
-        var roms: [URL] = []
-        for url in urls {
-            if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
+        // Sorting ROMs from games reads the files: do it off the main thread
+        Task {
+            let (games, roms) = await Task.detached(priority: .userInitiated) {
+                var games: [URL] = []
+                var roms: [URL] = []
+                for url in urls {
+                    if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
+                }
+                return (games, roms)
+            }.value
+            addDropped(games: games, roms: roms)
         }
+    }
+
+    private func addDropped(games: [URL], roms: [URL]) {
         if !roms.isEmpty {
             // Shown even if they were all installed already
             _ = try? MT32Setup.install(from: roms)

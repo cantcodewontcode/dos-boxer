@@ -70,6 +70,13 @@ public enum MT32Setup {
     /// the URLs are only good until the app quits.
     public static func roms(in url: URL) -> [URL]? {
         if url.pathExtension.lowercased() == "zip" {
+            // ROM collections are small and hold no programs; look at the
+            // ZIP's list of files before unpacking anything (a game ZIP can
+            // be gigabytes)
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? .max
+            guard size <= 64_000_000, let names = zipEntryNames(url),
+                  !names.contains(where: { ["exe", "com", "bat"].contains(($0 as NSString).pathExtension.lowercased()) })
+            else { return nil }
             let folder = FileManager.default.temporaryDirectory
                 .appending(path: "dosboxer-roms-\(UUID().uuidString)", directoryHint: .isDirectory)
             let ditto = Process()
@@ -105,6 +112,21 @@ public enum MT32Setup {
 
     /// The sizes ROMs come in. (Collections also hold half-chip dumps of
     /// other sizes, which DOSBox can't use.)
+    /// The file names inside a ZIP, read from its directory (no unpacking).
+    private static func zipEntryNames(_ zip: URL) -> [String]? {
+        let zipinfo = Process()
+        zipinfo.executableURL = URL(filePath: "/usr/bin/zipinfo")
+        zipinfo.arguments = ["-1", zip.path(percentEncoded: false)]
+        let output = Pipe()
+        zipinfo.standardOutput = output
+        zipinfo.standardError = FileHandle.nullDevice
+        guard (try? zipinfo.run()) != nil else { return nil }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        zipinfo.waitUntilExit()
+        guard zipinfo.terminationStatus == 0 else { return nil }
+        return String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
+    }
+
     private static func hasROMSize(_ url: URL) -> Bool {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         return controlSizes.contains(size) || size == mt32PCMSize || size == cm32lPCMSize
