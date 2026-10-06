@@ -218,10 +218,19 @@ public final class Emulator {
         send(DBXCommand(type: DBXCommandKey.rawValue, a: scancode, b: isDown ? 1 : 0))
     }
 
+    /// Movement in game pixels. DOSBox takes whole pixels, so fractions
+    /// are kept and added to the next movement rather than lost.
     public func mouseMoved(dx: Double, dy: Double) {
+        mouseRemainder.x += dx
+        mouseRemainder.y += dy
+        let whole = (x: mouseRemainder.x.rounded(.towardZero), y: mouseRemainder.y.rounded(.towardZero))
+        guard whole.x != 0 || whole.y != 0 else { return }
+        mouseRemainder.x -= whole.x
+        mouseRemainder.y -= whole.y
         send(DBXCommand(type: DBXCommandMouseMotion.rawValue,
-                        a: Int32((dx * 100).rounded()), b: Int32((dy * 100).rounded())))
+                        a: Int32(whole.x * 100), b: Int32(whole.y * 100)))
     }
+    @ObservationIgnored private var mouseRemainder = (x: 0.0, y: 0.0)
 
     /// 1 = left, 2 = middle, 3 = right.
     public func mouseButton(_ button: Int32, isDown: Bool) {
@@ -306,6 +315,16 @@ public final class SharedFrames {
                 (read(real), read(protected))
             }
         }
+    }
+
+    /// The game's screen size now, without copying the picture.
+    public func frameSize() -> CGSize? {
+        var info = DBXSharedSlot()
+        var pixels: UnsafePointer<UInt8>?
+        var slot: UInt32 = 0
+        var sequence: UInt64 = 0
+        guard dbx_shared_latest(base, &info, &pixels, &slot, &sequence), info.width > 0, info.height > 0 else { return nil }
+        return CGSize(width: Int(info.width), height: Int(info.height))
     }
 
     public func latestFrame() -> Frame? {

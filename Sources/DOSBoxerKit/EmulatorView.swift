@@ -167,8 +167,21 @@ public final class EmulatorMTKView: MTKView {
         if mouseLocked { emulator.mouseButton(3, isDown: false) }
     }
 
+    /// The Mac's pointer movement, turned into game pixels: moving across
+    /// the picture moves the game's cursor across the game's screen, as the
+    /// pointer would cross the window.
     public override func mouseMoved(with event: NSEvent) {
-        if mouseLocked { emulator.mouseMoved(dx: event.deltaX, dy: event.deltaY) }
+        guard mouseLocked else { return }
+        let scale = gamePixelsPerPoint()
+        emulator.mouseMoved(dx: event.deltaX * scale, dy: event.deltaY * scale)
+    }
+
+    /// Game pixels per point of the picture as drawn (fitted inside the view).
+    private func gamePixelsPerPoint() -> Double {
+        guard let size = emulator.frames?.frameSize(), bounds.width > 0, bounds.height > 0 else { return 1 }
+        // The picture is drawn at 4:3, as large as fits
+        let drawnWidth = min(bounds.width, bounds.height * 4 / 3)
+        return size.width / drawnWidth
     }
 
     public override func mouseDragged(with event: NSEvent) { mouseMoved(with: event) }
