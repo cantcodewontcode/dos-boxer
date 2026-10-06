@@ -39,6 +39,8 @@ public struct GameWindow: View {
     /// switching programs), so the window stays open instead of closing.
     @State private var stoppedByUser = false
     @State private var editingControls = false
+    @State private var suggestingMT32 = false
+    @Environment(\.openSettings) private var openSettings
     @State private var speedSave: Task<Void, Never>?
     /// The game was paused for the controls sheet, so resume it after.
     @State private var pausedForControls = false
@@ -102,6 +104,15 @@ public struct GameWindow: View {
             }
         }
         .focusedSceneValue(\.gameActions, gameActions)
+        .alert("This option plays music on a Roland MT-32", isPresented: $suggestingMT32) {
+            Button("Set Up MT-32…") {
+                UserDefaults.standard.set("music", forKey: "SettingsTab")
+                openSettings()
+            }
+            Button("Not Now", role: .cancel) {}
+        } message: {
+            Text("Add the MT-32 files in Settings to hear it as composed.")
+        }
         .sheet(isPresented: $editingControls) {
             ControlsEditor(controls: gamebox?.info.controls ?? GameControls(), save: setControls)
         }
@@ -226,7 +237,12 @@ public struct GameWindow: View {
     }
 
     @ViewBuilder private func programItems(_ gamebox: Gamebox) -> some View {
-        ForEach(gamebox.info.launchers) { launcher in
+        let listed = Gamebox.listed(gamebox.info.launchers)
+        ForEach(listed.choices) { launcher in
+            Button(launcher.displayName) { run(.launcher(launcher)) }
+        }
+        if !listed.choices.isEmpty && !listed.others.isEmpty { Divider() }
+        ForEach(listed.others) { launcher in
             Button(launcher.displayName) { run(.launcher(launcher)) }
         }
         Divider()
@@ -304,6 +320,11 @@ public struct GameWindow: View {
 
     /// Runs something else from the game's toolbar menu.
     private func run(_ newStart: Gamebox.Start) {
+        // MT-32 music without the ROMs: offer to set them up (the game still
+        // starts; its music falls back to the Mac's synthesizer)
+        if case .launcher(let launcher) = newStart, Gamebox.usesMT32(launcher), !MT32Setup.isReady {
+            suggestingMT32 = true
+        }
         stoppedByUser = true
         start = newStart
         launch()

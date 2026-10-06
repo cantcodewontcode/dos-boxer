@@ -75,6 +75,7 @@ enum GameImporter {
         }
         info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
         info.launchers = LauncherFinder.expandingMenus(info.launchers, root: driveC)
+        info.menuVersion = Gamebox.Info.menuVersion
         info.chooseBestSound(year: Gamebox.year(fromName: name), hasMT32: MT32Setup.isReady)
         var gamebox = Gamebox(url: destination, info: info)
         _ = ShippedGameSettings.apply(to: &gamebox)  // speeds and start programs found by playing

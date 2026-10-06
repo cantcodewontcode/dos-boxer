@@ -39,6 +39,12 @@ public final class GameLibrary {
     public private(set) var mt32Suggestion: Gamebox?
     private static let mt32SuggestedKey = "MT32Suggested"
 
+    /// Asks again whenever a game is switched to MT-32 music without the
+    /// ROMs (the suggestion on adding a game is asked only once).
+    public func suggestMT32(for game: Gamebox) {
+        if !MT32Setup.isReady { mt32Suggestion = game }
+    }
+
     public func dismissMT32Suggestion() {
         mt32Suggestion = nil
         UserDefaults.standard.set(true, forKey: Self.mt32SuggestedKey)
@@ -308,6 +314,8 @@ public final class GameLibrary {
 
     /// Makes `launcher` the program the game starts with.
     public func setDefaultLauncher(_ launcher: Gamebox.Launcher, of game: Gamebox) {
+        // Switching to MT-32 music without the ROMs: offer to set them up
+        if Gamebox.usesMT32(launcher), !MT32Setup.isReady { mt32Suggestion = game }
         update(game) { info in
             for index in info.launchers.indices {
                 info.launchers[index].isDefault = info.launchers[index].id == launcher.id
@@ -507,9 +515,15 @@ public final class GameLibrary {
     private static func withBestSound(_ games: [Gamebox]) -> [Gamebox] {
         let hasMT32 = MT32Setup.isReady
         return games.map { game in
-            guard !game.isReadOnly, game.info.soundChosen != true, game.stats.launches == 0 else { return game }
+            guard !game.isReadOnly else { return game }
             var updated = game
-            updated.info.chooseBestSound(year: game.year, hasMT32: hasMT32)
+            // Menu choices exist but the game starts some other way: one of
+            // them becomes the default (decided again, once)
+            if updated.info.launchers.contains(where: { $0.commands != nil }),
+               !updated.info.launchers.contains(where: { $0.isDefault && $0.commands != nil }) {
+                updated.info.soundChoiceVersion = nil
+            }
+            guard updated.info.chooseBestSound(year: game.year, hasMT32: hasMT32) else { return game }
             try? updated.save()
             return updated
         }
@@ -519,12 +533,20 @@ public final class GameLibrary {
     /// add the menu's options to Starts With (saved). The default stays.
     private static func withMenuOptions(_ games: [Gamebox]) -> [Gamebox] {
         games.map { game in
-            guard !game.isReadOnly, !game.info.launchers.contains(where: { $0.commands != nil }),
-                  let drive = game.info.drives.first(where: { $0.kind == .hardDisk }) else { return game }
-            let launchers = LauncherFinder.expandingMenus(game.info.launchers, root: game.url.appending(path: drive.path))
-            guard launchers.count != game.info.launchers.count else { return game }
+            guard !game.isReadOnly, let drive = game.info.drives.first(where: { $0.kind == .hardDisk }) else { return game }
+            var launchers = game.info.launchers
+            // Read with an older reader: drop its menu choices and read again
+            let outdated = (game.info.menuVersion ?? 1) < Gamebox.Info.menuVersion
+            if outdated {
+                launchers.removeAll { $0.commands != nil && $0.dosPath.lowercased().hasSuffix(".bat") }
+            }
+            guard !launchers.contains(where: { $0.commands != nil }) else { return game }
+            launchers = LauncherFinder.expandingMenus(launchers, root: game.url.appending(path: drive.path))
+            guard outdated || launchers.count != game.info.launchers.count else { return game }
             var updated = game
             updated.info.launchers = launchers
+            updated.info.menuVersion = Gamebox.Info.menuVersion
+            updated.info.soundChoiceVersion = nil  // choose its best again
             try? updated.save()
             return updated
         }

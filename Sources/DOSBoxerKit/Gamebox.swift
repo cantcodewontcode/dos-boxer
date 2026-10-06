@@ -175,6 +175,11 @@ public struct Gamebox: Sendable, Identifiable {
         public var controls: GameControls?
         /// DOS Boxer has picked the best of the game's sound options (once).
         public var soundChosen: Bool?
+        /// Which version of that choosing it was (newer rules choose again).
+        public var soundChoiceVersion: Int?
+        /// Which version of menu reading made the menu choices (newer
+        /// readers read the menu again).
+        public var menuVersion: Int?
         /// When the details were last looked up online.
         public var detailsCheckedAt: Date?
         /// The game's short folder name in the collection it came from (e.g.
@@ -190,33 +195,59 @@ public struct Gamebox: Sendable, Identifiable {
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
 
-        /// Starts the game with its best sound option, once: an MT-32 option
-        /// for games from 1987–92 when MT-32 ROMs are installed, a General
-        /// MIDI (Sound Canvas) option for games from 1993 on. Otherwise how
-        /// it starts is left alone. Returns true if anything changed.
+        /// Orders the game's menu choices best sound first and starts it with
+        /// the best, once: MT-32 when its ROMs are installed (General MIDI
+        /// leads for games from 1993 on), then Sound Blaster, AdLib, Gravis Ultrasound,
+        /// Tandy, and PC Speaker last. Choices that aren't about sound (like
+        /// network play) come after and aren't picked. Returns true if
+        /// anything changed.
         @discardableResult
         public mutating func chooseBestSound(year: Int?, hasMT32: Bool) -> Bool {
-            guard soundChosen != true else { return false }
+            guard (soundChoiceVersion ?? 0) < Self.soundChoiceVersion else { return false }
+            soundChoiceVersion = Self.soundChoiceVersion
             soundChosen = true
-            let options = launchers.indices.filter { launchers[$0].commands != nil }
-            guard let year, !options.isEmpty else { return true }
-            func option(_ words: [String]) -> Int? {
-                options.first { index in
-                    let title = launchers[index].title.lowercased()
-                    return words.contains { title.contains($0) }
+            let options = launchers.filter { $0.commands != nil }
+            guard !options.isEmpty else { return true }
+            func rank(_ launcher: Launcher) -> Int {
+                let title = launcher.title.lowercased()
+                let has = { (words: [String]) in words.contains { title.contains($0) } }
+                // MT-32 only leads when its ROMs are installed and the game is
+                // from its era; without ROMs it's never picked
+                if has(["mt-32", "mt32"]) {
+                    return hasMT32 ? (year.map((1987...1992).contains) == true ? 100 : 90) : 5
                 }
+                // Music recorded on the game's CD: the real thing
+                if has(["cd audio", "cd music", "redbook"]) { return 110 }
+                if has(["sound canvas", "general midi", "sc-55", "sc55", "roland sc"]) {
+                    return (year ?? 0) >= 1993 ? 95 : 45
+                }
+                if has(["soundblaster", "sound blaster", "sb16", "sbpro", "sb pro"]) { return 80 }
+                if has(["adlib", "ad lib"]) { return 70 }
+                if has(["gravis", "ultrasound", "gus"]) { return 60 }
+                if has(["tandy", "pcjr"]) { return 30 }
+                if has(["pc speaker", "speaker", "internal"]) { return 20 }
+                if has(["network", "multiplayer", "modem", "setup", "install", "config", "editor", "manual", "readme"]) {
+                    return -10
+                }
+                return 10
             }
-            let best: Int? = if hasMT32, (1987...1992).contains(year), let mt32 = option(["mt-32", "mt32"]) {
-                mt32
-            } else if year >= 1993 {
-                option(["sound canvas", "general midi", "sc-55", "sc55", "gm"])
-            } else {
-                nil
+            // Best first, the menu's own order among equals
+            let ranked = options.enumerated().sorted { a, b in
+                rank(a.element) != rank(b.element) ? rank(a.element) > rank(b.element) : a.offset < b.offset
+            }.map(\.element)
+            let others = launchers.filter { $0.commands == nil }
+            guard let best = ranked.first(where: { rank($0) >= 0 }) ?? ranked.first else { return true }
+            launchers = (ranked + others).map { launcher in
+                var launcher = launcher
+                launcher.isDefault = launcher.id == best.id
+                return launcher
             }
-            guard let best else { return true }
-            for index in launchers.indices { launchers[index].isDefault = index == best }
             return true
         }
+        /// Bump to choose again for games already in libraries.
+        static let soundChoiceVersion = 4
+        /// Bump to read games' menus again (Blood's two-step menu).
+        public static let menuVersion = 3
 
         /// The game's genres, including ones saved by older versions.
         public var genreList: [String] {
@@ -256,6 +287,12 @@ public struct Gamebox: Sendable, Identifiable {
             self.path = path
             self.moreDiscs = moreDiscs
         }
+    }
+
+    /// How a game's programs are listed: its curated choices (from its menu,
+    /// or BASIC programs) first, then everything else.
+    public static func listed(_ launchers: [Launcher]) -> (choices: [Launcher], others: [Launcher]) {
+        (launchers.filter { $0.commands != nil }, launchers.filter { $0.commands == nil })
     }
 
     /// A program people start the game with.
@@ -403,7 +440,11 @@ public struct Gamebox: Sendable, Identifiable {
         // already get DOSBox's much faster protected-mode speed.) At
         // DOSBox's usual 286-class speed some crawl: Blackthorne's music
         // driver takes minutes to load
-        if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "64"] }
+        // Memory: mid-90s games need more than DOSBox's 16 MB, but some of
+        // their DOS extenders crash with 64 (Beneath a Steel Sky); later
+        // games get 64
+        if year >= 1996 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "64"] }
+        if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "32"] }
         if year >= 1990 { return ["cpu cpu_cycles": Self.speed386] }
         return [:]
     }
@@ -417,6 +458,12 @@ public struct Gamebox: Sendable, Identifiable {
     /// its era's. Nil means DOSBox's usual speed.
     public var speed: String? {
         info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
+    }
+
+    /// Whether this program plays music on a Roland MT-32.
+    public static func usesMT32(_ launcher: Launcher) -> Bool {
+        let text = ([launcher.title] + (launcher.commands ?? [])).joined(separator: " ").lowercased()
+        return text.contains("mt-32") || text.contains("mt32")
     }
 
     /// Whether the game offers Roland MT-32 music: an MT-32 option in its

@@ -136,7 +136,12 @@ struct GameCommands: Commands {
             Button("Controls…") { game?.editControls() }
                 .disabled(game == nil)
             Menu("Programs") {
-                ForEach(game?.launchers ?? []) { launcher in
+                let listed = Gamebox.listed(game?.launchers ?? [])
+                ForEach(listed.choices) { launcher in
+                    Button(launcher.displayName) { game?.run(.launcher(launcher)) }
+                }
+                if !listed.choices.isEmpty && !listed.others.isEmpty { Divider() }
+                ForEach(listed.others) { launcher in
                     Button(launcher.displayName) { game?.run(.launcher(launcher)) }
                 }
                 Divider()

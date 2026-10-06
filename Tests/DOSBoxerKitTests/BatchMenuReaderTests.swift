@@ -67,4 +67,50 @@ struct BatchMenuReaderTests {
     @Test func ignoresScriptsThatArentMenus() {
         #expect(BatchMenuReader.options(in: "@echo off\r\ncd game\r\ngame.exe").isEmpty)
     }
+
+    /// A two-step menu (like Blood's): pick a sound card, then which game.
+    @Test func followsATwoStepMenu() throws {
+        let script = """
+        :menu
+        echo Press 1 for Game w/ SoundBlaster
+        echo Press 2 for Game w/ CD Audio
+        choice /C:12 /N Please Choose:
+        if errorlevel = 2 goto CDA
+        if errorlevel = 1 goto SB16
+        :SB16
+        copy .\\game\\sb16\\*.* .\\game\\
+        goto menu2
+        :CDA
+        imgmount d ".\\collection\\game\\cd\\game.cue" -t cdrom
+        copy .\\game\\CDA\\*.* .\\game\\
+        goto menu2
+        :menu2
+        echo Press 1 for Game
+        echo Press 2 for Game: Expansion
+        echo Press 3 to launch Setup
+        choice /C:123 /N Please Choose:
+        if errorlevel = 3 goto setup
+        if errorlevel = 2 goto expansion
+        if errorlevel = 1 goto game
+        :game
+        cd game
+        game
+        goto quit
+        :expansion
+        cd expansion
+        game
+        goto quit
+        :setup
+        cd game
+        setup
+        goto quit
+        :quit
+        exit
+        """
+        let options = BatchMenuReader.options(in: script)
+        let cd = try #require(options.first { $0.title == "Game w/ CD Audio" })
+        #expect(cd.commands == ["copy .\\game\\CDA\\*.* .\\game\\", "cd game", "game"])
+        #expect(options.contains { $0.title == "Game: Expansion" })
+        #expect(options.first?.title == "Game w/ SoundBlaster")
+    }
 }

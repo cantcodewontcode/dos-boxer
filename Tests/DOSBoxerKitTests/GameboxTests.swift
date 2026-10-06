@@ -43,10 +43,12 @@ struct GameboxTests {
     }
 
     @Test func newerGamesGetMoreMemory() {
-        #expect(Gamebox.eraSettings(year: 1995)["dosbox memsize"] == "64")
+        #expect(Gamebox.eraSettings(year: 1997)["dosbox memsize"] == "64")
         #expect(Gamebox.eraSettings(year: 1989).isEmpty)
         #expect(Gamebox.eraSettings(year: 1990)["cpu cpu_cycles"] == "8000")
         #expect(Gamebox.eraSettings(year: 1994)["cpu cpu_cycles"] == "20000")
+        #expect(Gamebox.eraSettings(year: 1994)["dosbox memsize"] == "32")
+        #expect(Gamebox.eraSettings(year: 1996)["dosbox memsize"] == "64")
         #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
         #expect(Gamebox.eraSettings(year: 1984).isEmpty)
         #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=coreaudio""#)
@@ -165,7 +167,8 @@ struct GameboxTests {
         #expect(early.launchers.first(where: \.isDefault)?.title == "Game w/ MT-32")
         var noROMs = info(titles)
         noROMs.chooseBestSound(year: 1990, hasMT32: false)
-        #expect(noROMs.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+        // No better option for its era: still one of the menu's choices
+        #expect(noROMs.launchers.first(where: \.isDefault)?.title == "Game w/ SoundBlaster")
         var late = info(titles)
         late.chooseBestSound(year: 1994, hasMT32: true)
         #expect(late.launchers.first(where: \.isDefault)?.title == "Game w/ Sound Canvas")
@@ -173,6 +176,18 @@ struct GameboxTests {
         late.launchers = late.launchers.map { var l = $0; l.isDefault = l.title == "GAME.EXE"; return l }
         late.chooseBestSound(year: 1994, hasMT32: true)
         #expect(late.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+    }
+
+    /// Battle Chess's menu lists PC Speaker first; AdLib is better.
+    @Test func soundChoicesAreOrderedBestFirst() {
+        var info = Gamebox.Info(name: "Battle Chess (1988)")
+        info.launchers = ["Battle Chess w/ PC Speaker", "Battle Chess w/ Adlib", "Network Multiplayer"]
+            .enumerated().map { Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["chess"]) }
+            + [Gamebox.Launcher(title: "Chess", dosPath: "C:\\CHESS\\CHESS.EXE")]
+        info.chooseBestSound(year: 1988, hasMT32: false)
+        #expect(info.launchers.map(\.title) == ["Battle Chess w/ Adlib", "Battle Chess w/ PC Speaker",
+                                                 "Network Multiplayer", "Chess"])
+        #expect(info.launchers.first(where: \.isDefault)?.title == "Battle Chess w/ Adlib")
     }
 
     @Test func gamesSetUpForAGravisUltrasoundGetOne() throws {
@@ -333,10 +348,14 @@ struct GameboxTests {
 
         let gamebox = try Gamebox.open(try GameImporter.makeGamebox(from: folder, inLibrary: library))
 
-        #expect(gamebox.info.launchers.prefix(2).map(\.title) == ["Boxing w/ SoundBlaster", "Boxing w/ MT-32"])
-        #expect(gamebox.defaultLauncher?.title == "Boxing w/ SoundBlaster")
+        // Best sound first: MT-32 when this Mac has its ROMs, else Sound Blaster
+        let expected = MT32Setup.isReady ? ["Boxing w/ MT-32", "Boxing w/ SoundBlaster"]
+            : ["Boxing w/ SoundBlaster", "Boxing w/ MT-32"]
+        #expect(gamebox.info.launchers.prefix(2).map(\.title) == expected)
+        #expect(gamebox.defaultLauncher?.title == expected[0])
         #expect(gamebox.info.launchers.contains { $0.title == "Menu" })
-        let mt32 = try gamebox.sessionArguments(.launcher(gamebox.info.launchers[1]))
+        let mt32Launcher = try #require(gamebox.info.launchers.first { $0.title == "Boxing w/ MT-32" })
+        let mt32 = try gamebox.sessionArguments(.launcher(mt32Launcher))
         #expect(mt32.contains("@CONFIG -set \"mididevice=mt32\""))
         #expect(mt32.contains("@vbox"))
         #expect(mt32.last == "@EXIT")

@@ -163,7 +163,10 @@ AddToCollectionButton(library: library, games: [game])
                             library.setDefaultLauncher(launcher, of: game)
                         }
                     })) {
-                    ForEach(game.info.launchers) { Text($0.displayName).tag(Optional($0.id)) }
+                    let listed = Gamebox.listed(game.info.launchers)
+                    ForEach(listed.choices) { Text($0.displayName).tag(Optional($0.id)) }
+                    if !listed.choices.isEmpty && !listed.others.isEmpty { Divider() }
+                    ForEach(listed.others) { Text($0.displayName).tag(Optional($0.id)) }
                 }
                 .labelsHidden()
                 .disabled(game.isReadOnly)
