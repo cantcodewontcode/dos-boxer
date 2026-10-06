@@ -458,7 +458,13 @@ public struct Gamebox: Sendable, Identifiable {
         // Memory: mid-90s games need more than DOSBox's 16 MB, but some of
         // their DOS extenders crash with 64 (Beneath a Steel Sky); later
         // games get 64
-        if year >= 1996 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "64"] }
+        // Late-90s games using DOS extenders (Blood, Duke Nukem 3D, Quake)
+        // were made for Pentiums: DOSBox's usual 60,000 for them is a fast
+        // 486 and plays choppily. Throttling eases off if the Mac can't keep up
+        if year >= 1996 {
+            return ["cpu cpu_cycles": Self.speed486, "cpu cpu_cycles_protected": Self.speedPentium,
+                    "cpu cpu_throttle": "true", "dosbox memsize": "64"]
+        }
         if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "32"] }
         if year >= 1990 { return ["cpu cpu_cycles": Self.speed386] }
         return [:]
@@ -468,6 +474,8 @@ public struct Gamebox: Sendable, Identifiable {
     public static let originalPCSpeed = "300"
     public static let speed386 = "8000"
     public static let speed486 = "20000"
+    /// For games that use DOS extenders (protected mode).
+    public static let speedPentium = "300000"
 
     /// The speed the game starts at: its own (adjusted while playing), else
     /// its era's. Nil means DOSBox's usual speed.

@@ -49,6 +49,8 @@ struct GameboxTests {
         #expect(Gamebox.eraSettings(year: 1994)["cpu cpu_cycles"] == "20000")
         #expect(Gamebox.eraSettings(year: 1994)["dosbox memsize"] == "32")
         #expect(Gamebox.eraSettings(year: 1996)["dosbox memsize"] == "64")
+        #expect(Gamebox.eraSettings(year: 1997)["cpu cpu_cycles_protected"] == "300000")
+        #expect(Gamebox.eraSettings(year: 1995)["cpu cpu_cycles_protected"] == nil)
         #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
         #expect(Gamebox.eraSettings(year: 1984).isEmpty)
         #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=coreaudio""#)

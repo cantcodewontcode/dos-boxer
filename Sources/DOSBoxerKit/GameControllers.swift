@@ -98,6 +98,14 @@ public final class GameControllers {
         UserDefaults.standard.set(players, forKey: Self.playersKey)
     }
 
+    /// Lets go of every controller's buttons and sticks in `emulator` (its
+    /// window lost focus).
+    func releaseAll(for emulator: Emulator) {
+        guard target === emulator else { return }
+        for pad in pads { if let player = pad.player { releaseAll(pad, player: player) } }
+        releaseHeldKeys()
+    }
+
     /// Lets go of everything, so nothing stays held when a controller
     /// changes player or disconnects.
     private func releaseAll(_ pad: Pad, player: Int) {

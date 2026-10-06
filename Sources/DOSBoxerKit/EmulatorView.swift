@@ -76,10 +76,14 @@ public final class EmulatorMTKView: MTKView {
 
     @objc private func windowGotFocus() {
         GameControllers.shared.target = emulator
+        // Keys go to the game again straight away, not to the toolbar
+        if window?.firstResponder !== self, !(window?.firstResponder is NSText) {
+            window?.makeFirstResponder(self)
+        }
     }
 
     @objc private func windowLostFocus() {
-        releaseModifiersInDOS()
+        releaseKeysInDOS()
         unlockMouse()
     }
 
@@ -92,12 +96,28 @@ public final class EmulatorMTKView: MTKView {
             return
         }
         guard !event.isARepeat, let scancode = KeyboardMapper.scancode(forKeyCode: event.keyCode) else { return }
+        keysDownInDOS.insert(scancode)
         emulator.key(scancode: scancode, isDown: true)
     }
 
     public override func keyUp(with event: NSEvent) {
         guard let scancode = KeyboardMapper.scancode(forKeyCode: event.keyCode) else { return }
+        keysDownInDOS.remove(scancode)
         emulator.key(scancode: scancode, isDown: false)
+    }
+
+    /// Keys DOS has been told are held down. When the window loses focus,
+    /// the key-ups go to another window, so DOS would think they're still
+    /// held (a game keeps walking forward): let go of them all then.
+    private var keysDownInDOS: Set<Int32> = []
+
+    private func releaseKeysInDOS() {
+        for scancode in keysDownInDOS {
+            emulator.key(scancode: scancode, isDown: false)
+        }
+        keysDownInDOS.removeAll()
+        releaseModifiersInDOS()
+        GameControllers.shared.releaseAll(for: emulator)
     }
 
     /// Modifier keys DOS currently has held down, so we can let go of them
