@@ -195,11 +195,12 @@ public struct Gamebox: Sendable, Identifiable {
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
 
-        /// Orders the game's menu choices best sound first and starts it with
-        /// the best, once: MT-32 when its ROMs are installed (General MIDI
+        /// Orders the game's menu choices best first and starts it with the
+        /// best, once. Sound choices: MT-32 when its ROMs are installed (General MIDI
         /// leads for games from 1993 on), then Sound Blaster, AdLib, Gravis Ultrasound,
-        /// Tandy, and PC Speaker last. Choices that aren't about sound (like
-        /// network play) come after and aren't picked. Returns true if
+        /// Tandy, and PC Speaker last. Versions: CD over floppy, high
+        /// resolution over plain, the game over its add-ons. Network play and
+        /// setup come last and aren't picked. Returns true if
         /// anything changed.
         @discardableResult
         public mutating func chooseBestSound(year: Int?, hasMT32: Bool) -> Bool {
@@ -211,25 +212,39 @@ public struct Gamebox: Sendable, Identifiable {
             func rank(_ launcher: Launcher) -> Int {
                 let title = launcher.title.lowercased()
                 let has = { (words: [String]) in words.contains { title.contains($0) } }
-                // MT-32 only leads when its ROMs are installed and the game is
-                // from its era; without ROMs it's never picked
-                if has(["mt-32", "mt32"]) {
-                    return hasMT32 ? (year.map((1987...1992).contains) == true ? 100 : 90) : 5
-                }
-                // Music recorded on the game's CD: the real thing
-                if has(["cd audio", "cd music", "redbook"]) { return 110 }
-                if has(["sound canvas", "general midi", "sc-55", "sc55", "roland sc"]) {
-                    return (year ?? 0) >= 1993 ? 95 : 45
-                }
-                if has(["soundblaster", "sound blaster", "sb16", "sbpro", "sb pro"]) { return 80 }
-                if has(["adlib", "ad lib"]) { return 70 }
-                if has(["gravis", "ultrasound", "gus"]) { return 60 }
-                if has(["tandy", "pcjr"]) { return 30 }
-                if has(["pc speaker", "speaker", "internal"]) { return 20 }
                 if has(["network", "multiplayer", "modem", "setup", "install", "config", "editor", "manual", "readme"]) {
                     return -10
                 }
-                return 10
+                // Sound: music recorded on the game's CD is the real thing.
+                // MT-32 only leads with its ROMs installed (never picked
+                // without). "Sound Canvas" choices play through the Mac's
+                // General MIDI synthesizer until a SoundFont is installed,
+                // so a true MT-32 beats them meanwhile. A Gravis Ultrasound's
+                // sampled music beats a Sound Blaster's FM synthesis.
+                let sound: Int? = if has(["cd audio", "cd music", "redbook"]) { 110 }
+                    else if has(["mt-32", "mt32"]) {
+                        hasMT32 ? (year.map((1987...1992).contains) == true ? 100 : 90) : 5
+                    }
+                    else if has(["sound canvas", "general midi", "sc-55", "sc55", "roland sc"]) {
+                        (year ?? 0) >= 1993 ? (SessionDefaults.hasSoundFont ? 95 : 85) : 45
+                    }
+                    else if has(["gravis", "ultrasound", "gus"]) { 82 }
+                    else if has(["soundblaster", "sound blaster", "sb16", "sbpro", "sb pro"]) { 80 }
+                    else if has(["adlib", "ad lib"]) { 70 }
+                    else if has(["tandy", "pcjr"]) { 30 }
+                    else if has(["pc speaker", "speaker", "internal"]) { 20 }
+                    else { nil }
+                if let sound { return sound }
+                // Versions: the fullest one. CD over floppy, high resolution
+                // over plain (3dfx is slow to emulate); add-ons aren't the
+                // default
+                var edition = 10
+                if has(["cd", "talkie", "enhanced", "deluxe", "special edition", "gold"]) { edition += 5 }
+                if has(["hires", "hi-res", "high res", "svga"]) { edition += 4 }
+                if has(["3dfx", "voodoo", "glide"]) { edition += 2 }
+                if has(["floppy", "demo", "shareware", "lowres", "low res"]) { edition -= 4 }
+                if has(["splat pack", "mission pack", "expansion", "add-on", "addon", "museum", "bonus"]) { edition -= 3 }
+                return edition
             }
             // Best first, the menu's own order among equals
             let ranked = options.enumerated().sorted { a, b in
@@ -245,7 +260,7 @@ public struct Gamebox: Sendable, Identifiable {
             return true
         }
         /// Bump to choose again for games already in libraries.
-        static let soundChoiceVersion = 4
+        static let soundChoiceVersion = 5
         /// Bump to read games' menus again (Blood's two-step menu).
         public static let menuVersion = 3
 

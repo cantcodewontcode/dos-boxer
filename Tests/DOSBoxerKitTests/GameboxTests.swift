@@ -170,12 +170,33 @@ struct GameboxTests {
         // No better option for its era: still one of the menu's choices
         #expect(noROMs.launchers.first(where: \.isDefault)?.title == "Game w/ SoundBlaster")
         var late = info(titles)
-        late.chooseBestSound(year: 1994, hasMT32: true)
+        late.chooseBestSound(year: 1994, hasMT32: false)
         #expect(late.launchers.first(where: \.isDefault)?.title == "Game w/ Sound Canvas")
         // Only once: a choice made afterwards is left alone
         late.launchers = late.launchers.map { var l = $0; l.isDefault = l.title == "GAME.EXE"; return l }
         late.chooseBestSound(year: 1994, hasMT32: true)
         #expect(late.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+    }
+
+    @Test func versionsAndSoundCardsAreRanked() {
+        func best(_ titles: [String], year: Int, hasMT32: Bool = false) -> String? {
+            var info = Gamebox.Info(name: "Game")
+            info.launchers = titles.enumerated().map {
+                Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["game"])
+            }
+            info.chooseBestSound(year: year, hasMT32: hasMT32)
+            return info.launchers.first(where: \.isDefault)?.title
+        }
+        #expect(best(["Play Shadow of the Comet Floppy", "Play Shadow of the Comet CD"], year: 1993)
+                == "Play Shadow of the Comet CD")
+        #expect(best(["Carmageddon", "Carmageddon HiRes", "Carmageddon 3DFX", "Carmageddon Splat Pack Hires",
+                      "Network Multiplayer"], year: 1998) == "Carmageddon HiRes")
+        #expect(best(["Crusader w/ SoundBlaster", "Crusader w/ Gravis Ultrasound"], year: 1995)
+                == "Crusader w/ Gravis Ultrasound")
+        #expect(best(["DOTT w/ Sound Canvas", "DOTT w/ MT-32", "DOTT w/ SoundBlaster"], year: 1993, hasMT32: true)
+                == "DOTT w/ MT-32")
+        #expect(best(["DOTT w/ Sound Canvas", "DOTT w/ MT-32", "DOTT w/ SoundBlaster"], year: 1993)
+                == "DOTT w/ Sound Canvas")
     }
 
     /// Battle Chess's menu lists PC Speaker first; AdLib is better.
