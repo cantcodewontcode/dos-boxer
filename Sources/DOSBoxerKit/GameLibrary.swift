@@ -94,11 +94,11 @@ public final class GameLibrary {
             collections = GameCollectionsFile.load(from: rootURL)
             // Games waiting on a duplicate question stay out of sight
             let waiting = Set(duplicates.map(\.added.url.standardizedFileURL))
-            games = Self.withBASICPrograms(Self.withUniqueIDs(entries
+            games = Self.withArticlesFirst(Self.withBASICPrograms(Self.withUniqueIDs(entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
                 .filter { !waiting.contains($0.standardizedFileURL) }
                 .compactMap { try? Gamebox.open($0) }
-                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }))
+                .sorted { GameNames.sortKey($0.name).localizedStandardCompare(GameNames.sortKey($1.name)) == .orderedAscending })))
             lastError = nil
             fetchMissingCovers()
             fetchMissingDetails()
@@ -161,6 +161,8 @@ public final class GameLibrary {
             var foundAny = false
             for game in missing where await GameDetailsFetcher.shared.fillDetails(of: game) {
                 foundAny = true
+                // A new name from the details: the gamebox follows it on disk
+                if let updated = try? Gamebox.open(game.url) { Self.moveToMatchName(updated) }
                 // Now matched, it may have box art of its own: look again
                 coverLookupsTried.remove(game.id)
             }
@@ -318,12 +320,7 @@ public final class GameLibrary {
             var renamed = game
             renamed.info.name = name
             try renamed.save()
-            let fileName = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
-            let destination = game.url.deletingLastPathComponent().appending(path: "\(fileName).dosgame")
-            if destination.path(percentEncoded: false).lowercased() != game.url.path(percentEncoded: false).lowercased(),
-               !FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)) {
-                try FileManager.default.moveItem(at: game.url, to: destination)
-            }
+            Self.moveToMatchName(renamed)
             reload()
         } catch {
             lastError = "Couldn't rename \(game.name): \(error.localizedDescription)"
@@ -451,6 +448,32 @@ public final class GameLibrary {
             }
         }
         reload()
+    }
+
+    /// Renames a gamebox on disk to match its name, unless that's taken.
+    @discardableResult
+    static func moveToMatchName(_ game: Gamebox) -> URL {
+        guard game.url.pathExtension.lowercased() == "dosgame" else { return game.url }
+        let destination = game.url.deletingLastPathComponent()
+            .appending(path: "\(GameNames.fileName(game.name)).dosgame", directoryHint: .isDirectory)
+        guard destination.path(percentEncoded: false).lowercased() != game.url.path(percentEncoded: false).lowercased(),
+              !FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)),
+              (try? FileManager.default.moveItem(at: game.url, to: destination)) != nil else { return game.url }
+        return destination
+    }
+
+    /// Games named the collections' way ("Dig, The"): written the way people
+    /// say them, on disk too.
+    private static func withArticlesFirst(_ games: [Gamebox]) -> [Gamebox] {
+        games.map { game in
+            let name = GameNames.articleFirst(game.name)
+            guard name != game.name, !game.isReadOnly else { return game }
+            var renamed = game
+            renamed.info.name = name
+            try? renamed.save()
+            renamed.url = moveToMatchName(renamed)
+            return renamed
+        }
     }
 
     /// Games added before DOS Boxer knew about BASIC programs, still set to

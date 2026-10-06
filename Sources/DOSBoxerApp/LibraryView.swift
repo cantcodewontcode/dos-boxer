@@ -600,7 +600,7 @@ enum SortOrder: String, CaseIterable, Identifiable {
 
     func sorted(_ games: [Gamebox]) -> [Gamebox] {
         func byName(_ a: Gamebox, _ b: Gamebox) -> Bool {
-            a.name.localizedStandardCompare(b.name) == .orderedAscending
+            GameNames.sortKey(a.name).localizedStandardCompare(GameNames.sortKey(b.name)) == .orderedAscending
         }
         /// Orders by `key` (games without one last), then by name.
         func by<Key: Comparable>(_ key: (Gamebox) -> Key?, descending: Bool) -> [Gamebox] {
@@ -646,15 +646,7 @@ private struct GameCard: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            CoverImage(gamebox: gamebox)
-                .overlay {
-                    if isFindingCover {
-                        ProgressView()
-                            .controlSize(.small)
-                            .padding(10)
-                            .glassEffect(in: .circle)
-                    }
-                }
+            CoverImage(gamebox: gamebox, isLoading: isFindingCover)
                 .frame(height: coverSize * 1.25, alignment: .bottom)
             if isRenaming {
                 // Grows to a second line only when the name needs it

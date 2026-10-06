@@ -34,11 +34,25 @@ public actor GameDetailsFetcher {
             return true
         }
 
+        // Recognized by its programs: the name collections know it by
+        let drives = gamebox.url.appending(path: "Drives")
+        let recognized = GameFingerprints.collectionName(forFilesIn: drives)
+
         // The downloaded LaunchBox details: by the game's files, then its name
-        if let entry = GameDetailsPack.details(forFilesIn: gamebox.url.appending(path: "Drives"))
+        if let entry = GameDetailsPack.details(forFilesIn: drives)
+            ?? recognized.flatMap({ GameDetailsPack.details(forName: $0, year: nil) })
             ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year,
                                        programs: Self.programNames(in: gamebox)) {
             var updated = gamebox
+            // Recognized for the first time: take its proper name ("dukem1"
+            // becomes "Duke Nukem - Episode 1 - Shrapnel City (1991)"). The
+            // name collections use is the familiar one (LaunchBox's can be
+            // a release's odd official title, like "Duke Nukum"); LaunchBox's
+            // name with the year otherwise
+            let year = entry.year ?? gamebox.year
+            let canonical = recognized ?? entry.folderNames?.first
+                ?? entry.name + (year.map { " (\($0))" } ?? "")
+            updated.info.name = GameNames.articleFirst(canonical)
             entry.fill(&updated.info)
             // Now matched, shipped settings can be found by LaunchBox entry
             _ = ShippedGameSettings.apply(to: &updated)
@@ -53,6 +67,18 @@ public actor GameDetailsFetcher {
             }
             try? updated.save()
             return true
+        }
+
+        // Known, but not to LaunchBox (or its details aren't downloaded):
+        // at least take the name collections know it by
+        if let recognized, info.detailsCheckedAt == nil {
+            let name = GameNames.articleFirst(recognized)
+            if name != info.name {
+                var renamed = gamebox
+                renamed.info.name = name
+                try? renamed.save()
+                return true
+            }
         }
 
         guard info.publisher == nil || info.developer == nil || info.genreList.isEmpty,

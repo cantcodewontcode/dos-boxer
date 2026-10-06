@@ -390,9 +390,13 @@ private struct StatusCard: View {
 /// A game's box art, or a simple stand-in when it has none.
 public struct CoverImage: View {
     let gamebox: Gamebox?
+    /// Looking for box art: the stand-in shows a spinner instead of the
+    /// floppy disk.
+    let isLoading: Bool
 
-    public init(gamebox: Gamebox?) {
+    public init(gamebox: Gamebox?, isLoading: Bool = false) {
         self.gamebox = gamebox
+        self.isLoading = isLoading
     }
 
     public var body: some View {
@@ -407,13 +411,17 @@ public struct CoverImage: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(.quaternary)
                 .overlay {
-                    // Phosphor's floppy disk (MIT; see Licenses/)
-                    Image("FloppyDisk", bundle: Bundle(for: Emulator.self))
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48)
-                        .foregroundStyle(.secondary)
+                    if isLoading {
+                        ProgressView()
+                    } else {
+                        // Phosphor's floppy disk (MIT; see Licenses/)
+                        Image("FloppyDisk", bundle: Bundle(for: Emulator.self))
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 48, height: 48)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .aspectRatio(0.8, contentMode: .fit)
         }

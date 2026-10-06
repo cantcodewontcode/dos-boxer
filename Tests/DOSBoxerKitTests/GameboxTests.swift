@@ -94,6 +94,16 @@ struct GameboxTests {
         #expect(launchers.filter { $0.commands != nil }.count == 3)
     }
 
+    @Test func namesPutTheArticleFirstAndSortWithoutIt() {
+        #expect(GameNames.articleFirst("Dig, The (1995)") == "The Dig (1995)")
+        #expect(GameNames.articleFirst("Elder Scrolls, The - Arena (1994)") == "The Elder Scrolls - Arena (1994)")
+        #expect(GameNames.articleFirst("Bard's Tale, A") == "A Bard's Tale")
+        #expect(GameNames.articleFirst("Doom (1993)") == "Doom (1993)")
+        #expect(GameNames.articleFirst("Lemmings, Oh No! More (1991)") == "Lemmings, Oh No! More (1991)")
+        #expect(GameNames.sortKey("The Dig (1995)") == "Dig (1995)")
+        #expect(GameNames.fileName("Warcraft II: Tides of Darkness") == "Warcraft II - Tides of Darkness")
+    }
+
     @Test func aFolderOfGamesIsImportedGameByGame() throws {
         let downloads = scratch.appending(path: "game-testing", directoryHint: .isDirectory)
         let year = downloads.appending(path: "1982", directoryHint: .isDirectory)
@@ -330,7 +340,7 @@ struct GameboxTests {
         #expect(library.games.map(\.name) == ["Commander Keen: Marooned on Mars"])
         // Games at the top of the library were tidied into Games
         #expect(library.games[0].url.deletingLastPathComponent().lastPathComponent == "Games")
-        #expect(library.games[0].url.lastPathComponent == "Commander Keen- Marooned on Mars.dosgame")
+        #expect(library.games[0].url.lastPathComponent == "Commander Keen - Marooned on Mars.dosgame")
     }
 
     @Test func playStatsAddUpAcrossMacs() throws {

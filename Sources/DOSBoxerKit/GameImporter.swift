@@ -158,13 +158,13 @@ enum GameImporter {
 
     /// "Crystal Caves (1991).zip" → "Crystal Caves (1991)".
     private static func displayName(for url: URL) -> String {
-        let name = url.deletingPathExtension().lastPathComponent
+        let name = GameNames.articleFirst(url.deletingPathExtension().lastPathComponent)
         return name.isEmpty ? "Untitled Game" : name
     }
 
     /// "Name.dosgame", or "Name 2.dosgame" if that's taken.
     private static func uniqueURL(named name: String, in library: URL) -> URL {
-        let safe = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let safe = GameNames.fileName(name)
         var candidate = library.appending(path: "\(safe).dosgame", directoryHint: .isDirectory)
         var counter = 2
         while FileManager.default.fileExists(atPath: candidate.path(percentEncoded: false)) {

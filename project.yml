@@ -33,6 +33,8 @@ targets:
       # Settings for particular games, found by playing them
       - path: Resources/GameSettings/GameSettings.json
         buildPhase: resources
+      - path: Resources/GameSettings/Fingerprints.json
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dosboxer.DOSBoxerKit
