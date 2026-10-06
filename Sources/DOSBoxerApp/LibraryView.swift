@@ -232,7 +232,8 @@ struct LibraryView: View {
                 .frame(maxWidth: .infinity, minHeight: visibleHeight, alignment: .top)
                 .coordinateSpace(.named("grid"))
                 // ⌘A selects every game shown (text fields keep their own)
-                .background(SelectAllKey { selection = Set(filteredGames.map(\.id)) })
+                .background(GridKeys(selectAll: { selection = Set(filteredGames.map(\.id)) },
+                                     removeFromCollection: removeSelectionFromCollection))
                 // Clicking empty space clears the selection, as in Finder;
                 // dragging there draws a box that selects the games it touches
                 .background {
@@ -334,6 +335,15 @@ struct LibraryView: View {
         panel.beginSheetModal(for: window) { response in
             if response == .OK, let folder = panel.url { action(folder) }
         }
+    }
+
+    /// Delete in a collection: take the selected games out of it (they stay
+    /// in the library). Returns false when not viewing a collection.
+    private func removeSelectionFromCollection() -> Bool {
+        guard case .collection(let id) = filter, !selection.isEmpty else { return false }
+        for game in selection { library.remove(game, fromCollection: id) }
+        selection = []
+        return true
     }
 
     private func fallBackIfFilterIsGone() {
@@ -765,8 +775,13 @@ private struct EmptyLibrary: View {
 
 /// ⌘A in this view's window selects all games, unless text is being edited
 /// (where it selects the text, as usual).
-private struct SelectAllKey: NSViewRepresentable {
+/// Keys for the game grid: ⌘A selects all games, unless text is being
+/// edited; Delete (without ⌘) removes the selection from the collection
+/// being viewed, unless the sidebar or a text field has the keyboard.
+private struct GridKeys: NSViewRepresentable {
     let selectAll: () -> Void
+    /// Returns whether it removed anything.
+    let removeFromCollection: () -> Bool
 
     /// Invisible to clicks, so empty space behind it still clears the selection.
     final class PassThroughView: NSView {
@@ -778,30 +793,43 @@ private struct SelectAllKey: NSViewRepresentable {
         context.coordinator.view = view
         context.coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak coordinator = context.coordinator] event in
             guard let coordinator, let window = coordinator.view?.window, event.window === window,
-                  event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-                  event.charactersIgnoringModifiers == "a",
                   !(window.firstResponder is NSText) else { return event }
-            coordinator.selectAll()
-            return nil
+            let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            if modifiers == .command, event.charactersIgnoringModifiers == "a" {
+                coordinator.selectAll()
+                return nil
+            }
+            // Delete (backspace or forward delete), not ⌘⌫ (Move to Trash), and
+            // not while the sidebar list has the keyboard (deletes a collection)
+            if modifiers.isEmpty, event.keyCode == 51 || event.keyCode == 117,
+               !(window.firstResponder is NSTableView), coordinator.removeFromCollection() {
+                return nil
+            }
+            return event
         }
         return view
     }
 
     func updateNSView(_ view: NSView, context: Context) {
         context.coordinator.selectAll = selectAll
+        context.coordinator.removeFromCollection = removeFromCollection
     }
 
     static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
         if let monitor = coordinator.monitor { NSEvent.removeMonitor(monitor) }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(selectAll: selectAll) }
+    func makeCoordinator() -> Coordinator { Coordinator(selectAll: selectAll, removeFromCollection: removeFromCollection) }
 
     final class Coordinator {
         var selectAll: () -> Void
+        var removeFromCollection: () -> Bool
         weak var view: NSView?
         var monitor: Any?
-        init(selectAll: @escaping () -> Void) { self.selectAll = selectAll }
+        init(selectAll: @escaping () -> Void, removeFromCollection: @escaping () -> Bool) {
+            self.selectAll = selectAll
+            self.removeFromCollection = removeFromCollection
+        }
     }
 }
 
