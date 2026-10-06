@@ -48,6 +48,13 @@ public final class EmulatorMTKView: MTKView {
 
     public override var acceptsFirstResponder: Bool { true }
 
+    /// Leaving the window (the game stopped, or the window closed): give the
+    /// mouse back first.
+    public override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { unlockMouse() }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
     public override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let releaseMonitor { NSEvent.removeMonitor(releaseMonitor) }

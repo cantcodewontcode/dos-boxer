@@ -163,7 +163,7 @@ index 1a92e0094..b56aec366 100644
                         SDL_Scancode key,
                         uint32_t mods,
 diff --git a/src/gui/sdl_gui.cpp b/src/gui/sdl_gui.cpp
-index 433d4a223..43bdfdfec 100644
+index 433d4a223..0cc0e120a 100644
 --- a/src/gui/sdl_gui.cpp
 +++ b/src/gui/sdl_gui.cpp
 @@ -45,6 +45,8 @@
@@ -186,7 +186,20 @@ index 433d4a223..43bdfdfec 100644
  
  		case SDL_WINDOWEVENT:
  			if (event.window.event == SDL_WINDOWEVENT_RESTORED) {
-@@ -1604,8 +1608,25 @@ static int get_sdl_window_flags()
+@@ -1066,6 +1070,12 @@ void GFX_SetMouseCapture(const bool requested_capture)
+ 	if (SDL_SetRelativeMouseMode(param) != 0) {
+ 		SDL_ShowCursor(SDL_ENABLE);
+ 
++		// DOS Boxer: the host app owns the mouse and the engine has no
++		// real window, so SDL can't capture; carry on rather than quit
++		if (DOSBOXER_IgnoreSdlQuit()) {
++			LOG_WARNING("SDL: Mouse capture is handled by the host app");
++			return;
++		}
+ 		E_Exit("SDL: Error %s relative mode",
+ 		       requested_capture ? "putting the mouse into"
+ 		                         : "taking the mouse out of");
+@@ -1604,8 +1614,25 @@ static int get_sdl_window_flags()
  	return check_cast<int>(flags);
  }
  
@@ -212,7 +225,7 @@ index 433d4a223..43bdfdfec 100644
  #if C_OPENGL
  	if (sdl.render_backend_type == RenderBackendType::OpenGl) {
  		try {
-@@ -2208,7 +2229,9 @@ static void handle_pause_when_inactive(const SDL_Event& event)
+@@ -2208,7 +2235,9 @@ static void handle_pause_when_inactive(const SDL_Event& event)
  			SDL_WaitEvent(&ev);
  
  			switch (ev.type) {
@@ -223,7 +236,7 @@ index 433d4a223..43bdfdfec 100644
  			case SDL_WINDOWEVENT: {
  				const auto we = ev.window.event;
  
-@@ -2613,7 +2636,9 @@ bool GFX_PollAndHandleEvents()
+@@ -2613,7 +2642,9 @@ bool GFX_PollAndHandleEvents()
  			handle_mouse_button(&event.button);
  			break;
  

@@ -19,7 +19,10 @@ public final class Emulator {
         case stopped(exitCode: Int32)
     }
 
-    public private(set) var state: State = .idle
+    public private(set) var state: State = .idle {
+        // A game that's stopped (quit, crashed or turned off) never keeps the mouse
+        didSet { if case .stopped = state { releaseMouse?() } }
+    }
 
     /// How the screen is drawn right now.
     @ObservationIgnored public var displayLook: DisplayLook = .appDefault
