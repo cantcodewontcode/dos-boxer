@@ -376,6 +376,27 @@ public struct Gamebox: Sendable, Identifiable {
         info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
     }
 
+    /// Sound cards the game is set up for, from its Miles Sound System
+    /// settings (DIG.INI, MDI.INI): DOSBox only emulates a Gravis
+    /// Ultrasound when asked, and games set up for one (Albion) quit
+    /// without it.
+    func soundCardSettings() -> [String: String] {
+        let drives = url.appending(path: "Drives")
+        guard let files = FileManager.default.enumerator(at: drives, includingPropertiesForKeys: nil,
+                                                         options: [.skipsHiddenFiles]) else { return [:] }
+        for case let file as URL in files {
+            if files.level > 4 { files.skipDescendants(); continue }
+            guard ["DIG.INI", "MDI.INI"].contains(file.lastPathComponent.uppercased()),
+                  let text = try? String(contentsOf: file, encoding: .isoLatin1) else { continue }
+            let usesUltrasound = text.split(whereSeparator: \.isNewline).contains { line in
+                let words = line.uppercased().split(whereSeparator: \.isWhitespace)
+                return words.count >= 2 && words[0] == "DRIVER" && words[1].hasPrefix("ULTRA")
+            }
+            if usesUltrasound { return ["gus gus": "true"] }
+        }
+        return [:]
+    }
+
     /// Menu scripts written for other DOSBox versions can set values this
     /// one doesn't accept ("mididevice=default" is "port" here).
     static func fixingSettings(_ command: String) -> String {
@@ -402,7 +423,8 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }
         }
-        var settings = Self.eraSettings(year: year).merging(info.settings) { $1 }
+        var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
+            .merging(info.settings) { $1 }
             .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
         if let mapping = controllerMapping {
             settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]

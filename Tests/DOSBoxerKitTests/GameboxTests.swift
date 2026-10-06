@@ -94,6 +94,20 @@ struct GameboxTests {
         #expect(launchers.filter { $0.commands != nil }.count == 3)
     }
 
+    /// Albion's sound effects are set up for a Gravis Ultrasound.
+    @Test func gamesSetUpForAGravisUltrasoundGetOne() throws {
+        let folder = scratch.appending(path: "Albion", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder.appending(path: "DRIVERS"), withIntermediateDirectories: true)
+        try Data("ALBION".utf8).write(to: folder.appending(path: "ALBION.EXE"))
+        try Data("DEVICE      Gravis UltraSound\nDRIVER      ULTRA.DIG\nIO_ADDR     240h\n".utf8)
+            .write(to: folder.appending(path: "DRIVERS/DIG.INI"))
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        let albion = try Gamebox.open(try GameImporter.makeGamebox(from: folder, inLibrary: games))
+        #expect(albion.soundCardSettings() == ["gus gus": "true"])
+        #expect(try albion.sessionArguments().contains("gus gus=true"))
+    }
+
     @Test func namesPutTheArticleFirstAndSortWithoutIt() {
         #expect(GameNames.articleFirst("Dig, The (1995)") == "The Dig (1995)")
         #expect(GameNames.articleFirst("Elder Scrolls, The - Arena (1994)") == "The Elder Scrolls - Arena (1994)")
