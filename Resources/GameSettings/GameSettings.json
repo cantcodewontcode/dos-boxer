@@ -267,6 +267,15 @@
     "mixer prebuffer": "50"
    },
    "checked": "2026-10-07"
+  },
+  {
+   "name": "Disney's Aladdin (1994)",
+   "launchBoxID": 14000,
+   "settings": {
+    "mixer blocksize": "2048",
+    "mixer prebuffer": "50"
+   },
+   "checked": "2026-10-07"
   }
  ]
 }

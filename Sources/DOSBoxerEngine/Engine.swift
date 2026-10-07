@@ -14,6 +14,11 @@ enum Engine {
             exit(EX_IOERR)
         }
 
+        // A window-less helper looks like background work to macOS, which
+        // then delays its timers (App Nap) and frames arrive late. It's
+        // running a game: ask for prompt scheduling
+        Self.activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Running a DOS game")
         let audio = AudioOutput()
         Self.audio = audio
         let started = withCStrings(dosboxArguments) { argv in
@@ -25,6 +30,9 @@ enum Engine {
         readCommands()
         dispatchMain()
     }
+
+    /// Keeps macOS from treating the session as background work.
+    nonisolated(unsafe) private static var activity: NSObjectProtocol?
 
     /// The session's sound output (for volume changes from the app).
     nonisolated(unsafe) private static var audio: AudioOutput?

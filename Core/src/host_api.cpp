@@ -11,6 +11,7 @@
 #include "dosboxer/dosboxer_hooks.h"
 
 #include <SDL.h>
+#include <pthread.h>
 
 #include <atomic>
 #include <chrono>
@@ -165,6 +166,9 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 	is_running       = true;
 
 	emulator_thread = std::thread([owned_args = std::move(owned_args)]() mutable {
+		// The emulator keeps real time (frames, sound): macOS should run it
+		// promptly, not as background work
+		pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 		std::vector<char*> argv;
 		for (auto& arg : owned_args) {
 			argv.push_back(arg.data());
