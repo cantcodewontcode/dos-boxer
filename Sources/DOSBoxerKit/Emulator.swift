@@ -167,6 +167,13 @@ public final class Emulator {
         trigger(faster ? "cycleup" : "cycledown")
     }
 
+    /// Sets the emulated CPU's speed: DOSBox's real-mode and protected-mode
+    /// speeds (a number or "max").
+    public func setSpeed(realMode: String, protectedMode: String) {
+        let speeds = Data("\(realMode) \(protectedMode)".utf8)
+        send(DBXCommand(type: DBXCommandSetSpeed.rawValue, a: 0, b: Int32(speeds.count)), payload: speeds)
+    }
+
     /// Switches drive D to the game's next disc (multi-disc games).
     public func nextDisc() {
         trigger("swapimg")

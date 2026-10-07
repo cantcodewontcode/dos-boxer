@@ -63,6 +63,10 @@ void dbx_cpu_cycles(char* real_mode, int32_t real_mode_size, char* protected_mod
 /// if typed on the keyboard.
 void dbx_paste_text(const char* text);
 
+/// Sets the emulated CPU's speed while running: DOSBox's cpu_cycles and
+/// cpu_cycles_protected values (a number or "max").
+void dbx_set_speed(const char* real_mode, const char* protected_mode);
+
 /// Game controller input, laid out like an Xbox controller (XInput order).
 /// kind 0: axis 0–5 (left X, left Y, left trigger, right X, right Y, right
 /// trigger), value -32768…32767. kind 1: button 0–10 (A, B, X, Y, LB, RB,

@@ -468,9 +468,10 @@ public struct Gamebox: Sendable, Identifiable {
         // games get 64
         // Late-90s games using DOS extenders (Blood, Duke Nukem 3D, Quake)
         // were made for Pentiums: DOSBox's usual 60,000 for them is a fast
-        // 486 and plays choppily. Throttling eases off if the Mac can't keep up
+        // 486 and plays choppily. Their ordinary DOS programs get a Pentium's
+        // speed too. Throttling eases off if the Mac can't keep up
         if year >= 1996 {
-            return ["cpu cpu_cycles": Self.speed486, "cpu cpu_cycles_protected": Self.speedPentium,
+            return ["cpu cpu_cycles": Self.speedPentiumRealMode, "cpu cpu_cycles_protected": Self.speedPentium,
                     "cpu cpu_throttle": "true", "dosbox memsize": "64"]
         }
         if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "32"] }
@@ -484,11 +485,74 @@ public struct Gamebox: Sendable, Identifiable {
     public static let speed486 = "20000"
     /// For games that use DOS extenders (protected mode).
     public static let speedPentium = "300000"
+    /// A Pentium running ordinary DOS programs (real mode).
+    public static let speedPentiumRealMode = "60000"
 
     /// The speed the game starts at: its own (adjusted while playing), else
     /// its era's. Nil means DOSBox's usual speed.
     public var speed: String? {
-        info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
+        info.settings["cpu cpu_cycles"] ?? defaultSpeed.realMode
+    }
+
+    /// A speed on DOSBox's scale: for programs in DOS's real mode, and for
+    /// ones using DOS extenders (protected mode). A number or "max".
+    public struct Speed: Equatable, Sendable {
+        public var realMode: String
+        public var protectedMode: String
+
+        /// DOSBox's own speeds when nothing is set.
+        static let dosbox = Speed(realMode: "3000", protectedMode: "60000")
+
+        /// About 10% faster or slower, as Faster (⌘]) and Slower (⌘[) do.
+        /// Nil for Fastest, which has no number to step from.
+        public func stepped(faster: Bool) -> Speed? {
+            func step(_ value: String) -> String? {
+                guard let number = Double(value) else { return nil }
+                return String(max(50, Int((faster ? number * 1.1 : number / 1.1).rounded())))
+            }
+            guard let real = step(realMode), let protected = step(protectedMode) else { return nil }
+            return Speed(realMode: real, protectedMode: protected)
+        }
+    }
+
+    /// A machine whose speed a game can run at, from the Speed menu.
+    public struct Machine: Identifiable, Sendable {
+        public let name: String
+        public let speed: Speed
+        public var id: String { name }
+
+        public static let all = [
+            Machine(name: "Original IBM PC", speed: Speed(realMode: originalPCSpeed, protectedMode: "60000")),
+            Machine(name: "IBM AT (286)", speed: .dosbox),
+            Machine(name: "386", speed: Speed(realMode: speed386, protectedMode: "60000")),
+            Machine(name: "486", speed: Speed(realMode: speed486, protectedMode: "60000")),
+            Machine(name: "Pentium", speed: Speed(realMode: speedPentiumRealMode, protectedMode: speedPentium)),
+            Machine(name: "Fastest", speed: Speed(realMode: "max", protectedMode: "max")),
+        ]
+
+        public static func matching(_ speed: Speed) -> Machine? { all.first { $0.speed == speed } }
+    }
+
+    /// The game's normal speed: one shipped for it, else its era's.
+    public var defaultSpeed: Speed {
+        let era = Self.eraSettings(year: year)
+        return Speed(realMode: ShippedGameSettings.entry(for: self)?.speed ?? era["cpu cpu_cycles"] ?? Speed.dosbox.realMode,
+                     protectedMode: era["cpu cpu_cycles_protected"] ?? Speed.dosbox.protectedMode)
+    }
+
+    /// The speed the game runs at now: its own, else its default.
+    public var currentSpeed: Speed {
+        Speed(realMode: info.settings["cpu cpu_cycles"] ?? defaultSpeed.realMode,
+              protectedMode: info.settings["cpu cpu_cycles_protected"] ?? defaultSpeed.protectedMode)
+    }
+
+    /// Posted when a game's speed is chosen in the info panel (object: the
+    /// gamebox's URL), so its window, if open, changes speed right away.
+    public static let speedChosen = Notification.Name("DOSBoxerSpeedChosen")
+
+    /// True when the player has chosen a speed (so it isn't Default).
+    public var hasOwnSpeed: Bool {
+        info.settings["cpu cpu_cycles"] != nil || info.settings["cpu cpu_cycles_protected"] != nil
     }
 
     /// Larger sound blocks for adventure games from 1992 on: their recorded
@@ -607,6 +671,7 @@ public struct Gamebox: Sendable, Identifiable {
             .merging(talkieSettings()) { $1 }
             .merging(programSound) { $1 }
             .merging(ShippedGameSettings.entry(for: self)?.settings ?? [:]) { $1 }
+            .merging(ShippedGameSettings.entry(for: self)?.speed.map { ["cpu cpu_cycles": $0] } ?? [:]) { $1 }
             .merging(info.settings) { $1 }
             .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
         if let mapping = controllerMapping {

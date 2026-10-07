@@ -186,36 +186,12 @@ AddToCollectionButton(library: library, games: [game])
             Toggle("Return to the library when the game ends", isOn: Binding(
                 get: { game.info.closesWhenGameEnds },
                 set: { on in library.update(game) { $0.quitsWhenGameEnds = on ? nil : false } }))
-            HStack {
-                let changed = game.info.settings["cpu cpu_cycles"] != nil
-                Text("Speed").foregroundStyle(.secondary)
-                Spacer()
-                Text(changed ? Self.speedTitle(game.speed) : "Auto (\(Self.speedTitle(game.speed)))")
-                    .help("Change with Faster (⌘]) and Slower (⌘[) while playing")
-                // Back to the game's usual speed, when it was changed
-                if changed {
-                    Button("Reset") {
-                        library.update(game) {
-                            $0.settings["cpu cpu_cycles"] = nil
-                            $0.settings["cpu cpu_cycles_protected"] = nil
-                        }
-                    }
-                    .buttonStyle(.link)
-                }
-            }
-            .font(.callout)
+            SpeedRow(game: game, library: library)
             ControlsButton(controls: game.info.controls) { controls in
                 library.update(game) { $0.controls = controls.isEmpty ? nil : controls }
             }
         }
         .disabled(game.isReadOnly)
-    }
-
-    /// "20,000", or "Fastest"; DOSBox's standard 3,000 when none is set.
-    private static func speedTitle(_ speed: String?) -> String {
-        guard let speed else { return 3000.formatted() }
-        if speed == "max" { return "Fastest" }
-        return Int(speed.components(separatedBy: " ").first ?? "").map { $0.formatted() } ?? speed
     }
 
     @ViewBuilder private func documents(_ game: Gamebox) -> some View {
@@ -695,5 +671,76 @@ private struct ControlsButton: View {
         .sheet(isPresented: $editing) {
             ControlsEditor(controls: controls ?? GameControls(), save: save)
         }
+    }
+}
+
+/// Speed: Default (the game's normal speed), a machine, or a speed of its
+/// own from Faster and Slower. Changes apply at once if the game is open.
+private struct SpeedRow: View {
+    let game: Gamebox
+    let library: GameLibrary
+
+    private enum Choice: Hashable { case normal, machine(String), custom }
+
+    private var choice: Choice {
+        guard game.hasOwnSpeed else { return .normal }
+        return Gamebox.Machine.matching(game.currentSpeed).map { .machine($0.name) } ?? .custom
+    }
+
+    var body: some View {
+        HStack {
+            Text("Speed").foregroundStyle(.secondary)
+            Spacer()
+            Picker("Speed", selection: Binding(get: { choice }, set: choose)) {
+                Text("Default (\(Self.title(game.defaultSpeed)))").tag(Choice.normal)
+                Divider()
+                ForEach(Gamebox.Machine.all) { Text(Self.menuTitle($0)).tag(Choice.machine($0.name)) }
+                if choice == .custom {
+                    Divider()
+                    Text("Custom (\(Self.title(game.currentSpeed)))").tag(Choice.custom)
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+            Stepper("Speed", onIncrement: { step(faster: true) }, onDecrement: { step(faster: false) })
+                .labelsHidden()
+                .disabled(game.currentSpeed.stepped(faster: true) == nil)
+                .help("Also Faster (⌘]) and Slower (⌘[) while playing")
+        }
+        .font(.callout)
+    }
+
+    /// "Pentium (60,000)"; Fastest has no number.
+    private static func menuTitle(_ machine: Gamebox.Machine) -> String {
+        guard let number = Int(machine.speed.realMode) else { return machine.name }
+        return "\(machine.name) (\(number.formatted()))"
+    }
+
+    /// A machine's name, else the number ("5,581").
+    private static func title(_ speed: Gamebox.Speed) -> String {
+        if let machine = Gamebox.Machine.matching(speed) { return machine.name }
+        return Int(speed.realMode).map { $0.formatted() } ?? speed.realMode
+    }
+
+    private func choose(_ choice: Choice) {
+        switch choice {
+        case .normal: set(nil)
+        case .machine(let name): set(Gamebox.Machine.all.first { $0.name == name }?.speed)
+        case .custom: break
+        }
+    }
+
+    private func step(faster: Bool) {
+        if let speed = game.currentSpeed.stepped(faster: faster) { set(speed) }
+    }
+
+    /// Saves the game's own speed (nil: back to Default) and tells its
+    /// window, if open, to use it now.
+    private func set(_ speed: Gamebox.Speed?) {
+        library.update(game) {
+            $0.settings["cpu cpu_cycles"] = speed?.realMode
+            $0.settings["cpu cpu_cycles_protected"] = speed?.protectedMode
+        }
+        NotificationCenter.default.post(name: Gamebox.speedChosen, object: game.url)
     }
 }

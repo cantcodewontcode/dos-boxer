@@ -128,6 +128,15 @@ public struct GameWindow: View {
         }
         .task(id: restartCount) { await prepareAndPlay() }
         .onChange(of: appLook) { applyLook() }
+        // Speed chosen in the info panel: use it now
+        .onReceive(NotificationCenter.default.publisher(for: Gamebox.speedChosen)) { note in
+            guard (note.object as? URL)?.standardizedFileURL == url.standardizedFileURL,
+                  var updated = gamebox, let saved = try? Gamebox.open(url) else { return }
+            updated.info.settings = saved.info.settings
+            gamebox = updated
+            let speed = updated.currentSpeed
+            emulator.setSpeed(realMode: speed.realMode, protectedMode: speed.protectedMode)
+        }
         .onChange(of: emulator.isMouseLocked) { _, locked in
             if locked { show("Press ⌘⌥ to release the mouse", for: 3) }
         }

@@ -1,9 +1,9 @@
 import Foundation
 
 /// Settings for particular games that ship with DOS Boxer
-/// (`GameSettings.json`), found by playing them: the speed they need and
-/// the program they start with (applied when a game is added), and settings
-/// they need to run right (applied every time).
+/// (`GameSettings.json`), found by playing them: the program they start
+/// with (applied when a game is added), and the speed and settings they need
+/// to run right (applied every time, so Default speed is theirs).
 enum ShippedGameSettings {
     struct Entry: Decodable, Equatable {
         /// The game's name as collections name it, e.g. "Snipes (1982)".
@@ -45,10 +45,6 @@ enum ShippedGameSettings {
     static func apply(to gamebox: inout Gamebox) -> Bool {
         guard gamebox.stats.launches == 0, let entry = entry(for: gamebox) else { return false }
         var changed = false
-        if let speed = entry.speed, gamebox.info.settings["cpu cpu_cycles"] == nil {
-            gamebox.info.settings["cpu cpu_cycles"] = speed
-            changed = true
-        }
         if let start = entry.start,
            let index = gamebox.info.launchers.firstIndex(where: { $0.commands == nil && $0.dosPath.caseInsensitiveCompare(start) == .orderedSame }),
            !gamebox.info.launchers[index].isDefault {

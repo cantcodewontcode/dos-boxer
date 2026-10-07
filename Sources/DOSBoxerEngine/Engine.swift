@@ -47,7 +47,7 @@ enum Engine {
             let size = MemoryLayout<DBXCommand>.size
             while withUnsafeMutableBytes(of: &command, { readFully(into: $0.baseAddress!, count: size) }) {
                 var payload = Data()
-                if [DBXCommandMountFolder, DBXCommandTrigger, DBXCommandPaste].map(\.rawValue).contains(command.type) {
+                if [DBXCommandMountFolder, DBXCommandTrigger, DBXCommandPaste, DBXCommandSetSpeed].map(\.rawValue).contains(command.type) {
                     let count = Int(command.b)
                     guard count > 0, count <= Int(DBX_COMMAND_MAX_PAYLOAD) else { break }
                     payload = Data(count: count)
@@ -90,6 +90,9 @@ enum Engine {
             }
         case DBXCommandPause.rawValue:
             dbx_set_paused(command.a != 0)
+        case DBXCommandSetSpeed.rawValue:
+            let speeds = String(decoding: payload, as: UTF8.self).split(separator: " ").map(String.init)
+            if speeds.count == 2 { dbx_set_speed(speeds[0], speeds[1]) }
         case DBXCommandPaste.rawValue:
             if let text = String(data: payload, encoding: .utf8) {
                 dbx_paste_text(text)

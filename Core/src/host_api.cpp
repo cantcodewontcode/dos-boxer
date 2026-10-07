@@ -216,6 +216,31 @@ void dbx_trigger(const char* const action)
 	});
 }
 
+void dbx_set_speed(const char* const real_mode, const char* const protected_mode)
+{
+	if (!is_running || !real_mode || !protected_mode) {
+		return;
+	}
+	// As CONFIG -set does: change the settings, then let the CPU section
+	// rebuild itself from them
+	queue_request([real = std::string(real_mode), prot = std::string(protected_mode)] {
+		if (!control) {
+			return;
+		}
+		auto* section = static_cast<SectionProp*>(control->GetSection("cpu"));
+		if (!section) {
+			return;
+		}
+		for (const auto& [name, value] : {std::pair{"cpu_cycles", real},
+		                                  std::pair{"cpu_cycles_protected", prot}}) {
+			if (auto* property = section->GetProperty(name)) {
+				property->SetValue(value);
+				section->ExecuteUpdate(*property);
+			}
+		}
+	});
+}
+
 void dbx_set_paused(const bool paused)
 {
 	pause_requested = paused && is_running;

@@ -133,6 +133,8 @@ typedef enum : int32_t {
 	                           // dbx_joystick in DOSBoxerHost.h)
 	DBXCommandPause       = 9, // a = 1 paused / 0 running
 	DBXCommandPaste       = 10, // b = byte count of the UTF-8 text that follows
+	DBXCommandSetSpeed    = 11, // b = byte count of the UTF-8 "real protected"
+	                            // speeds that follow (cpu_cycles values)
 } DBXCommandType;
 
 /// Largest payload a command may carry (a folder path).

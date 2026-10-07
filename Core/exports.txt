@@ -6,6 +6,7 @@ _dbx_mount_folder
 _dbx_mouse_button
 _dbx_mouse_motion
 _dbx_paste_text
+_dbx_set_speed
 _dbx_pull_audio
 _dbx_request_quit
 _dbx_set_paused

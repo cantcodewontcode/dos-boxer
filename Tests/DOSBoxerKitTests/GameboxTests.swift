@@ -50,6 +50,7 @@ struct GameboxTests {
         #expect(Gamebox.eraSettings(year: 1994)["dosbox memsize"] == "32")
         #expect(Gamebox.eraSettings(year: 1996)["dosbox memsize"] == "64")
         #expect(Gamebox.eraSettings(year: 1997)["cpu cpu_cycles_protected"] == "300000")
+        #expect(Gamebox.eraSettings(year: 1997)["cpu cpu_cycles"] == "60000")
         #expect(Gamebox.eraSettings(year: 1995)["cpu cpu_cycles_protected"] == nil)
         #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
         #expect(Gamebox.eraSettings(year: 1984).isEmpty)
@@ -67,6 +68,23 @@ struct GameboxTests {
 
     /// GW-BASIC games start their program, recognized by its saved format
     /// whatever its name (Draw Poker's is POKER.COL).
+    /// Each era's normal speed is one of the Speed menu's machines, and
+    /// stepping matches Faster and Slower.
+    @Test func defaultSpeedsAreMachinesAndStepByTenPercent() throws {
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        for (name, machine) in [("Snipes (1982)", "Original IBM PC"), ("Dig Dug (1987)", "IBM AT (286)"),
+                                ("Lemmings (1991)", "386"), ("Doom (1993)", "486"), ("Blood (1997)", "Pentium")] {
+            let game = try Gamebox.open(try GameImporter.makeGamebox(from: try makeGameFolder(named: name), inLibrary: games))
+            #expect(Gamebox.Machine.matching(game.defaultSpeed)?.name == machine, "\(name)")
+            #expect(!game.hasOwnSpeed)
+        }
+        let speed = Gamebox.Speed(realMode: "20000", protectedMode: "60000")
+        #expect(speed.stepped(faster: true) == Gamebox.Speed(realMode: "22000", protectedMode: "66000"))
+        #expect(speed.stepped(faster: false)?.realMode == "18182")
+        #expect(Gamebox.Speed(realMode: "max", protectedMode: "max").stepped(faster: true) == nil)
+    }
+
     @Test func shippedSettingsMatchByNameThenUnambiguousLaunchBoxEntry() throws {
         let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
