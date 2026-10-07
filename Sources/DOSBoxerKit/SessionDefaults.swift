@@ -14,7 +14,11 @@ enum SessionDefaults {
          // DOSBox's usual choice is an external MIDI device; with none
          // plugged in, music is switched off and games that wait for a MIDI
          // device to answer (Blackthorne) hang
-         "--set", "midi mididevice=coreaudio"]
+         "--set", "midi mididevice=coreaudio",
+         // DOS Boxer captures the mouse itself (clicking the game); DOSBox's
+         // own click-to-capture would swallow the next click and ignore
+         // movement until then
+         "--set", "mouse mouse_capture=onstart"]
             + MT32Setup.sessionArguments()
     }
 

@@ -152,6 +152,21 @@ public final class GameDetailsPack {
         return nil
     }
 
+    /// The game started by one of `programs` (file names, most likely
+    /// first), when that program starts only one game LaunchBox knows: for
+    /// copies whose files differ from the known release (shareware, demos)
+    /// and whose folder name says little ("doom-box"). Batch files are
+    /// skipped; their names are too often generic.
+    nonisolated public static func details(forPrograms programs: [String]) -> Entry? {
+        guard let index = loadIndex() else { return nil }
+        for program in programs.map({ $0.uppercased() })
+        where program.hasSuffix(".EXE") || program.hasSuffix(".COM") {
+            let starting = (index.byFileName[program] ?? []).filter { $0.startupFile?.uppercased() == program }
+            if starting.count == 1 { return starting[0] }
+        }
+        return nil
+    }
+
     public struct Entry: Codable, Sendable, Equatable {
         public var launchBoxID: Int
         public var name: String

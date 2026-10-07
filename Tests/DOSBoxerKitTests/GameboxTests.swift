@@ -100,6 +100,55 @@ struct GameboxTests {
         #expect(launchers.filter { $0.commands != nil }.count == 3)
     }
 
+    /// A game whose programs are only on its CD (like The Dig) starts the
+    /// one in the game's folder there, not the installer at the top.
+    @Test func gamesOnlyOnCDStartFromTheCD() throws {
+        let disc = scratch.appending(path: "disc", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: disc.appending(path: "DIG"), withIntermediateDirectories: true)
+        for file in ["DIG.EXE", "DIG/DIG.EXE", "DIG/IMUSE.EXE", "README.TXT"] {
+            try Data("x".utf8).write(to: disc.appending(path: file))
+        }
+        let image = scratch.appending(path: "dig.iso")
+        let hdiutil = Process()
+        hdiutil.executableURL = URL(filePath: "/usr/bin/hdiutil")
+        hdiutil.arguments = ["makehybrid", "-iso", "-o", image.path(percentEncoded: false), disc.path(percentEncoded: false)]
+        hdiutil.standardOutput = FileHandle.nullDevice
+        try hdiutil.run()
+        hdiutil.waitUntilExit()
+
+        let files = try #require(CDImage.files(in: image))
+        #expect(Set(files.map { $0.uppercased() }).isSuperset(of: ["DIG.EXE", "DIG/DIG.EXE", "DIG/IMUSE.EXE"]))
+        let launchers = LauncherFinder.launchersOnCD(image, inDrive: "D", gameName: "The Dig (1995)")
+        #expect(launchers.first(where: \.isDefault)?.dosPath.uppercased() == "D:\\DIG\\DIG.EXE")
+    }
+
+    /// Drive C moves into the game's folder only when its scripts need it.
+    @Test func driveCStartsAtTheGamesFolderOnlyWhenItsScriptsSaySo() throws {
+        func game(_ script: String) throws -> URL {
+            let root = scratch.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            let inner = root.appending(path: "DOTT/DOTT.CD", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: inner, withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: root.appending(path: "Game.exo"))
+            try Data("menu".utf8).write(to: root.appending(path: "DOTT/run.bat"))
+            try Data(script.utf8).write(to: inner.appending(path: "DOTTR.BAT"))
+            try Data("x".utf8).write(to: inner.appending(path: "TENTACLE.EXE"))
+            return root
+        }
+        #expect(LauncherFinder.menuFolder(in: try game("c:\\dott.cd\\tentacle.exe R"))?.lastPathComponent == "DOTT")
+        #expect(LauncherFinder.menuFolder(in: try game("cd dott.cd\r\ntentacle R")) == nil)
+    }
+
+    @Test func aGravisChoiceTurnsOnTheGravis() throws {
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        var game = try Gamebox.open(try GameImporter.makeGamebox(from: try makeGameFolder(named: "Crusader"), inLibrary: games))
+        let gravis = Gamebox.Launcher(title: "Crusader w/ Gravis Ultrasound", dosPath: "C:\\run.bat", commands: ["CRUSADER"])
+        let blaster = Gamebox.Launcher(title: "Crusader w/ SoundBlaster", dosPath: "C:\\run.bat", commands: ["CRUSADER"])
+        game.info.launchers = [gravis, blaster]
+        #expect(try game.sessionArguments(.launcher(gravis)).contains("gus gus=true"))
+        #expect(!(try game.sessionArguments(.launcher(blaster)).contains("gus gus=true")))
+    }
+
     /// Albion's sound effects are set up for a Gravis Ultrasound.
     /// Blackthorne: the game's own program is the default; its menu script,
     /// one folder down, adds its options without taking over.

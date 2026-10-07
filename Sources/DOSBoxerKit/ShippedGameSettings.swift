@@ -2,7 +2,8 @@ import Foundation
 
 /// Settings for particular games that ship with DOS Boxer
 /// (`GameSettings.json`), found by playing them: the speed they need and
-/// the program they start with. Applied when a game is added.
+/// the program they start with (applied when a game is added), and settings
+/// they need to run right (applied every time).
 enum ShippedGameSettings {
     struct Entry: Decodable, Equatable {
         /// The game's name as collections name it, e.g. "Snipes (1982)".
@@ -12,6 +13,11 @@ enum ShippedGameSettings {
         let speed: String?
         /// The program it starts with, e.g. "C:\AUTOEXEC.BAT".
         let start: String?
+        /// dosbox settings the game needs whenever it runs, e.g. larger sound
+        /// blocks where speech crackles with DOSBox's usual ones (at the
+        /// cost of a little sound delay, so only where needed); a player's
+        /// own changes still win.
+        var settings: [String: String]? = nil
     }
 
     private struct File: Decodable { let games: [Entry] }

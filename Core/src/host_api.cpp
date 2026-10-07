@@ -289,7 +289,14 @@ void dbx_cpu_cycles(char* const real_mode, const int32_t real_mode_size, char* c
 			std::snprintf(out, static_cast<size_t>(size), "%s", value.c_str());
 		}
 	};
-	const auto section = get_section("cpu");
+	// No settings while DOSBox is tearing down or rebuilding them (a game's
+	// CONFIG -set can restart it, and frames are still drawn meanwhile)
+	if (!control) {
+		copy("", real_mode, real_mode_size);
+		copy("", protected_mode, protected_mode_size);
+		return;
+	}
+	const auto section = static_cast<SectionProp*>(control->GetSection("cpu"));
 	copy(section ? section->GetString("cpu_cycles") : "", real_mode, real_mode_size);
 	copy(section ? section->GetString("cpu_cycles_protected") : "", protected_mode, protected_mode_size);
 }

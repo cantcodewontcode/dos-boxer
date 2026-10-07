@@ -36,7 +36,16 @@ final class AudioOutput {
             engine.attach(node)
             engine.connect(node, to: engine.mainMixerNode, format: format)
             sourceNode = node
+            // macOS stops the engine when the output device changes (or
+            // settles its format just after launch); start it again, or the
+            // game stays silent
+            NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange,
+                                                   object: engine, queue: .main) { [weak self] _ in
+                guard let self, !self.paused else { return }
+                try? self.engine.start()
+            }
         }
+        paused = false
         do {
             try engine.start()
         } catch {
@@ -50,7 +59,11 @@ final class AudioOutput {
         set { engine.mainMixerNode.outputVolume = newValue }
     }
 
+    /// Paused on purpose (the game is paused), so not restarted on a device change.
+    private var paused = false
+
     func stop() {
+        paused = true
         engine.pause()
     }
 

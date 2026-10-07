@@ -483,6 +483,12 @@ public struct Gamebox: Sendable, Identifiable {
         info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
     }
 
+    /// Whether this program is a Gravis Ultrasound choice.
+    static func usesUltrasound(_ launcher: Launcher) -> Bool {
+        let title = launcher.title.lowercased()
+        return launcher.commands != nil && (title.contains("gravis") || title.contains("ultrasound") || title.contains(" gus"))
+    }
+
     /// Whether this program plays music on a Roland MT-32.
     public static func usesMT32(_ launcher: Launcher) -> Bool {
         let text = ([launcher.title] + (launcher.commands ?? [])).joined(separator: " ").lowercased()
@@ -567,16 +573,21 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }
         }
-        var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
-            .merging(info.settings) { $1 }
-            .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
-        if let mapping = controllerMapping {
-            settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]
-        }
         let program: Launcher? = switch start {
         case .game: defaultLauncher
         case .launcher(let launcher): launcher
         case .prompt: nil
+        }
+        // A Gravis Ultrasound choice from the game's menu: DOSBox only
+        // emulates the card when asked (without it the game is silent)
+        let programSound = program.map(Self.usesUltrasound) == true ? ["gus gus": "true"] : [:]
+        var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
+            .merging(programSound) { $1 }
+            .merging(ShippedGameSettings.entry(for: self)?.settings ?? [:]) { $1 }
+            .merging(info.settings) { $1 }
+            .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
+        if let mapping = controllerMapping {
+            settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]
         }
         let exitsAfterwards = program != nil && info.closesWhenGameEnds
         if program == nil, let drive = info.drives.first {

@@ -187,7 +187,8 @@ public struct GameWindow: View {
         speedSave?.cancel()
         speedSave = Task {
             try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled, var updated = gamebox, let speed = emulator.frames?.speed() else { return }
+            guard !Task.isCancelled, var updated = gamebox, let speed = emulator.frames?.speed(),
+                  !speed.realMode.isEmpty else { return }
             for (key, value) in [("cpu cpu_cycles", speed.realMode), ("cpu cpu_cycles_protected", speed.protectedMode)] {
                 updated.info.settings[key] = value.isEmpty ? nil : value
             }

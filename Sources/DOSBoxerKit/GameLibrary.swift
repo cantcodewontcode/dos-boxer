@@ -110,11 +110,11 @@ public final class GameLibrary {
             collections = GameCollectionsFile.load(from: rootURL)
             // Games waiting on a duplicate question stay out of sight
             let waiting = Set(duplicates.map(\.added.url.standardizedFileURL))
-            games = Self.withBestSound(Self.withArticlesFirst(Self.withMenuOptions(Self.withBASICPrograms(Self.withUniqueIDs(entries
+            games = Self.withProgramsOnCD(Self.withMenuFolderAsDriveC(Self.withBestSound(Self.withArticlesFirst(Self.withMenuOptions(Self.withBASICPrograms(Self.withUniqueIDs(entries
                 .filter { ["dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
                 .filter { !waiting.contains($0.standardizedFileURL) }
                 .compactMap { try? Gamebox.open($0) }
-                .sorted { GameNames.sortKey($0.name).localizedStandardCompare(GameNames.sortKey($1.name)) == .orderedAscending })))))
+                .sorted { GameNames.sortKey($0.name).localizedStandardCompare(GameNames.sortKey($1.name)) == .orderedAscending })))))))
             lastError = nil
             fetchMissingCovers()
             fetchMissingDetails()
@@ -505,6 +505,56 @@ public final class GameLibrary {
             guard launchers.count != game.info.launchers.count else { return game }
             var updated = game
             updated.info.launchers = launchers
+            try? updated.save()
+            return updated
+        }
+    }
+
+    /// Games with nothing to start that have a CD (added before DOS Boxer
+    /// looked on CDs): their programs on the CD (saved).
+    private static func withProgramsOnCD(_ games: [Gamebox]) -> [Gamebox] {
+        games.map { game in
+            guard !game.isReadOnly, game.info.launchers.isEmpty,
+                  let cd = game.info.drives.first(where: { $0.kind == .cdROM }) else { return game }
+            let launchers = LauncherFinder.launchersOnCD(game.url.appending(path: cd.path), inDrive: cd.letter,
+                                                         gameName: game.name)
+            guard !launchers.isEmpty else { return game }
+            var updated = game
+            updated.info.launchers = launchers
+            try? updated.save()
+            return updated
+        }
+    }
+
+    /// Games added before drive C could start at the folder holding the
+    /// menu script (Day of the Tentacle): move C there, with its programs
+    /// and saves.
+    private static func withMenuFolderAsDriveC(_ games: [Gamebox]) -> [Gamebox] {
+        games.map { game in
+            guard !game.isReadOnly, let index = game.info.drives.firstIndex(where: { $0.letter == "C" }),
+                  game.info.drives[index].path == "\(Gamebox.drivesFolder)/C",
+                  let folder = LauncherFinder.menuFolder(in: game.url.appending(path: game.info.drives[index].path))
+            else { return game }
+            let name = folder.lastPathComponent
+            var updated = game
+            updated.info.drives[index].path += "/" + name
+            let prefix = "C:\\\(name)\\".lowercased()
+            for launcher in updated.info.launchers.indices {
+                let path = updated.info.launchers[launcher].dosPath
+                if path.lowercased().hasPrefix(prefix) {
+                    updated.info.launchers[launcher].dosPath = "C:\\" + path.dropFirst(prefix.count)
+                }
+            }
+            // Saves written under the old C:\NAME now belong at C:\
+            let fileManager = FileManager.default
+            let oldSaves = game.savesURL.appending(path: "C/\(name)", directoryHint: .isDirectory)
+            let newSaves = game.savesURL.appending(path: "C", directoryHint: .isDirectory)
+            for item in (try? fileManager.contentsOfDirectory(at: oldSaves, includingPropertiesForKeys: nil)) ?? [] {
+                let target = newSaves.appending(path: item.lastPathComponent)
+                if !fileManager.fileExists(atPath: target.path(percentEncoded: false)) {
+                    try? fileManager.moveItem(at: item, to: target)
+                }
+            }
             try? updated.save()
             return updated
         }

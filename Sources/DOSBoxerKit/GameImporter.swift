@@ -62,7 +62,12 @@ enum GameImporter {
         var info = Gamebox.Info(name: name)
         info.dateAdded = Date()
         info.shortName = shortName
-        info.drives = [Gamebox.Drive(letter: "C", kind: .hardDisk, path: "\(Gamebox.drivesFolder)/C")]
+        // Collections put a game's menu script at the top of drive C; when
+        // the game's files sit one folder down, C starts there (Day of the
+        // Tentacle's script runs C:\DOTT.CD\TENTACLE.EXE)
+        let menuFolder = LauncherFinder.menuFolder(in: driveC)
+        info.drives = [Gamebox.Drive(letter: "C", kind: .hardDisk,
+                                     path: "\(Gamebox.drivesFolder)/C" + (menuFolder.map { "/" + $0.lastPathComponent } ?? ""))]
         // CD-based games ship their disc as an image; it becomes drive D
         let discs = DiscImageFinder.discs(in: driveC)
         if let first = discs.first {
@@ -73,8 +78,12 @@ enum GameImporter {
             info.drives.append(Gamebox.Drive(letter: "D", kind: .cdROM, path: relative(first),
                                              moreDiscs: discs.count > 1 ? discs.dropFirst().map(relative) : nil))
         }
-        info.launchers = LauncherFinder.launchers(inDrive: "C", root: driveC, gameName: name)
-        info.launchers = LauncherFinder.expandingMenus(info.launchers, root: driveC)
+        info.launchers = LauncherFinder.launchers(inDrive: "C", root: menuFolder ?? driveC, gameName: name)
+        // Programs only on the CD: start from there
+        if info.launchers.isEmpty, let cd = discs.first {
+            info.launchers = LauncherFinder.launchersOnCD(cd, inDrive: "D", gameName: name)
+        }
+        info.launchers = LauncherFinder.expandingMenus(info.launchers, root: menuFolder ?? driveC)
         info.menuVersion = Gamebox.Info.menuVersion
         info.chooseBestSound(year: Gamebox.year(fromName: name), hasMT32: MT32Setup.isReady)
         var gamebox = Gamebox(url: destination, info: info)
@@ -278,8 +287,9 @@ enum LauncherFinder {
     /// Words that mark a support program anywhere in its name (MPSFIX, KOFIX).
     private static let notTheGameAnywhere = ["fix", "patch", "setup", "install"]
 
-    static func launchers(inDrive letter: String, root: URL, gameName: String) -> [Gamebox.Launcher] {
-        let candidates = programs(in: root, depth: 4)
+    static func launchers(inDrive letter: String, root: URL, gameName: String,
+                          candidates: [URL]? = nil) -> [Gamebox.Launcher] {
+        let candidates = candidates ?? programs(in: root, depth: 4)
         guard !candidates.isEmpty else { return [] }
 
         let words = gameName.replacingOccurrences(of: #"\s*\(\d{3}[\dx]\)\s*$"#, with: "", options: .regularExpression)
@@ -322,6 +332,55 @@ enum LauncherFinder {
                                     isDefault: index == 0 && score(program) > -100)
         }
         return withBASICPrograms(launchers, root: root, gameName: gameName)
+    }
+
+    /// The folder a game's drive C should start at, when its batch files
+    /// say so: the top of its files has no programs of its own and holds
+    /// just one folder, with the menu script (run.bat), and the batch files
+    /// there use fixed paths that only exist inside it (Day of the
+    /// Tentacle's script runs C:\DOTT.CD\TENTACLE.EXE). Nil otherwise: most
+    /// games expect C at the top (collections mount them that way).
+    static func menuFolder(in root: URL) -> URL? {
+        let fileManager = FileManager.default
+        let entries = (try? fileManager.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []
+        let folders = entries.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        let hasPrograms = entries.contains { runnable.contains($0.pathExtension.lowercased()) }
+        guard folders.count == 1, !hasPrograms, let folder = folders.first,
+              let inside = try? fileManager.contentsOfDirectory(atPath: folder.path(percentEncoded: false)),
+              inside.contains(where: { $0.lowercased() == "run.bat" }) else { return nil }
+
+        // Evidence: a batch file naming C:\<something> that's in the folder
+        // but not at the top
+        let insideNames = Set(inside.map { $0.lowercased() })
+        let topNames = Set(entries.map { $0.lastPathComponent.lowercased() })
+        let pathPattern = /(?i)c:\\([a-z0-9_.~-]+)/
+        let batchFiles = (fileManager.enumerator(at: folder, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? [])
+            .filter { $0.pathExtension.lowercased() == "bat" && LauncherFinder.relativeComponents(of: $0, under: folder).count <= 2 }
+        for file in batchFiles {
+            guard let text = try? String(contentsOf: file, encoding: .isoLatin1) else { continue }
+            for match in text.matches(of: pathPattern) {
+                let name = String(match.1).lowercased()
+                if insideNames.contains(name) && !topNames.contains(name) { return folder }
+            }
+        }
+        return nil
+    }
+
+    /// For a game with no programs of its own on drive C (The Dig): its
+    /// programs on the CD in drive D, the game's first. A program at the top
+    /// of the disc that's also in a folder is usually its installer, so the
+    /// folder's copy ranks first.
+    static func launchersOnCD(_ image: URL, inDrive letter: String, gameName: String) -> [Gamebox.Launcher] {
+        guard let files = CDImage.files(in: image) else { return [] }
+        let programs = files.filter { runnable.contains(($0 as NSString).pathExtension.lowercased()) }
+        let inFolders = Set(programs.filter { $0.contains("/") }.map { ($0 as NSString).lastPathComponent.lowercased() })
+        // Stand-in locations so the usual ranking can weigh names and depth
+        let root = URL(filePath: "/DOSBoxerCD", directoryHint: .isDirectory)
+        let candidates = programs
+            .filter { $0.contains("/") || !inFolders.contains($0.lowercased()) }
+            .map { root.appending(path: $0) }
+        return launchers(inDrive: letter, root: root, gameName: gameName, candidates: candidates)
     }
 
     // MARK: BASIC games

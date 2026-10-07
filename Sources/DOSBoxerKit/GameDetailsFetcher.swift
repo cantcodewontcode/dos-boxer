@@ -42,7 +42,9 @@ public actor GameDetailsFetcher {
         if let entry = GameDetailsPack.details(forFilesIn: drives)
             ?? recognized.flatMap({ GameDetailsPack.details(forName: $0, year: nil) })
             ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year,
-                                       programs: Self.programNames(in: gamebox)) {
+                                       programs: Self.programNames(in: gamebox))
+            ?? GameDetailsPack.details(forPrograms: info.launchers.filter { $0.commands == nil }
+                .map { $0.dosPath.components(separatedBy: "\\").last ?? "" }) {
             var updated = gamebox
             // Recognized for the first time: take its proper name ("dukem1"
             // becomes "Duke Nukem - Episode 1 - Shrapnel City (1991)"). The

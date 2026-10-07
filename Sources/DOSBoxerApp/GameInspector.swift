@@ -186,30 +186,36 @@ AddToCollectionButton(library: library, games: [game])
             Toggle("Return to the library when the game ends", isOn: Binding(
                 get: { game.info.closesWhenGameEnds },
                 set: { on in library.update(game) { $0.quitsWhenGameEnds = on ? nil : false } }))
-            if let speed = game.speed {
-                HStack {
-                    Text("Speed").foregroundStyle(.secondary)
-                    Spacer()
-                    Text(speed == Gamebox.originalPCSpeed ? "Original IBM PC" : speed == "max" ? "Fastest" : "Adjusted")
-                        .help("Change with Faster (⌘]) and Slower (⌘[) while playing")
-                    // Back to the game's usual speed, when it was changed
-                    if game.info.settings["cpu cpu_cycles"] != nil {
-                        Button("Reset") {
-                            library.update(game) {
-                                $0.settings["cpu cpu_cycles"] = nil
-                                $0.settings["cpu cpu_cycles_protected"] = nil
-                            }
+            HStack {
+                let changed = game.info.settings["cpu cpu_cycles"] != nil
+                Text("Speed").foregroundStyle(.secondary)
+                Spacer()
+                Text(changed ? Self.speedTitle(game.speed) : "Auto (\(Self.speedTitle(game.speed)))")
+                    .help("Change with Faster (⌘]) and Slower (⌘[) while playing")
+                // Back to the game's usual speed, when it was changed
+                if changed {
+                    Button("Reset") {
+                        library.update(game) {
+                            $0.settings["cpu cpu_cycles"] = nil
+                            $0.settings["cpu cpu_cycles_protected"] = nil
                         }
-                        .buttonStyle(.link)
                     }
+                    .buttonStyle(.link)
                 }
-                .font(.callout)
             }
+            .font(.callout)
             ControlsButton(controls: game.info.controls) { controls in
                 library.update(game) { $0.controls = controls.isEmpty ? nil : controls }
             }
         }
         .disabled(game.isReadOnly)
+    }
+
+    /// "20,000", or "Fastest"; DOSBox's standard 3,000 when none is set.
+    private static func speedTitle(_ speed: String?) -> String {
+        guard let speed else { return 3000.formatted() }
+        if speed == "max" { return "Fastest" }
+        return Int(speed.components(separatedBy: " ").first ?? "").map { $0.formatted() } ?? speed
     }
 
     @ViewBuilder private func documents(_ game: Gamebox) -> some View {
