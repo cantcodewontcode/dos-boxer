@@ -109,6 +109,12 @@ public final class GameDetailsPack {
         loadIndex()?.byID[launchBoxID]
     }
 
+    /// The game whose collection folder is called exactly `name`, e.g.
+    /// "Space Quest III - The Pirates of Pestulon (1989)".
+    nonisolated public static func details(forFolderName name: String) -> Entry? {
+        loadIndex()?.byFolderName[CoverArtFetcher.loose(name)]
+    }
+
     /// The details for a game called `name` (which may end in a year). When
     /// several games share the name and there's no year to tell them apart,
     /// the one whose program is among `programs` (file names) wins.

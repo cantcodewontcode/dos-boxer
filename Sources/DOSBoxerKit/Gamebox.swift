@@ -278,6 +278,14 @@ public struct Gamebox: Sendable, Identifiable {
         }
 
         /// Replaces the genres (clearing the older one-line form).
+        /// Forgets the details from a game details match (a wrong one).
+        public mutating func clearDetails() {
+            launchBoxID = nil
+            publisher = nil; developer = nil; genres = nil; genre = nil
+            released = nil; maxPlayers = nil; cooperative = nil; ageRating = nil
+            communityRating = nil; communityRatingCount = nil; overview = nil
+        }
+
         public mutating func setGenres(_ list: [String]) {
             genres = list.isEmpty ? nil : list
             genre = nil
@@ -483,6 +491,20 @@ public struct Gamebox: Sendable, Identifiable {
         info.settings["cpu cpu_cycles"] ?? Self.eraSettings(year: year)["cpu cpu_cycles"]
     }
 
+    /// Larger sound blocks for adventure games from 1992 on: their recorded
+    /// speech crackles with DOSBox's usual small ones (Day of the Tentacle,
+    /// The Dig). The fix adds a little sound delay, which an adventure never
+    /// notices but an action game would. Genres come from LaunchBox, not the
+    /// player's edits, so retagging a game doesn't undo it.
+    func talkieSettings() -> [String: String] {
+        guard let year, year >= 1992, let id = info.launchBoxID,
+              let genres = GameDetailsPack.entry(launchBoxID: id)?.genres,
+              genres.contains("Adventure"), !genres.contains("Action") else { return [:] }
+        return Self.talkieSoundSettings
+    }
+
+    static let talkieSoundSettings = ["mixer blocksize": "2048", "mixer prebuffer": "50"]
+
     /// Whether this program is a Gravis Ultrasound choice.
     static func usesUltrasound(_ launcher: Launcher) -> Bool {
         let title = launcher.title.lowercased()
@@ -582,6 +604,7 @@ public struct Gamebox: Sendable, Identifiable {
         // emulates the card when asked (without it the game is silent)
         let programSound = program.map(Self.usesUltrasound) == true ? ["gus gus": "true"] : [:]
         var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
+            .merging(talkieSettings()) { $1 }
             .merging(programSound) { $1 }
             .merging(ShippedGameSettings.entry(for: self)?.settings ?? [:]) { $1 }
             .merging(info.settings) { $1 }

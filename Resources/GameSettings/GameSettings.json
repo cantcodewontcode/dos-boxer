@@ -229,18 +229,7 @@
    "name": "Day of the Tentacle (1993)",
    "launchBoxID": 3779,
    "settings": {
-    "mixer blocksize": "2048",
-    "mixer prebuffer": "50",
     "sblaster sbtype": "sbpro2"
-   },
-   "checked": "2026-10-07"
-  },
-  {
-   "name": "The Dig (1995)",
-   "launchBoxID": 180,
-   "settings": {
-    "mixer blocksize": "2048",
-    "mixer prebuffer": "50"
    },
    "checked": "2026-10-07"
   },
@@ -248,8 +237,6 @@
    "name": "Discworld (1995)",
    "launchBoxID": 14112,
    "settings": {
-    "mixer blocksize": "2048",
-    "mixer prebuffer": "50",
     "mouse mouse_sensitivity": "50"
    },
    "checked": "2026-10-07"

@@ -18,11 +18,29 @@ public actor GameDetailsFetcher {
         public var genre: String?
     }
 
+    /// Whether `gamebox` was matched to a different game than the one its
+    /// name is exactly a collection's name for.
+    nonisolated static func isMismatched(_ gamebox: Gamebox) -> Bool {
+        guard let id = gamebox.info.launchBoxID,
+              let exact = GameDetailsPack.details(forFolderName: gamebox.name) else { return false }
+        return exact.launchBoxID != id
+    }
+
     /// Fills in `gamebox`'s missing details. Returns true if anything changed.
     @discardableResult
     public func fillDetails(of gamebox: Gamebox) async -> Bool {
-        let info = gamebox.info
+        var gamebox = gamebox
         guard !gamebox.isReadOnly else { return false }
+        // Matched to another game by a shared program (Sierra's SIERRA.COM
+        // made Space Quest III Leisure Suit Larry III) although its name is
+        // exactly a collection's name for this one: start over
+        if Self.isMismatched(gamebox) {
+            gamebox.info.clearDetails()
+            if let cover = gamebox.coverURL { try? FileManager.default.removeItem(at: cover) }
+            try? gamebox.save()
+            gamebox = Gamebox(url: gamebox.url, info: gamebox.info)
+        }
+        let info = gamebox.info
         // Matched before genres were standardized: take LaunchBox's over the
         // older free-text one
         if let id = info.launchBoxID {
@@ -36,11 +54,22 @@ public actor GameDetailsFetcher {
 
         // Recognized by its programs: the name collections know it by
         let drives = gamebox.url.appending(path: "Drives")
-        let recognized = GameFingerprints.collectionName(forFilesIn: drives)
+        // Named exactly as a collection names a game: the strongest evidence.
+        // Programs can be shared (Sierra's SIERRA.COM is the same file in
+        // several games, and LaunchBox lists it for only one)
+        let byFiles = GameDetailsPack.details(forFolderName: gamebox.name)
+            ?? GameDetailsPack.details(forFilesIn: drives)
+        var recognized = GameFingerprints.collectionName(forFilesIn: drives)
+        let recognizedEntry = recognized.flatMap { GameDetailsPack.details(forName: $0, year: nil) }
+        // A program shared with another game (a sound driver) can point the
+        // fingerprint at the wrong one; the game's own start program wins
+        if let byFiles, let recognizedEntry, recognizedEntry.launchBoxID != byFiles.launchBoxID {
+            recognized = nil
+        }
 
         // The downloaded LaunchBox details: by the game's files, then its name
-        if let entry = GameDetailsPack.details(forFilesIn: drives)
-            ?? recognized.flatMap({ GameDetailsPack.details(forName: $0, year: nil) })
+        if let entry = byFiles
+            ?? (recognized == nil ? nil : recognizedEntry)
             ?? GameDetailsPack.details(forName: gamebox.name, year: gamebox.year,
                                        programs: Self.programNames(in: gamebox))
             ?? GameDetailsPack.details(forPrograms: info.launchers.filter { $0.commands == nil }

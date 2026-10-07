@@ -168,7 +168,8 @@ public final class GameLibrary {
         guard !isFetchingDetails else { return }
         let missing = games.filter { game in
             !game.isReadOnly && !detailLookupsTried.contains(game.id)
-                && (game.info.launchBoxID == nil || game.info.genres == nil && game.info.genre != nil)
+                && (game.info.launchBoxID == nil || game.info.genres == nil && game.info.genre != nil
+                    || GameDetailsFetcher.isMismatched(game))
         }
         guard !missing.isEmpty else { return }
         isFetchingDetails = true
