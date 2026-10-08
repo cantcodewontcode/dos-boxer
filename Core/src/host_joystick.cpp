@@ -9,6 +9,8 @@
 
 #include <SDL.h>
 
+#include <algorithm>
+
 namespace {
 
 // XInput order: 0 left X, 1 left Y, 2 left trigger, 3 right X, 4 right Y,
@@ -59,6 +61,18 @@ void dosboxer::configure_joystick_hints()
 	SDL_SetHint(SDL_HINT_JOYSTICK_MFI, "0");
 	// The engine never has a focused window; accept input regardless
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+}
+
+void dosboxer::connect_joysticks(const int players)
+{
+	// Plugged in before DOSBox starts, so it finds a joystick when it sets
+	// up the game port and games detect one at launch (Wolfenstein 3D)
+	if (players <= 0 || SDL_InitSubSystem(SDL_INIT_JOYSTICK) != 0) {
+		return;
+	}
+	for (int player = 0; player < std::min(players, PlayerCount); ++player) {
+		attached(player);
+	}
 }
 
 void dosboxer::joystick_input(const int player_and_kind, const int index, const int value)

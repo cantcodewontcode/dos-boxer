@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Which games the library shows.
 enum LibraryFilter: Hashable, Codable, RawRepresentable {
-    case all, favorites, recentlyPlayed, neverPlayed
+    case all, favorites, recentlyPlayed, recentlyAdded, neverPlayed
     case year(Int)
     case genre(String)
     case collection(UUID)
@@ -13,6 +13,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case "all": self = .all
         case "favorites": self = .favorites
         case "recentlyPlayed": self = .recentlyPlayed
+        case "recentlyAdded": self = .recentlyAdded
         case "neverPlayed": self = .neverPlayed
         default:
             if rawValue.hasPrefix("collection-"), let id = UUID(uuidString: String(rawValue.dropFirst(11))) {
@@ -32,6 +33,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .all: "all"
         case .favorites: "favorites"
         case .recentlyPlayed: "recentlyPlayed"
+        case .recentlyAdded: "recentlyAdded"
         case .neverPlayed: "neverPlayed"
         case .year(let year): "year-\(year)"
         case .genre(let genre): "genre-\(genre)"
@@ -51,6 +53,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .all: "All Games"
         case .favorites: "Favorites"
         case .recentlyPlayed: "Recently Played"
+        case .recentlyAdded: "Recently Added"
         case .neverPlayed: "Never Played"
         case .year(let year): String(year)
         case .genre(let genre): genre
@@ -63,6 +66,7 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .all: "square.grid.2x2"
         case .favorites: "heart"
         case .recentlyPlayed: "clock"
+        case .recentlyAdded: "plus.square.on.square"
         case .neverPlayed: "sparkles"
         case .year: "calendar"
         case .genre: "tag"
@@ -75,6 +79,8 @@ enum LibraryFilter: Hashable, Codable, RawRepresentable {
         case .all: true
         case .favorites: game.info.isFavorite == true
         case .recentlyPlayed: game.stats.lastPlayed != nil
+        // Added in the past week
+        case .recentlyAdded: game.addedDate.map { Date().timeIntervalSince($0) < 7 * 24 * 60 * 60 } ?? false
         case .neverPlayed: game.stats.launches == 0
         case .year(let year): game.year == year
         case .genre(let genre): game.info.genreList.contains(genre)
@@ -100,7 +106,7 @@ struct LibrarySidebar: View {
     var body: some View {
         List(selection: Binding(get: { filter }, set: { if let new = $0 { filter = new } })) {
             Section("Library") {
-                ForEach([LibraryFilter.all, .favorites, .recentlyPlayed, .neverPlayed], id: \.self) { item in
+                ForEach([LibraryFilter.all, .favorites, .recentlyPlayed, .recentlyAdded, .neverPlayed], id: \.self) { item in
                     row(item)
                 }
             }

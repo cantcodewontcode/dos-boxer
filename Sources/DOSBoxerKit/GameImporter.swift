@@ -7,11 +7,16 @@ enum GameImporter {
     enum ImportError: LocalizedError {
         case unsupported
         case emptyArchive
+        case notAGOGGame
+        /// A package with no DOS program in it (GOG's ScummVM editions).
+        case noDOSProgram
 
         var errorDescription: String? {
             switch self {
-            case .unsupported: "DOS Boxer can add game folders, ZIP files and gameboxes."
+            case .unsupported: "DOS Boxer can add game folders, ZIP files, GOG installers and gameboxes."
             case .emptyArchive: "The ZIP file doesn't contain any files."
+            case .notAGOGGame: "This installer isn't a GOG game that DOS Boxer can add."
+            case .noDOSProgram: "There's no DOS game in this package."
             }
         }
     }
@@ -31,6 +36,8 @@ enum GameImporter {
             return destination
         case "boxer":
             return try convertBoxerGamebox(source, library: library)
+        case "pkg":
+            return try makeGamebox(fromGOGInstaller: source, library: library)
         case "zip", "exo":
             let unpacked = try unzip(source)
             defer { try? fileManager.removeItem(at: unpacked) }
@@ -52,6 +59,7 @@ enum GameImporter {
         let driveC = destination.appending(path: "\(Gamebox.drivesFolder)/C", directoryHint: .isDirectory)
         try fileManager.createDirectory(at: driveC.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fileManager.copyItem(at: folder, to: driveC)
+        removeBundledDOSBox(in: driveC)
 
         // Box art that came with the game becomes the cover
         if let cover = CoverArtFinder.cover(in: driveC) {
@@ -139,6 +147,65 @@ enum GameImporter {
         return destination
     }
 
+    /// Games bought for Windows (Steam, GOG) bring their own copy of DOSBox
+    /// in a folder beside the game; DOS Boxer is the DOSBox here, so it's
+    /// left out. Only a folder named DOSBox that holds DOSBox's program or
+    /// its SDL library counts, so a game's own folder is never taken.
+    static func removeBundledDOSBox(in driveC: URL) {
+        let fileManager = FileManager.default
+        func folders(in folder: URL) -> [URL] {
+            ((try? fileManager.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
+                .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        }
+        let candidates = folders(in: driveC) + folders(in: driveC).flatMap(folders)
+        for folder in candidates where folder.lastPathComponent.lowercased().hasPrefix("dosbox") {
+            let files = ((try? fileManager.contentsOfDirectory(atPath: folder.path(percentEncoded: false))) ?? [])
+                .map { $0.lowercased() }
+            if files.contains("dosbox.exe") || files.contains("dosbox") || files.contains("sdl.dll") {
+                try? fileManager.removeItem(at: folder)
+            }
+        }
+    }
+
+    /// A GOG Mac installer: unpacks it (reading the package, never running
+    /// it), and adds the game folder inside, named as GOG names it. GOG's
+    /// Mac versions of some games are ScummVM data with no DOS program.
+    private static func makeGamebox(fromGOGInstaller installer: URL, library: URL) throws -> URL {
+        let fileManager = FileManager.default
+        let unpacked = fileManager.temporaryDirectory
+            .appending(path: "dosboxer-import-\(UUID().uuidString)", directoryHint: .isDirectory)
+        defer { try? fileManager.removeItem(at: unpacked) }
+        let pkgutil = Process()
+        pkgutil.executableURL = URL(filePath: "/usr/sbin/pkgutil")
+        pkgutil.arguments = ["--expand-full", installer.path(percentEncoded: false), unpacked.path(percentEncoded: false)]
+        pkgutil.standardOutput = FileHandle.nullDevice
+        pkgutil.standardError = FileHandle.nullDevice
+        try pkgutil.run()
+        pkgutil.waitUntilExit()
+        guard pkgutil.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+
+        // GOG's goggame-<id>.info sits beside the game folder
+        let files = fileManager.enumerator(at: unpacked, includingPropertiesForKeys: nil)
+        var info: URL?
+        while let file = files?.nextObject() as? URL {
+            if file.lastPathComponent.hasPrefix("goggame-"), file.pathExtension == "info" { info = file; break }
+        }
+        guard let info, let data = try? Data(contentsOf: info),
+              let details = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let title = details["name"] as? String else { throw ImportError.notAGOGGame }
+        let game = info.deletingLastPathComponent().appending(path: "game", directoryHint: .isDirectory)
+        guard fileManager.fileExists(atPath: game.path(percentEncoded: false)) else { throw ImportError.notAGOGGame }
+
+        let runnable = ["exe", "com", "bat"]
+        let hasDOSProgram = (fileManager.enumerator(at: game, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? [])
+            .contains { runnable.contains($0.pathExtension.lowercased()) }
+        guard hasDOSProgram else { throw ImportError.noDOSProgram }
+
+        // "Jill of the Jungle: The Complete Trilogy" can't be a file name as is
+        let name = GameNames.articleFirst(title.replacingOccurrences(of: ":", with: " -"))
+        return try makeGamebox(fromFolder: game, name: name, library: library)
+    }
+
     /// Unpacks a ZIP into a temporary folder.
     private static func unzip(_ archive: URL) throws -> URL {
         let destination = FileManager.default.temporaryDirectory
@@ -204,7 +271,7 @@ extension GameImporter {
             !["dosgame", "boxer"].contains(entry.pathExtension.lowercased())
                 && (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
         }
-        let games = entries.filter { ["zip", "dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
+        let games = entries.filter { ["zip", "pkg", "dosgame", "boxer"].contains($0.pathExtension.lowercased()) }
         let subfolders = entries.filter(isSubfolder)
         // Any other file (a program, game data) means this is a game itself
         let notes = ["txt", "md", "nfo", "diz", "pdf", "url", "rtf"]

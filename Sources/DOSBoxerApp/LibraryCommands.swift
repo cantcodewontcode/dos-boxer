@@ -104,12 +104,14 @@ struct LibraryCommands: Commands {
 /// The Game menu: controls for the game window in front.
 struct GameCommands: Commands {
     @FocusedValue(\.gameActions) private var game
+    @AppStorage(Emulator.pausesInBackgroundKey) private var pausesInBackground = false
 
     var body: some Commands {
         CommandMenu("Game") {
             Button(game?.isPaused == true ? "Resume" : "Pause") { game?.togglePause() }
                 .keyboardShortcut("p")
                 .disabled(game?.isRunning != true)
+            Toggle("Pause When in Background", isOn: $pausesInBackground)
             Button("Toggle Full Screen") { NSApp.keyWindow?.toggleFullScreen(nil) }
                 .keyboardShortcut(.return)
                 .disabled(game == nil)

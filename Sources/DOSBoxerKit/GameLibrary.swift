@@ -21,6 +21,21 @@ public final class GameLibrary {
         public let name: String
     }
 
+    /// Why games dropped together couldn't be added, shown once they've all
+    /// been tried ("Failed to import").
+    public private(set) var importFailure: String?
+
+    public func dismissImportFailure() { importFailure = nil }
+
+    /// Games dropped together, so their failures are reported once.
+    private struct ImportBatch {
+        var remaining: Int
+        let total: Int
+        var withoutDOSProgram = 0
+        var otherErrors: [String] = []
+    }
+    @ObservationIgnored private var importBatches: [UUID: ImportBatch] = [:]
+
     /// Games still being added, for progress UI.
     public private(set) var pendingImports: [PendingImport] = []
 
@@ -477,9 +492,29 @@ public final class GameLibrary {
     /// game converted again, or one with the same title.
     private func existingGame(like added: Gamebox) -> Gamebox? {
         let others = games.filter { $0.url.standardizedFileURL != added.url.standardizedFileURL }
+        // Names compared loosely: a matched game takes its proper name, so
+        // "Jill of the Jungle - The Complete Trilogy" added again is
+        // "Jill of the Jungle: The Complete Trilogy" already there
+        let key = Self.duplicateKey(added.title)
         return others.first { $0.id == added.id }
-            ?? others.first { $0.title.localizedCaseInsensitiveCompare(added.title) == .orderedSame }
+            ?? others.first { Self.duplicateKey($0.title) == key }
     }
+
+    /// A name with punctuation, spacing and a leading "The" ignored.
+    static func duplicateKey(_ title: String) -> String {
+        let loose = CoverArtFetcher.loose(title)
+        return loose.hasPrefix("the") ? String(loose.dropFirst(3)) : loose
+    }
+
+    /// Settles every duplicate waiting, and any more from imports still
+    /// running, the same way (Apply to All).
+    public func resolveAll(_ choice: DuplicateChoice) {
+        if !importQueue.isEmpty || importsRunning > 0 { duplicateChoiceForAll = choice }
+        for duplicate in duplicates { resolve(duplicate, choice) }
+    }
+
+    /// Apply to All's choice, for duplicates from imports still running.
+    @ObservationIgnored private var duplicateChoiceForAll: DuplicateChoice?
 
     /// Settles a duplicate: replace the game already there (the new copy
     /// takes its place in collections), keep both, or skip the new one.
@@ -669,24 +704,64 @@ public final class GameLibrary {
     /// or existing gameboxes. Each becomes a `.dosgame` in the library; the
     /// originals are copied, never moved or changed.
     public func add(_ urls: [URL]) {
-        for url in urls.flatMap(GameImporter.gamesInCollection) {
+        let sources = urls.flatMap(GameImporter.gamesInCollection)
+        guard !sources.isEmpty else { return }
+        let batch = UUID()
+        importBatches[batch] = ImportBatch(remaining: sources.count, total: sources.count)
+        for url in sources {
             let pending = PendingImport(name: url.deletingPathExtension().lastPathComponent)
             pendingImports.append(pending)
-            importQueue.append((url, pending))
+            importQueue.append((url, pending, batch))
         }
         startImports()
     }
 
+    /// Notes how one game of a drop went; when the last is done, says
+    /// what couldn't be added, if anything.
+    private func finishImport(in id: UUID, url: URL, error: Error?) {
+        guard var batch = importBatches[id] else { return }
+        batch.remaining -= 1
+        if let error {
+            if case GameImporter.ImportError.noDOSProgram = error {
+                batch.withoutDOSProgram += 1
+            } else {
+                batch.otherErrors.append(Self.importMessage(for: url, error: error))
+            }
+        }
+        guard batch.remaining == 0 else {
+            importBatches[id] = batch
+            return
+        }
+        importBatches[id] = nil
+        if batch.withoutDOSProgram > 0 {
+            importFailure = batch.total == 1
+                ? GameImporter.ImportError.noDOSProgram.localizedDescription
+                : batch.withoutDOSProgram == batch.total
+                ? "There are no DOS games in these packages."
+                : "Some of these packages don't have a DOS game, so they weren't added."
+        } else if let first = batch.otherErrors.first {
+            importFailure = batch.otherErrors.count == 1 ? first
+                : "\(batch.otherErrors.count) games couldn't be added. \(first)"
+        }
+    }
+
     /// Games waiting to be imported, in the order they were added.
-    @ObservationIgnored private var importQueue: [(url: URL, pending: PendingImport)] = []
+    @ObservationIgnored private var importQueue: [(url: URL, pending: PendingImport, batch: UUID)] = []
     @ObservationIgnored private var importsRunning = 0
     /// Imports copy and unpack whole games: two at a time keeps the disk
     /// busy without swamping it (or the app) when 100 are dropped at once.
     private static let simultaneousImports = 2
 
+    /// What to say when a game can't be added. The importer's own
+    /// explanations stand on their own.
+    private static func importMessage(for url: URL, error: Error) -> String {
+        if error is GameImporter.ImportError { return error.localizedDescription }
+        return "Couldn't add \(url.deletingPathExtension().lastPathComponent): \(error.localizedDescription)"
+    }
+
     private func startImports() {
         while importsRunning < Self.simultaneousImports, !importQueue.isEmpty {
-            let (url, pending) = importQueue.removeFirst()
+            let (url, pending, batch) = importQueue.removeFirst()
             importsRunning += 1
             let games = gamesURL
             Task.detached(priority: .userInitiated) {
@@ -694,13 +769,20 @@ public final class GameLibrary {
                 await MainActor.run {
                     self.importsRunning -= 1
                     self.pendingImports.removeAll { $0.id == pending.id }
+                    self.reload()
                     switch result {
                     case .failure(let error):
-                        self.lastError = "Couldn't import \(url.lastPathComponent): \(error.localizedDescription)"
+                        self.finishImport(in: batch, url: url, error: error)
                     case .success(let added):
+                        self.finishImport(in: batch, url: url, error: nil)
                         if let added = try? Gamebox.open(added) {
                             if let existing = self.existingGame(like: added) {
-                                self.duplicates.append(DuplicateImport(added: added, existing: existing))
+                                let duplicate = DuplicateImport(added: added, existing: existing)
+                                if let choice = self.duplicateChoiceForAll {
+                                    self.resolve(duplicate, choice)
+                                } else {
+                                    self.duplicates.append(duplicate)
+                                }
                             }
                             if self.mt32Suggestion == nil, !UserDefaults.standard.bool(forKey: Self.mt32SuggestedKey),
                                !MT32Setup.isReady, added.supportsMT32 {
@@ -708,7 +790,7 @@ public final class GameLibrary {
                             }
                         }
                     }
-                    self.reload()
+                    if self.importQueue.isEmpty, self.importsRunning == 0 { self.duplicateChoiceForAll = nil }
                     self.startImports()
                 }
             }

@@ -119,6 +119,64 @@ struct GameboxTests {
         #expect(launchers.filter { $0.commands != nil }.count == 3)
     }
 
+    /// The same game added again is a duplicate even when the copy already
+    /// there took its proper name.
+    @MainActor @Test func duplicatesIgnorePunctuationAndThe() {
+        #expect(GameLibrary.duplicateKey("Jill of the Jungle - The Complete Trilogy")
+                == GameLibrary.duplicateKey("Jill of the Jungle: The Complete Trilogy"))
+        #expect(GameLibrary.duplicateKey("The Dig") == GameLibrary.duplicateKey("Dig"))
+        #expect(GameLibrary.duplicateKey("Doom") != GameLibrary.duplicateKey("Doom II"))
+    }
+
+    /// A Windows copy of a game (Steam, GOG) brings DOSBox along; it's left
+    /// out, while a game folder that only sounds like it stays.
+    @Test func leavesOutBundledDOSBox() throws {
+        let game = scratch.appending(path: "Duke Nukem 3D", directoryHint: .isDirectory)
+        for file in ["DUKE3D.EXE", "DOSBox/DOSBox.exe", "DOSBox/SDL.dll", "dosbox_cfg/notes.txt"] {
+            let url = game.appending(path: file)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: url)
+        }
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+        let url = try GameImporter.makeGamebox(from: game, inLibrary: games)
+        let driveC = url.appending(path: "Drives/C")
+        #expect(!FileManager.default.fileExists(atPath: driveC.appending(path: "DOSBox").path(percentEncoded: false)))
+        #expect(FileManager.default.fileExists(atPath: driveC.appending(path: "dosbox_cfg").path(percentEncoded: false)))
+        #expect(FileManager.default.fileExists(atPath: driveC.appending(path: "DUKE3D.EXE").path(percentEncoded: false)))
+    }
+
+    /// A GOG Mac installer adds the game folder inside it, named as GOG
+    /// names it; a ScummVM-only one (no DOS program) is refused.
+    @Test func addsGamesFromGOGInstallers() throws {
+        func installer(named name: String, title: String, files: [String]) throws -> URL {
+            let root = scratch.appending(path: "\(name)-root/Contents/Resources", directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: root.appending(path: "game"), withIntermediateDirectories: true)
+            try Data(#"{"name": "\#(title)"}"#.utf8).write(to: root.appending(path: "goggame-1.info"))
+            for file in files { try Data("x".utf8).write(to: root.appending(path: "game/\(file)")) }
+            let package = scratch.appending(path: "\(name).pkg")
+            let pkgbuild = Process()
+            pkgbuild.executableURL = URL(filePath: "/usr/bin/pkgbuild")
+            pkgbuild.arguments = ["--root", scratch.appending(path: "\(name)-root").path(percentEncoded: false),
+                                  "--identifier", "test.\(name)", "--install-location", "/tmp/\(name)",
+                                  package.path(percentEncoded: false)]
+            pkgbuild.standardOutput = FileHandle.nullDevice
+            try pkgbuild.run()
+            pkgbuild.waitUntilExit()
+            return package
+        }
+        let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
+
+        let jill = try installer(named: "jill", title: "Jill of the Jungle: The Complete Trilogy", files: ["JILL1.EXE"])
+        let url = try GameImporter.makeGamebox(from: jill, inLibrary: games)
+        #expect(url.deletingPathExtension().lastPathComponent == "Jill of the Jungle - The Complete Trilogy")
+        #expect(FileManager.default.fileExists(atPath: url.appending(path: "Drives/C/JILL1.EXE").path(percentEncoded: false)))
+
+        let sky = try installer(named: "sky", title: "Beneath a Steel Sky", files: ["sky.dsk"])
+        #expect(throws: (any Error).self) { try GameImporter.makeGamebox(from: sky, inLibrary: games) }
+    }
+
     /// A game whose programs are only on its CD (like The Dig) starts the
     /// one in the game's folder there, not the installer at the top.
     @Test func gamesOnlyOnCDStartFromTheCD() throws {

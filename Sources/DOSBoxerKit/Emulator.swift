@@ -30,6 +30,10 @@ public final class Emulator {
     /// True while the game is paused.
     public private(set) var isPaused = false
 
+    /// The setting (Game › Pause When in Background): games pause while
+    /// their window isn't in front.
+    public static let pausesInBackgroundKey = "PauseWhenInBackground"
+
     /// Set by the screen view: gives the mouse back to the Mac.
     @ObservationIgnored var releaseMouse: (() -> Void)?
 
@@ -97,6 +101,10 @@ public final class Emulator {
         process.executableURL = engineURL
         process.arguments = [frames.fileURL.path(percentEncoded: false)] + SessionDefaults.arguments() + arguments
         process.standardInput = input
+        // Controllers playing: the engine connects their joysticks before
+        // DOS starts, so games detect them at launch
+        let players = (GameControllers.shared.pads.compactMap(\.player).max() ?? -1) + 1
+        process.environment = ProcessInfo.processInfo.environment.merging(["DOSBOXER_PLAYERS": "\(players)"]) { $1 }
         process.terminationHandler = { [weak self] finished in
             let code = finished.terminationStatus
             Task { @MainActor in self?.sessionEnded(process: finished, exitCode: code) }

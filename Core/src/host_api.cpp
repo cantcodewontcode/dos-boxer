@@ -145,6 +145,10 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 	// SDL outlives each run; drop any events left over from a previous one
 	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
 	dosboxer::configure_joystick_hints();
+	// The app says how many controllers are playing (none: no joystick)
+	if (const char* players = std::getenv("DOSBOXER_PLAYERS")) {
+		dosboxer::connect_joysticks(std::atoi(players));
+	}
 
 	std::vector<std::string> owned_args = {"dosbox"};
 	for (int32_t i = 0; i < arg_count; ++i) {

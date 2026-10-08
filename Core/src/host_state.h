@@ -24,6 +24,8 @@ void feed_paste_queue(std::mutex& mutex, std::string& queue);
 
 // Before SDL starts: use only the virtual game controller.
 void configure_joystick_hints();
+// Connects virtual joysticks for this many players (0–2) before DOSBox starts.
+void connect_joysticks(int players);
 
 // Emulator thread only: kind 0 axis (-32768…32767), 1 button (0/1), 2 hat
 // (SDL_HAT_* bits).

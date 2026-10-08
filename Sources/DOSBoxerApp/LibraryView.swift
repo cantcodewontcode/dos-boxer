@@ -143,7 +143,8 @@ struct LibraryView: View {
                 return true
             } isTargeted: { isDropTargeted = $0 }
             .fileImporter(isPresented: Binding(get: { filePanel != nil }, set: { if !$0 { filePanel = nil } }),
-                          allowedContentTypes: [.folder, .zip, .dosGame, .boxerGame],
+                          allowedContentTypes: [.folder, .zip, .dosGame, .boxerGame,
+                                                .init(filenameExtension: "pkg") ?? .data],
                           allowsMultipleSelection: filePanel == .addGames) { result in
                 guard case .success(let urls) = result, let panel = filePanel else { return }
                 switch panel {
@@ -190,17 +191,17 @@ struct LibraryView: View {
                 Text(deleting.count == 1 ? "Its saved games will also be moved to the Trash."
                      : "Their saved games will also be moved to the Trash.")
             }
-            // A game that's already in the library: asked one at a time
-            .alert(library.duplicates.first.map { "“\($0.existing.title)” is already in your library" } ?? "",
-                   isPresented: Binding(get: { !library.duplicates.isEmpty }, set: { _ in }),
-                   presenting: library.duplicates.first) { duplicate in
-                Button("Replace") { library.resolve(duplicate, .replace) }
-                Button("Keep Both") { library.resolve(duplicate, .keepBoth) }
-                Button("Skip", role: .cancel) { library.resolve(duplicate, .skip) }
-            } message: { _ in
-                Text("Replace the one you have with this copy, keep both, or skip this one?")
+            // A game that's already in the library: asked one at a time,
+            // or all at once with Apply to All (as the Finder does)
+            .sheet(item: Binding(get: { library.duplicates.first }, set: { _ in })) { duplicate in
+                DuplicateSheet(duplicate: duplicate, remaining: library.duplicates.count, library: library)
             }
             .modifier(MT32Suggestion(library: library))
+            .alert("Failed to import", isPresented: .constant(library.importFailure != nil)) {
+                Button("OK") { library.dismissImportFailure() }
+            } message: {
+                Text(library.importFailure ?? "")
+            }
             .alert("Something went wrong", isPresented: .constant(library.lastError != nil)) {
                 Button("OK") { library.dismissError() }
             } message: {
@@ -360,8 +361,13 @@ struct LibraryView: View {
         if !searchText.isEmpty {
             games = games.filter { $0.name.localizedStandardContains(searchText) }
         }
-        // Recently Played always lists the latest first
-        return (filter == .recentlyPlayed ? SortOrder.recentlyPlayed : sortOrder).sorted(games)
+        // Recently Played and Recently Added always list the latest first
+        let order: SortOrder = switch filter {
+        case .recentlyPlayed: .recentlyPlayed
+        case .recentlyAdded: .recentlyAdded
+        default: sortOrder
+        }
+        return order.sorted(games)
     }
 
     private var subtitle: String {
@@ -427,12 +433,15 @@ struct LibraryView: View {
             .draggable(dragPayload(for: game)) {
                 DragPreview(game: game, count: targets(for: game).count)
             }
-            // Drop an image on a game to make it the cover
+            // Drop an image on a game to make it the cover. Anything else
+            // is games to add, as anywhere in the library (a drop this
+            // turned down wouldn't reach the library behind it)
             .dropDestination(for: URL.self) { urls, _ in
-                guard let image = urls.first(where: {
-                    ["png", "jpg", "jpeg", "heic"].contains($0.pathExtension.lowercased())
-                }) else { return false }
-                library.setCover(of: game, to: image)
+                if urls.count == 1, ["png", "jpg", "jpeg", "heic"].contains(urls[0].pathExtension.lowercased()) {
+                    library.setCover(of: game, to: urls[0])
+                } else {
+                    importDropped(urls)
+                }
                 return true
             }
             .onTapGesture(count: 2) { play(game) }
@@ -859,5 +868,39 @@ private struct MT32Suggestion: ViewModifier {
         } message: { _ in
             Text("Its music was composed for this classic synthesizer. Add the MT-32 files once to hear it, and every game like it, as intended.")
         }
+    }
+}
+
+/// A game being added that's already in the library: keep both, skip or
+/// replace. With several waiting, the choice applies to them all.
+private struct DuplicateSheet: View {
+    let duplicate: GameLibrary.DuplicateImport
+    let remaining: Int
+    let library: GameLibrary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(remaining > 1 ? "Duplicate games detected" : duplicate.existing.title)
+                .font(.headline)
+            Text(remaining > 1
+                 ? "Some of the games being imported are already in your library. Do you want to replace them?"
+                 : "This game is already in your library. Do you want to replace it?")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Keep Both") { choose(.keepBoth) }
+                Button("Skip", role: .cancel) { choose(.skip) }
+                    .keyboardShortcut(.cancelAction)
+                Button("Replace") { choose(.replace) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+    }
+
+    private func choose(_ choice: GameLibrary.DuplicateChoice) {
+        if remaining > 1 { library.resolveAll(choice) } else { library.resolve(duplicate, choice) }
     }
 }

@@ -74,7 +74,15 @@ public final class EmulatorMTKView: MTKView {
         GameControllers.shared.target = emulator
     }
 
+    /// Paused because the window went to the background (not by the
+    /// player), so it resumes when the window comes back.
+    private var pausedInBackground = false
+
     @objc private func windowGotFocus() {
+        if pausedInBackground {
+            pausedInBackground = false
+            if emulator.isPaused { emulator.togglePause() }
+        }
         GameControllers.shared.target = emulator
         // Keys go to the game again straight away, not to the toolbar
         if window?.firstResponder !== self, !(window?.firstResponder is NSText) {
@@ -85,6 +93,12 @@ public final class EmulatorMTKView: MTKView {
     @objc private func windowLostFocus() {
         releaseKeysInDOS()
         unlockMouse()
+        // A sheet over the game (Controls) handles its own pausing
+        if UserDefaults.standard.bool(forKey: Emulator.pausesInBackgroundKey), window?.attachedSheet == nil,
+           emulator.isRunning, !emulator.isPaused {
+            emulator.togglePause()
+            pausedInBackground = true
+        }
     }
 
     // MARK: Keyboard
