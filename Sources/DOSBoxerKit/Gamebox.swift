@@ -192,6 +192,9 @@ public struct Gamebox: Sendable, Identifiable {
         /// Set when someone removed the cover on purpose, so it isn't
         /// fetched again automatically.
         public var noCover: Bool?
+        /// The player forgot the game's details (Forget Game Details): don't
+        /// look them up again by itself, only on Find Game Details.
+        public var noDetails: Bool?
 
         public var closesWhenGameEnds: Bool { quitsWhenGameEnds ?? true }
 
@@ -262,7 +265,7 @@ public struct Gamebox: Sendable, Identifiable {
         /// Bump to choose again for games already in libraries.
         static let soundChoiceVersion = 5
         /// Bump to read games' menus again (Blood's two-step menu).
-        public static let menuVersion = 3
+        public static let menuVersion = 4
 
         /// The game's genres, including ones saved by older versions.
         public var genreList: [String] {
@@ -328,6 +331,9 @@ public struct Gamebox: Sendable, Identifiable {
         /// For an option read from a menu script: the commands to run instead
         /// of `dosPath`, from `dosPath`'s folder.
         public var commands: [String]?
+        /// For a menu option: the disc image (file name) it puts in the CD
+        /// drive first, when the game has several.
+        public var disc: String?
 
         /// How the program is listed: its file name (e.g. KEEN1.EXE), or a
         /// menu option's title.
@@ -454,15 +460,13 @@ public struct Gamebox: Sendable, Identifiable {
     /// DOSBox's 16 MB isn't enough for many mid-90s games, which quit at once.
     static func eraSettings(year: Int?) -> [String: String] {
         guard let year else { return [:] }
-        // Games up to 1983 were written for the original IBM PC (4.77 MHz,
-        // about 300 on DOSBox's scale); many run as fast as the machine
-        // allows and are unplayable at DOSBox's usual speed
-        if year <= 1983 { return ["cpu cpu_cycles": Self.originalPCSpeed] }
-        // Games from the 90s expected a 386 or 486. (This is the speed for
-        // games that run in DOS's real mode; ones using DOS extenders
-        // already get DOSBox's much faster protected-mode speed.) At
-        // DOSBox's usual 286-class speed some crawl: Blackthorne's music
-        // driver takes minutes to load
+        // Speeds by release year, for programs in DOS's real mode (ones
+        // using DOS extenders get DOSBox's much faster protected-mode speed).
+        // Chosen against thousands of hand-tuned games: many older games run
+        // as fast as the machine allows and are unplayable too fast (King's
+        // Quest II, Ultima IV), yet many need enough speed not to crawl
+        // (Battle Chess; Blackthorne's music driver takes minutes to load at
+        // a 286's speed). Each step is a machine in the Speed menu
         // Memory: mid-90s games need more than DOSBox's 16 MB, but some of
         // their DOS extenders crash with 64 (Beneath a Steel Sky); later
         // games get 64
@@ -474,13 +478,19 @@ public struct Gamebox: Sendable, Identifiable {
             return ["cpu cpu_cycles": Self.speedPentiumRealMode, "cpu cpu_cycles_protected": Self.speedPentium,
                     "cpu cpu_throttle": "true", "dosbox memsize": "64"]
         }
-        if year >= 1993 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "32"] }
-        if year >= 1990 { return ["cpu cpu_cycles": Self.speed386] }
-        return [:]
+        if year >= 1995 { return ["cpu cpu_cycles": Self.speed486, "dosbox memsize": "32"] }
+        if year >= 1993 { return ["cpu cpu_cycles": Self.speed386, "dosbox memsize": "32"] }
+        if year >= 1992 { return ["cpu cpu_cycles": Self.speed386] }
+        if year >= 1991 { return ["cpu cpu_cycles": Self.speedFast286] }
+        if year >= 1986 { return ["cpu cpu_cycles": Self.speedAT] }
+        return ["cpu cpu_cycles": Self.speedXT]
     }
 
     /// Machines' speeds on DOSBox Staging's scale.
     public static let originalPCSpeed = "300"
+    public static let speedXT = "500"
+    public static let speedAT = "1500"
+    public static let speedFast286 = "3000"
     public static let speed386 = "8000"
     public static let speed486 = "20000"
     /// For games that use DOS extenders (protected mode).
@@ -523,7 +533,9 @@ public struct Gamebox: Sendable, Identifiable {
 
         public static let all = [
             Machine(name: "Original IBM PC", speed: Speed(realMode: originalPCSpeed, protectedMode: "60000")),
-            Machine(name: "IBM AT (286)", speed: .dosbox),
+            Machine(name: "IBM XT", speed: Speed(realMode: speedXT, protectedMode: "60000")),
+            Machine(name: "IBM AT 286", speed: Speed(realMode: speedAT, protectedMode: "60000")),
+            Machine(name: "Fast 286", speed: .dosbox),
             Machine(name: "386", speed: Speed(realMode: speed386, protectedMode: "60000")),
             Machine(name: "486", speed: Speed(realMode: speed486, protectedMode: "60000")),
             Machine(name: "Pentium", speed: Speed(realMode: speedPentiumRealMode, protectedMode: speedPentium)),
@@ -639,7 +651,38 @@ public struct Gamebox: Sendable, Identifiable {
         return command
     }
 
+    /// A CD drive's disc images (paths in the gamebox), in the order
+    /// they're mounted: the disc a menu option starts with goes in first.
+    static func discs(in drive: Drive, startingWith wanted: String?) -> [String] {
+        var discs = [drive.path] + (drive.moreDiscs ?? [])
+        if let wanted, let index = discs.firstIndex(where: {
+            ($0 as NSString).lastPathComponent.caseInsensitiveCompare(wanted) == .orderedSame
+        }) {
+            discs.insert(discs.remove(at: index), at: 0)
+        }
+        return discs
+    }
+
+    /// The names of the discs a session starts with in the CD drive, in
+    /// order, when there's more than one ("Command & Conquer CD-2").
+    public func discNames(for start: Start) -> [String] {
+        guard let drive = info.drives.first(where: { $0.kind == .cdROM && !($0.moreDiscs ?? []).isEmpty })
+        else { return [] }
+        let program: Launcher? = switch start {
+        case .game: defaultLauncher
+        case .launcher(let launcher): launcher
+        case .prompt: nil
+        }
+        return Self.discs(in: drive, startingWith: program?.disc)
+            .map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension }
+    }
+
     public func sessionArguments(_ start: Start = .game) throws -> [String] {
+        let program: Launcher? = switch start {
+        case .game: defaultLauncher
+        case .launcher(let launcher): launcher
+        case .prompt: nil
+        }
         let fileManager = FileManager.default
         var mounts: [String] = []
         for drive in info.drives {
@@ -651,18 +694,13 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" >NUL")
                 mounts.append("@MOUNT -t overlay \(drive.letter) \"\(saves.path(percentEncoded: false))\" >NUL")
             case .cdROM:
-                let discs = ([drive.path] + (drive.moreDiscs ?? []))
+                let discList = Self.discs(in: drive, startingWith: program?.disc)
                     .map { "\"\(url.appending(path: $0).path(percentEncoded: false))\"" }
                     .joined(separator: " ")
-                mounts.append("@MOUNT \(drive.letter) \(discs) -t cdrom >NUL")
+                mounts.append("@MOUNT \(drive.letter) \(discList) -t cdrom >NUL")
             case .floppy:
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" -t floppy >NUL")
             }
-        }
-        let program: Launcher? = switch start {
-        case .game: defaultLauncher
-        case .launcher(let launcher): launcher
-        case .prompt: nil
         }
         // A Gravis Ultrasound choice from the game's menu: DOSBox only
         // emulates the card when asked (without it the game is silent)

@@ -21,6 +21,9 @@ enum BatchMenuReader {
         var title: String
         /// DOS commands, run from the batch file's folder.
         var commands: [String]
+        /// The disc image file the option puts in the CD drive first, e.g.
+        /// "Command & Conquer CD-2.iso" (Nod's missions are on disc 2).
+        var disc: String? = nil
     }
 
     /// One "Press 1 for…" menu in a script.
@@ -53,23 +56,26 @@ enum BatchMenuReader {
         let menus = Self.menus(in: lines)
         guard let first = menus.first else { return [] }
 
-        // The commands an option runs, following "goto" into other menus
-        func run(_ label: String, depth: Int = 0) -> [String] {
-            let (commands, next) = section(labelled: label, in: lines, isBatchFile: isBatchFile)
-            guard depth < 3, let next, let menu = menus.first(where: { $0.label == next }),
-                  let firstChoice = menu.choices.first else { return commands }
-            return commands + run(firstChoice.label, depth: depth + 1)
+        // The commands an option runs, following "goto" into other menus,
+        // but not back to a menu already passed (the game ending and
+        // "goto menu" showing the menu again)
+        func run(_ label: String, from origin: String?, depth: Int = 0) -> (commands: [String], disc: String?) {
+            let (commands, next, disc) = section(labelled: label, in: lines, isBatchFile: isBatchFile)
+            guard depth < 3, let next, next != origin, let menu = menus.first(where: { $0.label == next }),
+                  let firstChoice = menu.choices.first else { return (commands, disc) }
+            let rest = run(firstChoice.label, from: origin, depth: depth + 1)
+            return (commands + rest.commands, disc ?? rest.disc)
         }
 
         var options: [Option] = first.choices.compactMap { title, label in
-            let commands = run(label)
-            return commands.isEmpty ? nil : Option(title: title, commands: commands)
+            let (commands, disc) = run(label, from: first.label)
+            return commands.isEmpty ? nil : Option(title: title, commands: commands, disc: disc)
         }
         // Menus reached from the first one: their options, standalone
         for menu in menus.dropFirst() where menu.label != nil {
             for (title, label) in menu.choices where !options.contains(where: { $0.title == title }) {
-                let commands = run(label)
-                if !commands.isEmpty { options.append(Option(title: title, commands: commands)) }
+                let (commands, disc) = run(label, from: menu.label)
+                if !commands.isEmpty { options.append(Option(title: title, commands: commands, disc: disc)) }
             }
         }
         return options
@@ -111,18 +117,20 @@ enum BatchMenuReader {
     }
 
     /// The commands under `:label`, up to its `goto` (returned, if it goes
-    /// to another label) or the next label.
-    private static func section(labelled label: String, in lines: [String],
-                                isBatchFile: ([String], String) -> Bool) -> (commands: [String], next: String?) {
-        guard let start = lines.firstIndex(where: { $0.lowercased() == ":\(label)" }) else { return ([], nil) }
+    /// to another label) or the next label, and the disc its CD mount puts
+    /// in first.
+    private static func section(labelled label: String, in lines: [String], isBatchFile: ([String], String) -> Bool)
+        -> (commands: [String], next: String?, disc: String?) {
+        guard let start = lines.firstIndex(where: { $0.lowercased() == ":\(label)" }) else { return ([], nil, nil) }
         var commands: [String] = []
+        var disc: String?
         var folder: [String] = []
         for line in lines[(start + 1)...] {
             let command = line.hasPrefix("@") ? String(line.dropFirst()) : line
             let lower = command.lowercased()
             if lower.hasPrefix("goto ") {
                 let target = String(command.dropFirst(5)).trimmingCharacters(in: CharacterSet(charactersIn: " :"))
-                return (commands, target.lowercased() == "quit" ? nil : target.lowercased())
+                return (commands, target.lowercased() == "quit" ? nil : target.lowercased(), disc)
             }
             if lower.hasPrefix(":") || lower == "exit" { break }
             if command.isEmpty || lower == "cls" || lower.hasPrefix("echo") || lower.hasPrefix("rem ")
@@ -130,7 +138,12 @@ enum BatchMenuReader {
             // A menu inside this section: its choices are read as a menu
             if lower.hasPrefix("if errorlevel") { continue }
             // DOS Boxer mounts the game's drives itself (the script's paths
-            // are its collection's)
+            // are its collection's); which disc goes in first is kept
+            if lower.hasPrefix("imgmount "), disc == nil,
+               let match = command.firstMatch(of: /(?i)^imgmount\s+[a-z]:?\s+(?:"([^"]+)"|(\S+))/) {
+                let path = String(match.1 ?? match.2 ?? "")
+                disc = path.split(whereSeparator: { $0 == "\\" || $0 == "/" }).last.map(String.init)
+            }
             if lower.hasPrefix("mount ") || lower.hasPrefix("imgmount ") { continue }
 
             if lower.hasPrefix("cd ") || lower.hasPrefix("cd\\") {
@@ -151,6 +164,6 @@ enum BatchMenuReader {
                 commands.append(command)
             }
         }
-        return (commands, nil)
+        return (commands, nil, disc)
     }
 }

@@ -28,7 +28,6 @@ int dosbox_staging_main(int argc, char* argv[]);
 
 namespace {
 
-constexpr int32_t SampleRateHz = 48000;
 
 std::mutex lifecycle_mutex;
 std::thread emulator_thread;
@@ -154,7 +153,6 @@ bool dbx_start(const char* const* args, const int32_t arg_count,
 	// Settings the embedded renderer relies on
 	for (const char* setting : {"sdl fullscreen=false",
 	                            "render integer_scaling=off",
-	                            "mixer rate=48000",
 	                            "sdl presentation_mode=dos-rate"}) {
 		owned_args.emplace_back("--set");
 		owned_args.emplace_back(setting);
@@ -278,7 +276,7 @@ void dbx_pull_audio(float* const interleaved_stereo, const int32_t frame_count)
 
 int32_t dbx_audio_sample_rate(void)
 {
-	return SampleRateHz;
+	return MIXER_GetSampleRate();
 }
 
 void dbx_key(const int32_t scancode, const bool down)

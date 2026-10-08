@@ -21,8 +21,15 @@ struct CoverArtTests {
         #expect(keys.contains(CoverArtFetcher.loose("Leisure Suit Larry 1 - In the Land of the Lounge Lizards (1991)")))
         #expect(CoverArtFetcher.lookupKeys(for: "Ultima VII - The Black Gate CD (1992)")
             .contains(CoverArtFetcher.loose("Ultima VII - The Black Gate (1992)")))
-        // A plain name is left alone
-        #expect(CoverArtFetcher.lookupKeys(for: "Doom (1993)").count == 2)
+        // A plain name keeps no edition tags to strip
+        #expect(!CoverArtFetcher.lookupKeys(for: "Doom (1993)").contains(""))
+    }
+
+    /// "Legend of Kyrandia Book 1" finds "The Legend of Kyrandia: Book One".
+    @Test func triesTheAndNumbersAsWords() {
+        let keys = CoverArtFetcher.lookupKeys(for: "Legend of Kyrandia Book 1 (1992)")
+        #expect(keys.contains(CoverArtFetcher.loose("The Legend of Kyrandia: Book One")))
+        #expect(CoverArtFetcher.lookupKeys(for: "Ultima 4 (1985)").contains(CoverArtFetcher.loose("Ultima IV")))
     }
 
     @Test func fileNamesUseLibretroSubstitutions() {

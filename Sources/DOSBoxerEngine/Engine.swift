@@ -21,6 +21,10 @@ enum Engine {
             options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Running a DOS game")
         let audio = AudioOutput()
         Self.audio = audio
+        // Sound at the speakers' own rate (44.1 kHz on many displays), so
+        // macOS doesn't convert it. Last, so it wins: the sound output is
+        // set up at this rate
+        let dosboxArguments = dosboxArguments + ["--set", "mixer rate=\(audio.deviceSampleRate)"]
         let started = withCStrings(dosboxArguments) { argv in
             dbx_start(argv, Int32(dosboxArguments.count), publishFrame, sessionEnded, shared)
         }

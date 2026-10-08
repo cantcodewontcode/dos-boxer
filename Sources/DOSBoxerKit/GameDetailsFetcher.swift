@@ -18,6 +18,18 @@ public actor GameDetailsFetcher {
         public var genre: String?
     }
 
+    /// Looks an unmatched game up by its current name and files (Find Game
+    /// Details), including one whose details were forgotten. Returns true
+    /// if anything was found.
+    public func findDetails(of gamebox: Gamebox) async -> Bool {
+        guard !gamebox.isReadOnly, gamebox.info.launchBoxID == nil else { return false }
+        var retrying = gamebox
+        retrying.info.noDetails = nil
+        retrying.info.detailsCheckedAt = nil
+        try? retrying.save()
+        return await fillDetails(of: retrying)
+    }
+
     /// Whether `gamebox` was matched to a different game than the one its
     /// name is exactly a collection's name for.
     nonisolated static func isMismatched(_ gamebox: Gamebox) -> Bool {

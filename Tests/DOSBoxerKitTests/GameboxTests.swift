@@ -44,16 +44,17 @@ struct GameboxTests {
 
     @Test func newerGamesGetMoreMemory() {
         #expect(Gamebox.eraSettings(year: 1997)["dosbox memsize"] == "64")
-        #expect(Gamebox.eraSettings(year: 1989).isEmpty)
-        #expect(Gamebox.eraSettings(year: 1990)["cpu cpu_cycles"] == "8000")
-        #expect(Gamebox.eraSettings(year: 1994)["cpu cpu_cycles"] == "20000")
+        #expect(Gamebox.eraSettings(year: 1989)["cpu cpu_cycles"] == "1500")
+        #expect(Gamebox.eraSettings(year: 1991)["cpu cpu_cycles"] == "3000")
+        #expect(Gamebox.eraSettings(year: 1994)["cpu cpu_cycles"] == "8000")
+        #expect(Gamebox.eraSettings(year: 1995)["cpu cpu_cycles"] == "20000")
         #expect(Gamebox.eraSettings(year: 1994)["dosbox memsize"] == "32")
         #expect(Gamebox.eraSettings(year: 1996)["dosbox memsize"] == "64")
         #expect(Gamebox.eraSettings(year: 1997)["cpu cpu_cycles_protected"] == "300000")
         #expect(Gamebox.eraSettings(year: 1997)["cpu cpu_cycles"] == "60000")
         #expect(Gamebox.eraSettings(year: 1995)["cpu cpu_cycles_protected"] == nil)
-        #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "300")
-        #expect(Gamebox.eraSettings(year: 1984).isEmpty)
+        #expect(Gamebox.eraSettings(year: 1983)["cpu cpu_cycles"] == "500")
+        #expect(Gamebox.eraSettings(year: 1986)["cpu cpu_cycles"] == "1500")
         #expect(Gamebox.fixingSettings(#"CONFIG -set "mididevice=default""#) == #"CONFIG -set "mididevice=coreaudio""#)
     }
 
@@ -73,8 +74,8 @@ struct GameboxTests {
     @Test func defaultSpeedsAreMachinesAndStepByTenPercent() throws {
         let games = scratch.appending(path: "Games", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: games, withIntermediateDirectories: true)
-        for (name, machine) in [("Snipes (1982)", "Original IBM PC"), ("Dig Dug (1987)", "IBM AT (286)"),
-                                ("Lemmings (1991)", "386"), ("Doom (1993)", "486"), ("Blood (1997)", "Pentium")] {
+        for (name, machine) in [("Snipes (1982)", "IBM XT"), ("Dig Dug (1987)", "IBM AT 286"), ("Lemmings (1991)", "Fast 286"),
+                                ("Doom (1993)", "386"), ("Hexen (1995)", "486"), ("Blood (1997)", "Pentium")] {
             let game = try Gamebox.open(try GameImporter.makeGamebox(from: try makeGameFolder(named: name), inLibrary: games))
             #expect(Gamebox.Machine.matching(game.defaultSpeed)?.name == machine, "\(name)")
             #expect(!game.hasOwnSpeed)

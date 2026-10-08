@@ -35,6 +35,8 @@ public struct GameWindow: View {
     /// Set by "Play Anyway" when another Mac has the game open.
     @State private var ignoreOtherComputer = false
     @State private var start: Gamebox.Start = .game
+    /// Which of the CD drive's discs is in it (sessions start with the first).
+    @State private var discIndex = 0
     /// True when the person stopped DOS themselves (Turn Off, Restart,
     /// switching programs), so the window stays open instead of closing.
     @State private var stoppedByUser = false
@@ -85,6 +87,13 @@ public struct GameWindow: View {
                     lookPicker
                 }
                 .help("Display look")
+                if discs.count > 1 {
+                    Menu("Disc", systemImage: "opticaldisc") {
+                        discPicker
+                    }
+                    .help("Choose the disc in the CD drive")
+                    .disabled(!emulator.isRunning)
+                }
                 Button("Controls", systemImage: "gamecontroller") { editingControls = true }
                     .help("Controller controls for this game")
                     .disabled(gamebox == nil)
@@ -220,6 +229,9 @@ public struct GameWindow: View {
             isRunning: emulator.isRunning,
             isPaused: emulator.isPaused,
             hasMoreDiscs: gamebox?.info.drives.contains { !($0.moreDiscs ?? []).isEmpty } ?? false,
+            discs: discs,
+            discIndex: discIndex,
+            selectDisc: selectDisc,
             look: gamebox?.info.displayLook,
             launchers: gamebox?.info.launchers ?? [],
             togglePause: togglePause,
@@ -231,6 +243,7 @@ public struct GameWindow: View {
             },
             nextDisc: {
                 emulator.nextDisc()
+                if !discs.isEmpty { discIndex = (discIndex + 1) % discs.count }
                 show("Next disc")
             },
             setLook: { look in
@@ -328,6 +341,28 @@ public struct GameWindow: View {
         }
     }
 
+    /// The discs the current session has in its CD drive, by name.
+    private var discs: [String] { gamebox?.discNames(for: start) ?? [] }
+
+    private var discPicker: some View {
+        Picker("Disc", selection: Binding(get: { discIndex }, set: selectDisc)) {
+            ForEach(Array(discs.enumerated()), id: \.offset) { index, name in
+                Text(name).tag(index)
+            }
+        }
+        .pickerStyle(.inline)
+        .labelsHidden()
+    }
+
+    /// Puts disc `index` in the drive: DOSBox swaps to the next disc each
+    /// time, so it steps round to it.
+    private func selectDisc(_ index: Int) {
+        guard discs.indices.contains(index), index != discIndex else { return }
+        for _ in 0..<((index - discIndex + discs.count) % discs.count) { emulator.nextDisc() }
+        discIndex = index
+        show(discs[index])
+    }
+
     /// Runs something else from the game's toolbar menu.
     private func run(_ newStart: Gamebox.Start) {
         // MT-32 music without the ROMs: offer to set them up (the game still
@@ -342,6 +377,7 @@ public struct GameWindow: View {
 
     private func launch() {
         guard let gamebox else { return }
+        discIndex = 0
         do {
             emulator.start(arguments: try gamebox.sessionArguments(start))
             GameboxPresence.markInUse(gamebox)

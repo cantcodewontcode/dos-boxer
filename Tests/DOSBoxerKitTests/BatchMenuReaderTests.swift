@@ -64,6 +64,34 @@ struct BatchMenuReaderTests {
         #expect(options[1].commands == ["cd cc2", "CALL cc2"])
     }
 
+    /// Each campaign starts with its own disc in, and "goto menu" after
+    /// the game isn't followed back into the menu (Command & Conquer).
+    @Test func keepsEachOptionsFirstDiscAndStopsAtTheMenu() {
+        let script = """
+        :menu
+        echo Press 1 for GDI Campaign
+        echo Press 2 for NOD Campaign
+        echo Press 3 to Quit
+        choice /C:123 /N Please Choose:
+        if errorlevel = 3 goto quit
+        if errorlevel = 2 goto NOD
+        if errorlevel = 1 goto GDI
+        :GDI
+        imgmount d ".\\eXoDOS\\comcon\\cd\\CD-1.iso" ".\\eXoDOS\\comcon\\cd\\CD-2.iso" -t cdrom
+        @C&C
+        goto menu
+        :NOD
+        imgmount d ".\\eXoDOS\\comcon\\cd\\CD-2.iso" ".\\eXoDOS\\comcon\\cd\\CD-1.iso" -t cdrom
+        @C&C
+        goto menu
+        :quit
+        exit
+        """
+        let options = BatchMenuReader.options(in: script)
+        #expect(options.map(\.commands) == [["C&C"], ["C&C"]])
+        #expect(options.map(\.disc) == ["CD-1.iso", "CD-2.iso"])
+    }
+
     @Test func ignoresScriptsThatArentMenus() {
         #expect(BatchMenuReader.options(in: "@echo off\r\ncd game\r\ngame.exe").isEmpty)
     }

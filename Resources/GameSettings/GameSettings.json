@@ -276,6 +276,436 @@
     "mixer prebuffer": "50"
    },
    "checked": "2026-10-07"
+  },
+  {
+   "name": "Full Throttle (1995)",
+   "launchBoxID": 179,
+   "settings": {
+    "mouse mouse_sensitivity": "400"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Legend of Kyrandia Book 1 (1992)",
+   "launchBoxID": null,
+   "settings": {
+    "sblaster sbmixer": "false",
+    "mixer blocksize": "2048",
+    "mixer prebuffer": "50"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Al-Qadim - The Genie's Curse (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Blood (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Bug Adventure (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Corridor 7 - Alien Invasion (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Cryptic Passage for Blood (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Dark Sun II - Wake of the Ravager (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Delta V (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Double Agent (1998)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Dragon Lore - The Legend Begins (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Drascula - The Vampire Strikes Back (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Fallout (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Firezone (1988)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Flight of the Intruder (1990)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Future Wars (1989)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "High Octane (2003)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "J.R.R. Tolkien's The Lord of the Rings Vol 1 (1990)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Jurassic Park (1993)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "King's Quest II - Romancing the Stones (2002)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "L.A. Blaster (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Lands of Lore - The Throne of Chaos (1993)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Legend of Kyrandia Book 2 - The Hand of Fate (1993)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Living Ball (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "M1 Tank Platoon (1989)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "MadSpace (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Man Enough (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Might and Magic 3 - Isles of Terra (1991)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Milo the Fuel Run (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Operation Body Count (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Plunder and Pillage (2001)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Quest for Al-Qaeda - The Hunt for Bin Laden (2002)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Quest for Hussein (2002)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Realms of Arkania - Blade of Destiny (1992)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Redneck Rampage (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Redneck Rampage - Suckin' Grits on Route 66 (1998)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Redneck Rampage Rides Again (1998)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Rol Crusaders (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "SWIV 3D (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Shadow Warrior (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Super Dog Story (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Surface Tension (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Team F1 (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Tempest 2000 (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Terra Inc (1997)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "The 7th Guest (1993)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "The Elder Scrolls - Arena (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "The Elder Scrolls - Daggerfall (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "The Mutanoid Word Challenge (1992)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "The Varginha Incident (1998)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Total Carnage (1994)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Twin Dragon (1998)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Ultima Underworld - The Stygian Abyss (1992)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Ultima Underworld 2 - Labyrinth of Worlds (1993)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Ultimate Soccer Manager (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Wanton Destruction (2005)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Whale's Voyage II (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Wingstar (1996)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "WipEout (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Yumemi (1995)",
+   "settings": {
+    "sblaster sbmixer": "false"
+   },
+   "checked": "2026-10-07"
+  },
+  {
+   "name": "Loom (1990)",
+   "launchBoxID": 5660,
+   "speed": "20000",
+   "checked": "2026-10-07"
   }
  ]
 }

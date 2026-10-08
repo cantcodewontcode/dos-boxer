@@ -15,6 +15,13 @@ enum SessionDefaults {
          // plugged in, music is switched off and games that wait for a MIDI
          // device to answer (Blackthorne) hang
          "--set", "midi mididevice=coreaudio",
+         // Sound handed over in blocks of 1,024 rather than DOSBox Staging's
+         // 512, as eXoDOS and Boxer both run games: with the small ones many
+         // games' sound crackles. 20 ms kept ready, so sound stays prompt;
+         // games that still crackle get more (ShippedGameSettings,
+         // Gamebox.talkieSettings)
+         "--set", "mixer blocksize=1024",
+         "--set", "mixer prebuffer=20",
          // DOS Boxer captures the mouse itself (clicking the game); DOSBox's
          // own click-to-capture would swallow the next click and ignore
          // movement until then

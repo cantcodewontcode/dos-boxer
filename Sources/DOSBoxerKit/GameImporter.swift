@@ -461,7 +461,7 @@ enum LauncherFinder {
         if let script = launchers.first(where: \.isDefault), let options = menuOptions(of: script, root: root) {
             let fromMenu = options.enumerated().map { index, option in
                 Gamebox.Launcher(title: option.title, dosPath: script.dosPath, isDefault: index == 0,
-                                 commands: option.commands)
+                                 commands: option.commands, disc: option.disc)
             }
             let rest = launchers.map { launcher in
                 var launcher = launcher
@@ -477,7 +477,7 @@ enum LauncherFinder {
         for script in launchers where !script.isDefault && isStartScript(script) {
             guard let options = menuOptions(of: script, root: root) else { continue }
             let fromMenu = options.map { option in
-                Gamebox.Launcher(title: option.title, dosPath: script.dosPath, commands: option.commands)
+                Gamebox.Launcher(title: option.title, dosPath: script.dosPath, commands: option.commands, disc: option.disc)
             }
             var result = launchers
             if let index = result.firstIndex(where: { $0.id == script.id }) { result[index].title = "Menu" }

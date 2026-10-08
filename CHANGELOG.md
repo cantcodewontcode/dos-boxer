@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.5]
+
+Clearer sound, the right speed for more games, and games on several CDs.
+
+- **No more crackling.** Sound plays at your Mac's own rate in larger blocks, the way Boxer and eXoDOS run games, so speech and effects come through clean. Games that turn their own speech down (The Legend of Kyrandia and others) are heard properly over MT-32 music.
+- **Smoother play.** Games run as time-critical work, so frames arrive on time.
+- **Speeds by machine.** The info panel's Speed menu offers machines from the original IBM PC to a Pentium, plus a stepper, and changes take effect while you play. Each game's default follows its release year more closely.
+- **Games on several CDs.** A disc button chooses which disc is in the drive, and each menu choice starts with the disc it needs (Command & Conquer). Games that run straight from their CD start properly (The Dig).
+- **Game details you can fix.** Forget Game Details clears a wrong match; rename the game, then Find Game Details. More games are recognized, and wrong matches correct themselves.
+- **Fixes.** One click captures the mouse. Day of the Tentacle no longer crashes. Sound comes back if macOS stops it at launch.
+
 ## [0.2.0]
 
 Better at recognizing games, and better at running the old ones.

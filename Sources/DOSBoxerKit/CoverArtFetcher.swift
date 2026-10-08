@@ -101,6 +101,20 @@ public actor CoverArtFetcher {
             if let year { variants.append("\(untagged) \(year)") }
             variants.append(untagged)
         }
+        // "The Legend of Kyrandia: Book One" is often just "Legend of
+        // Kyrandia Book 1": try a leading "The", and numbers as words and
+        // Roman numerals
+        for variant in variants where !variant.lowercased().hasPrefix("the ") {
+            variants.append("The " + variant)
+        }
+        let words = ["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+        let numerals = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"]
+        for variant in variants {
+            guard let match = variant.firstMatch(of: /\b([1-9])\b(?!\))/), let digit = Int(match.1) else { continue }
+            for spelled in [words[digit - 1], numerals[digit - 1]] {
+                variants.append(variant.replacingCharacters(in: match.range, with: spelled))
+            }
+        }
         var seen = Set<String>()
         return variants.map(loose).filter { seen.insert($0).inserted }
     }

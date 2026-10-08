@@ -25,7 +25,7 @@ final class AudioOutput {
 
     func start() {
         if sourceNode == nil {
-            let sampleRate = Double(dbx_audio_sample_rate())
+            let sampleRate = Double(deviceSampleRate)
             guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate,
                                               channels: 2) else { return }
             let scratch = self.scratch
@@ -51,6 +51,13 @@ final class AudioOutput {
         } catch {
             print("DOS Boxer: couldn't start audio: \(error)")
         }
+    }
+
+    /// The output device's sample rate, in the range DOSBox accepts
+    /// (48 kHz if it can't be read).
+    var deviceSampleRate: Int {
+        let rate = Int(engine.outputNode.outputFormat(forBus: 0).sampleRate)
+        return (8000...96000).contains(rate) ? rate : 48000
     }
 
     /// 0 (silent) to 1 (full).

@@ -133,7 +133,11 @@ public final class GameLibrary {
     /// game at most once per launch.
     private func fetchMissingCovers() {
         guard !isFetchingCovers else { return }
-        let missing = games.filter { $0.coverURL == nil && !coverLookupsTried.contains($0.id) }
+        // Not games whose details were forgotten: their name may still be
+        // the wrong game's, so wait for Find Game Details
+        let missing = games.filter {
+            $0.coverURL == nil && !coverLookupsTried.contains($0.id) && $0.info.noDetails != true
+        }
         guard !missing.isEmpty else { return }
         isFetchingCovers = true
         missing.forEach { coverLookupsTried.insert($0.id) }
@@ -167,7 +171,7 @@ public final class GameLibrary {
     private func fetchMissingDetails() {
         guard !isFetchingDetails else { return }
         let missing = games.filter { game in
-            !game.isReadOnly && !detailLookupsTried.contains(game.id)
+            !game.isReadOnly && !detailLookupsTried.contains(game.id) && game.info.noDetails != true
                 && (game.info.launchBoxID == nil || game.info.genres == nil && game.info.genre != nil
                     || GameDetailsFetcher.isMismatched(game))
         }
@@ -185,6 +189,41 @@ public final class GameLibrary {
             }
             isFetchingDetails = false
             if foundAny { reload() } else { fetchMissingDetails() }
+        }
+    }
+
+    /// Looks an unmatched game's details up by its current name (Find Game
+    /// Details), e.g. after fixing its name. Finding nothing isn't an error.
+    public func findDetails(for game: Gamebox) {
+        findingCovers.insert(game.id)
+        Task {
+            let started = Date()
+            let found = await GameDetailsFetcher.shared.findDetails(of: game)
+            if found, let updated = try? Gamebox.open(game.url) { Self.moveToMatchName(updated) }
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed < 0.8 { try? await Task.sleep(for: .seconds(0.8 - elapsed)) }
+            findingCovers.remove(game.id)
+            if found {
+                coverLookupsTried.remove(game.id)
+                reload()
+            }
+        }
+    }
+
+    /// Forgets `game`'s match and the details and box art that came with it
+    /// (a wrong match), until Find Game Details: fix the name, then look
+    /// again.
+    public func forgetDetails(of game: Gamebox) {
+        guard !game.isReadOnly else { return }
+        do {
+            if let cover = game.coverURL { try FileManager.default.removeItem(at: cover) }
+            var updated = game
+            updated.info.clearDetails()
+            updated.info.noDetails = true
+            try updated.save()
+            reload()
+        } catch {
+            lastError = "Couldn't forget \(game.name)'s details: \(error.localizedDescription)"
         }
     }
 

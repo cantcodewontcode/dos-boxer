@@ -47,6 +47,10 @@ public struct GameActions {
     public var isRunning: Bool
     public var isPaused: Bool
     public var hasMoreDiscs: Bool
+    /// The CD drive's discs (names) and which is in the drive.
+    public var discs: [String]
+    public var discIndex: Int
+    public var selectDisc: (Int) -> Void
     public var look: DisplayLook?
     public var launchers: [Gamebox.Launcher]
     public var togglePause: () -> Void

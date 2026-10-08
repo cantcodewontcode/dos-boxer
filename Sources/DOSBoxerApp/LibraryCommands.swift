@@ -126,6 +126,12 @@ struct GameCommands: Commands {
             Button("Next Disc") { game?.nextDisc() }
                 .keyboardShortcut("d", modifiers: [.command, .shift])
                 .disabled(game?.isRunning != true || game?.hasMoreDiscs != true)
+            Picker("Disc", selection: Binding(get: { game?.discIndex ?? 0 }, set: { game?.selectDisc($0) })) {
+                ForEach(Array((game?.discs ?? []).enumerated()), id: \.offset) { index, name in
+                    Text(name).tag(index)
+                }
+            }
+            .disabled(game?.isRunning != true || (game?.discs.count ?? 0) < 2)
             Divider()
             Picker("Display Look", selection: Binding(get: { game?.look }, set: { game?.setLook($0) })) {
                 Text("Default").tag(DisplayLook?.none)

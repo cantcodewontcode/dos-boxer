@@ -531,6 +531,13 @@ struct LibraryView: View {
         }
         if single {
             Divider()
+            if game.info.launchBoxID == nil {
+                Button("Find Game Details") { library.findDetails(for: game) }
+                    .disabled(game.isReadOnly)
+            } else {
+                Button("Forget Game Details") { library.forgetDetails(of: game) }
+                    .disabled(game.isReadOnly)
+            }
             Button("Find Cover Art") { library.findCoverArt(for: game) }
             Button("Remove Cover Art") { library.removeCover(of: game) }
                 .disabled(game.coverURL == nil)
