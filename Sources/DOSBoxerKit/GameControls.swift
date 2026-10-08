@@ -180,8 +180,12 @@ public struct ControlsEditor: View {
 
     @ViewBuilder private func actionMenu(for input: ControllerInput) -> some View {
         if capturing == input {
-            Text("Press a key…")
-                .foregroundStyle(.tint)
+            HStack {
+                Text("Press a key…")
+                    .foregroundStyle(.tint)
+                Button("Cancel") { capturing = nil }
+                    .buttonStyle(.link)
+            }
         } else {
             Menu(controls[player][input]?.title ?? "Joystick") {
                 Button("Joystick") { controls[player][input] = nil }
@@ -200,7 +204,8 @@ public struct ControlsEditor: View {
     }
 }
 
-/// While active, takes the next key pressed (Escape cancels).
+/// While active, takes the next key pressed, Escape included (many games'
+/// menu key); the Cancel link beside it stops waiting.
 private struct KeyCapture: NSViewRepresentable {
     let isActive: Bool
     let captured: (Int32, String) -> Void
@@ -227,9 +232,7 @@ private struct KeyCapture: NSViewRepresentable {
                         let held = event.modifierFlags.intersection([.shift, .control, .option])
                         guard !held.isEmpty, [56, 60, 59, 62, 58, 61].contains(event.keyCode) else { return nil }
                     }
-                    if event.keyCode == 53 {  // Escape cancels
-                        self.captured?(-1, "")
-                    } else if let scancode = KeyboardMapper.scancode(forKeyCode: event.keyCode) {
+                    if let scancode = KeyboardMapper.scancode(forKeyCode: event.keyCode) {
                         self.captured?(scancode, Self.name(of: event))
                     }
                     return nil
@@ -242,7 +245,7 @@ private struct KeyCapture: NSViewRepresentable {
 
         static func name(of event: NSEvent) -> String {
             let named: [UInt16: String] = [
-                56: "Shift", 60: "Right Shift", 59: "Control", 62: "Right Control",
+                53: "Escape", 56: "Shift", 60: "Right Shift", 59: "Control", 62: "Right Control",
                 58: "Option", 61: "Right Option", 49: "Space", 36: "Return", 48: "Tab", 51: "Backspace", 117: "Delete",
                 123: "Left Arrow", 124: "Right Arrow", 125: "Down Arrow", 126: "Up Arrow",
                 115: "Home", 119: "End", 116: "Page Up", 121: "Page Down",
