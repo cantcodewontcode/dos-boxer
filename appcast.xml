@@ -4,6 +4,16 @@
     <title>DOS Boxer</title>
     <!-- newest first -->
     <item>
+      <title>Version 0.2.5</title>
+      <pubDate>Thu, 08 Oct 2026 00:51:23 +0000</pubDate>
+      <sparkle:version>4</sparkle:version>
+      <sparkle:shortVersionString>0.2.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>Clearer sound, the right speed for more games, and games on several CDs.</p>
+<ul><li><b>No more crackling.</b> Sound plays at your Mac's own rate in larger blocks, the way Boxer and eXoDOS run games, so speech and effects come through clean. Games that turn their own speech down (The Legend of Kyrandia and others) are heard properly over MT-32 music.</li><li><b>Smoother play.</b> Games run as time-critical work, so frames arrive on time.</li><li><b>Speeds by machine.</b> The info panel's Speed menu offers machines from the original IBM PC to a Pentium, plus a stepper, and changes take effect while you play. Each game's default follows its release year more closely.</li><li><b>Games on several CDs.</b> A disc button chooses which disc is in the drive, and each menu choice starts with the disc it needs (Command & Conquer). Games that run straight from their CD start properly (The Dig).</li><li><b>Game details you can fix.</b> Forget Game Details clears a wrong match; rename the game, then Find Game Details. More games are recognized, and wrong matches correct themselves.</li><li><b>Fixes.</b> One click captures the mouse. Day of the Tentacle no longer crashes. Sound comes back if macOS stops it at launch.</li></ul>]]></description>
+      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.2.5/DOS-Boxer-0.2.5.zip" type="application/octet-stream" sparkle:edSignature="ss4yx75V0yKxwDcMad6gF0pX6v/mPqZhF9zCK/DMCqEQ1FQo9kEUMbcZKuVhxgi4lUOj3mYqfOGRrsVBrJn8AQ==" length="10944194"/>
+    </item>
+    <item>
       <title>Version 0.2.0</title>
       <pubDate>Tue, 06 Oct 2026 11:50:47 +0000</pubDate>
       <sparkle:version>3</sparkle:version>
