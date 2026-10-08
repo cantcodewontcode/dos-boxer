@@ -21,6 +21,10 @@ enum ShippedGameSettings {
         /// DOS commands to run before the game, e.g. "LOADFIX" for games
         /// that fail with "Packed file corrupt".
         var commands: [String]? = nil
+        /// The game spends a while setting up the MT-32 behind a black
+        /// screen (Sierra's King's Quest VII, Gabriel Knight): say so when it
+        /// starts with MT-32 music.
+        var slowMT32Start: Bool? = nil
     }
 
     private struct File: Decodable { let games: [Entry] }

@@ -99,10 +99,10 @@ index fd840770e..d32658d25 100644
  	while ((*loop)() == 0 && !is_shutdown_requested)
 diff --git a/src/dosboxer/dosboxer_hooks.h b/src/dosboxer/dosboxer_hooks.h
 new file mode 100644
-index 000000000..f1dbd3c67
+index 000000000..dde85c561
 --- /dev/null
 +++ b/src/dosboxer/dosboxer_hooks.h
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,36 @@
 +// DOS Boxer embedding hooks.
 +//
 +// The core provides weak default definitions (stock behaviour), so the plain
@@ -133,6 +133,10 @@ index 000000000..f1dbd3c67
 +// Provided by the mapper: runs a hotkey handler ("cycleup", "cycledown",
 +// "pause", "swapimg", …) by name. Emulator thread only.
 +bool DOSBOXER_TriggerHandler(const char* name);
++
++// DOS has finished (its shell exited): the host may end the session now,
++// before DOSBox tears down its subsystems.
++void DOSBOXER_ShellFinished();
 +
 +#endif
 diff --git a/src/gui/mapper.cpp b/src/gui/mapper.cpp
@@ -247,3 +251,23 @@ index 433d4a223..0cc0e120a 100644
  		default: MAPPER_CheckEvent(&event);
  		}
  	}
+diff --git a/src/main.cpp b/src/main.cpp
+index 752b5d270..a16f7aa81 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -2,6 +2,7 @@
+ // SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ #include "dosbox.h"
++#include "dosboxer/dosboxer_hooks.h"
+ 
+ #include "gui/common.h"
+ 
+@@ -655,6 +656,7 @@ int main(int argc, char* argv[])
+ 
+ 		// Start emulation
+ 		SHELL_InitAndRun();
++		DOSBOXER_ShellFinished();
+ 
+ 		DOSBOX_DestroyModules();
+ 		GFX_Destroy();

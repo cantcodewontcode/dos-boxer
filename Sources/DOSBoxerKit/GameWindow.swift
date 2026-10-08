@@ -153,6 +153,7 @@ public struct GameWindow: View {
             if state == .running {
                 stoppedByUser = false
                 sessionStart = Date()
+                noteSlowMT32Start()
             }
             if case .stopped = state, let gamebox {
                 GameboxPresence.clearInUse(gamebox)
@@ -339,6 +340,18 @@ public struct GameWindow: View {
         } catch {
             phase = .failed("DOS Boxer couldn't open this game. \(error.localizedDescription)")
         }
+    }
+
+    /// Some games sit on a black screen for half a minute setting up their
+    /// MT-32 music: say so, so it doesn't look stuck.
+    private func noteSlowMT32Start() {
+        let program: Gamebox.Launcher? = switch start {
+        case .game: gamebox?.defaultLauncher
+        case .launcher(let launcher): launcher
+        case .prompt: nil
+        }
+        guard gamebox?.startsSlowlyWithMT32(program) == true else { return }
+        show("This game sets up its MT-32 music first. This takes up to 30 seconds.", for: 10)
     }
 
     /// The discs the current session has in its CD drive, by name.

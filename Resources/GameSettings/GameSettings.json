@@ -916,10 +916,8 @@
   {
    "name": "King's Quest VII - The Princeless Bride (1994)",
    "launchBoxID": 6569,
-   "settings": {
-    "sblaster sbtype": "sbpro2"
-   },
-   "checked": "2026-10-08"
+   "checked": "2026-10-08",
+   "slowMT32Start": true
   },
   {
    "name": "Angel Devoid (1996)",
@@ -948,7 +946,7 @@
    "name": "The Need for Speed (1995)",
    "launchBoxID": 17887,
    "settings": {
-    "dosbox machine": "svga_et4000"
+    "dosbox memsize": "64"
    },
    "checked": "2026-10-08"
   },
@@ -1104,7 +1102,6 @@
    "settings": {
     "midi mididevice": "mt32"
    },
-   "speed": "max",
    "checked": "2026-10-08"
   },
   {
@@ -1140,7 +1137,8 @@
     "cpu core": "normal"
    },
    "speed": "6000",
-   "checked": "2026-10-08"
+   "checked": "2026-10-08",
+   "slowMT32Start": true
   },
   {
    "name": "Street Fighter II (1992)",
@@ -1983,7 +1981,11 @@
    "commands": [
     "LOADFIX"
    ],
-   "checked": "2026-10-08"
+   "checked": "2026-10-08",
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "3000"
   },
   {
    "name": "Might and Magic 2 - Gates to Another World (1988)",

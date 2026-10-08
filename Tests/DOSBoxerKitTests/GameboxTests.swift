@@ -325,6 +325,15 @@ struct GameboxTests {
                 == "DOTT w/ MT-32")
         #expect(best(["DOTT w/ Sound Canvas", "DOTT w/ MT-32", "DOTT w/ SoundBlaster"], year: 1993)
                 == "DOTT w/ Sound Canvas")
+        // The fuller version first, then the best sound within it
+        var gk = Gamebox.Info(name: "Gabriel Knight")
+        gk.launchers = ["GK w/ MT32", "GK w/ Sound Canvas", "GK CD w/ Sound Canvas", "GK w/ SoundBlaster",
+                        "GK CD w/ MT32", "GK CD w/ SoundBlaster"].enumerated().map {
+            Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["sierra"])
+        }
+        gk.chooseBestSound(year: 1993, hasMT32: true)
+        #expect(gk.launchers.map(\.title) == ["GK CD w/ MT32", "GK CD w/ Sound Canvas", "GK CD w/ SoundBlaster",
+                                              "GK w/ MT32", "GK w/ Sound Canvas", "GK w/ SoundBlaster"])
     }
 
     /// Battle Chess's menu lists PC Speaker first; AdLib is better.

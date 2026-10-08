@@ -108,6 +108,18 @@ static void run_pending_requests()
 	}
 }
 
+void DOSBOXER_ShellFinished()
+{
+	// The game has ended and DOS with it. The engine process runs one
+	// session and is discarded, so end it here: tearing DOSBox down can
+	// crash in macOS's controller code once a controller has been used,
+	// which would report a clean quit as a failure
+	is_running = false;
+	if (exit_callback) {
+		exit_callback(callback_context, 0);
+	}
+}
+
 bool DOSBOXER_IgnoreSdlQuit()
 {
 	return true;

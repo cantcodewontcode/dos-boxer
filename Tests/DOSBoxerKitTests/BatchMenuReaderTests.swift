@@ -92,6 +92,57 @@ struct BatchMenuReaderTests {
         #expect(options.map(\.disc) == ["CD-1.iso", "CD-2.iso"])
     }
 
+    /// A yes/no question before the menu sets a variable the options test
+    /// (Wing Commander: "Enable cheats?" No sets CHEAT=N, then IF
+    /// %CHEAT%==N wc); options start with that default.
+    @Test func optionsGetTheDefaultAnswerOfAQuestionBeforeTheMenu() {
+        let script = """
+        @echo off
+        :menu1
+        echo Do you want to enable cheats in Wing Commander?
+        choice /C:NY /N (Y)es or (N)o
+        if errorlevel = 2 goto cy
+        if errorlevel = 1 goto cn
+        :cy
+        echo Press 1 to enable Debug Mode
+        echo Press 2 to enable Debug Mode + Invincibility
+        choice /C:12 /N Please Choose:
+        if errorlevel = 2 goto debug1
+        if errorlevel = 1 goto debug
+        :debug
+        SET CHEAT=Y
+        goto menu
+        :debug1
+        SET CHEAT=Y1
+        goto menu
+        :cn
+        SET CHEAT=N
+        goto menu
+        :menu
+        echo Press 1 for Wing Commander w/ SoundBlaster
+        echo Press 2 for Wing Commander w/ MT-32
+        choice /C:12 /N Please Choose:
+        if errorlevel = 2 goto mt32
+        if errorlevel = 1 goto sb
+        :sb
+        cd wing
+        IF %CHEAT%==Y wc Origin
+        IF %CHEAT%==N wc
+        goto quit
+        :mt32
+        cd wing
+        IF %CHEAT%==N wc
+        goto quit
+        :quit
+        exit
+        """
+        let options = BatchMenuReader.options(in: script)
+        let sb = options.first { $0.title == "Wing Commander w/ SoundBlaster" }
+        #expect(sb?.commands.first == "SET CHEAT=N")
+        // The debug options set it themselves
+        #expect(options.first { $0.title == "Enable Debug Mode" }?.commands.first == "SET CHEAT=Y")
+    }
+
     @Test func ignoresScriptsThatArentMenus() {
         #expect(BatchMenuReader.options(in: "@echo off\r\ncd game\r\ngame.exe").isEmpty)
     }

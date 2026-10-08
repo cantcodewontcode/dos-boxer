@@ -34,6 +34,10 @@ public struct GameNotices: View {
                 }
             }
         }
+        // Always over a game screen: keep the dark look, rather than letting
+        // the glass switch between light and dark as the game's picture
+        // changes behind it
+        .environment(\.colorScheme, .dark)
         .animation(.smooth(duration: 0.3), value: notice)
         .animation(.smooth(duration: 0.3), value: isPaused)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)

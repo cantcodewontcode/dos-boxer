@@ -61,7 +61,7 @@ public final class EmulatorMTKView: MTKView {
         releaseMonitor = window == nil ? nil : NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             if let self, event.window === self.window,
                event.modifierFlags.isSuperset(of: [.command, .option]) {
-                self.unlockMouse()
+                self.unlockMouse(playingSound: true)
             }
             return event
         }
@@ -150,7 +150,7 @@ public final class EmulatorMTKView: MTKView {
         if flags.contains(.command) {
             releaseModifiersInDOS()
             if flags.contains(.option) {
-                unlockMouse()
+                unlockMouse(playingSound: true)
             }
             return
         }
@@ -231,13 +231,15 @@ public final class EmulatorMTKView: MTKView {
         Self.lockSound?.play()
     }
 
-    private func unlockMouse() {
+    /// Gives the mouse back. The unlock sound is for ⌘⌥ only: closing the
+    /// game or switching away lets go quietly.
+    private func unlockMouse(playingSound: Bool = false) {
         guard mouseLocked else { return }
         mouseLocked = false
         emulator.isMouseLocked = false
         CGAssociateMouseAndMouseCursorPosition(1)
         NSCursor.unhide()
-        Self.unlockSound?.play()
+        if playingSound { Self.unlockSound?.play() }
     }
 
     /// The lock sounds from System Settings, so it's clear when the game

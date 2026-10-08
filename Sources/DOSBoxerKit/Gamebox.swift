@@ -237,17 +237,18 @@ public struct Gamebox: Sendable, Identifiable {
                     else if has(["tandy", "pcjr"]) { 30 }
                     else if has(["pc speaker", "speaker", "internal"]) { 20 }
                     else { nil }
-                if let sound { return sound }
-                // Versions: the fullest one. CD over floppy, high resolution
-                // over plain (3dfx is slow to emulate); add-ons aren't the
-                // default
+                // Versions: the fullest one first. CD over floppy, high
+                // resolution over plain (3dfx is slow to emulate); add-ons
+                // aren't the default. Then the best sound within it, so
+                // Gabriel Knight lists its CD choices, MT-32 first, before
+                // its floppy ones
                 var edition = 10
                 if has(["cd", "talkie", "enhanced", "deluxe", "special edition", "gold"]) { edition += 5 }
                 if has(["hires", "hi-res", "high res", "svga"]) { edition += 4 }
                 if has(["3dfx", "voodoo", "glide"]) { edition += 2 }
                 if has(["floppy", "demo", "shareware", "lowres", "low res"]) { edition -= 4 }
                 if has(["splat pack", "mission pack", "expansion", "add-on", "addon", "museum", "bonus"]) { edition -= 3 }
-                return edition
+                return edition * 1000 + (sound ?? 0)
             }
             // Best first, the menu's own order among equals
             let ranked = options.enumerated().sorted { a, b in
@@ -265,7 +266,7 @@ public struct Gamebox: Sendable, Identifiable {
         /// Bump to choose again for games already in libraries.
         static let soundChoiceVersion = 5
         /// Bump to read games' menus again (Blood's two-step menu).
-        public static let menuVersion = 4
+        public static let menuVersion = 5
 
         /// The game's genres, including ones saved by older versions.
         public var genreList: [String] {
@@ -651,6 +652,13 @@ public struct Gamebox: Sendable, Identifiable {
         return command
     }
 
+    /// Whether starting `program` means a long black screen while the game
+    /// sets up its MT-32 music (it's known to, and the music is on).
+    public func startsSlowlyWithMT32(_ program: Launcher?) -> Bool {
+        guard let program, ShippedGameSettings.entry(for: self)?.slowMT32Start == true else { return false }
+        return Self.usesMT32(program) && MT32Setup.isReady
+    }
+
     /// Settings shipped for this game. Its MT-32 music only plays with the
     /// MT-32 files installed; without them it stays on the Mac's synthesizer.
     var shippedSettings: [String: String] {
@@ -661,8 +669,14 @@ public struct Gamebox: Sendable, Identifiable {
 
     /// A CD drive's disc images (paths in the gamebox), in the order
     /// they're mounted: the disc a menu option starts with goes in first.
-    static func discs(in drive: Drive, startingWith wanted: String?) -> [String] {
-        var discs = [drive.path] + (drive.moreDiscs ?? [])
+    static func discs(in drive: Drive, startingWith wanted: String?, gamebox: URL) -> [String] {
+        // DOSBox can't read a CloneCD ".ccd" (a description of the disc);
+        // the disc itself is the ".img" beside it
+        var discs = ([drive.path] + (drive.moreDiscs ?? [])).map { path in
+            guard (path as NSString).pathExtension.lowercased() == "ccd" else { return path }
+            let image = (path as NSString).deletingPathExtension + ".img"
+            return FileManager.default.fileExists(atPath: gamebox.appending(path: image).path(percentEncoded: false)) ? image : path
+        }
         if let wanted, let index = discs.firstIndex(where: {
             ($0 as NSString).lastPathComponent.caseInsensitiveCompare(wanted) == .orderedSame
         }) {
@@ -681,7 +695,7 @@ public struct Gamebox: Sendable, Identifiable {
         case .launcher(let launcher): launcher
         case .prompt: nil
         }
-        return Self.discs(in: drive, startingWith: program?.disc)
+        return Self.discs(in: drive, startingWith: program?.disc, gamebox: url)
             .map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension }
     }
 
@@ -702,7 +716,7 @@ public struct Gamebox: Sendable, Identifiable {
                 mounts.append("@MOUNT \(drive.letter) \"\(source)\" >NUL")
                 mounts.append("@MOUNT -t overlay \(drive.letter) \"\(saves.path(percentEncoded: false))\" >NUL")
             case .cdROM:
-                let discList = Self.discs(in: drive, startingWith: program?.disc)
+                let discList = Self.discs(in: drive, startingWith: program?.disc, gamebox: url)
                     .map { "\"\(url.appending(path: $0).path(percentEncoded: false))\"" }
                     .joined(separator: " ")
                 mounts.append("@MOUNT \(drive.letter) \(discList) -t cdrom >NUL")

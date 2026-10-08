@@ -67,18 +67,58 @@ enum BatchMenuReader {
             return (commands + rest.commands, disc ?? rest.disc)
         }
 
+        // Variables a question before the menu sets ("Enable cheats?" No:
+        // SET CHEAT=N), which options then test (IF %CHEAT%==N wc): its
+        // first answer's settings, for options that don't set them
+        let defaults = defaultSettings(in: lines)
+        func withDefaults(_ commands: [String]) -> [String] {
+            let used = Set(commands.flatMap { $0.matches(of: /%([A-Za-z0-9_]+)%/).map { String($0.1).uppercased() } })
+            let set = Set(commands.compactMap { $0.firstMatch(of: /(?i)^set\s+([A-Za-z0-9_]+)=/).map { String($0.1).uppercased() } })
+            return defaults.filter { used.contains($0.name) && !set.contains($0.name) }.map(\.command) + commands
+        }
+
         var options: [Option] = first.choices.compactMap { title, label in
-            let (commands, disc) = run(label, from: first.label)
+            var (commands, disc) = run(label, from: first.label)
+            commands = withDefaults(commands)
             return commands.isEmpty ? nil : Option(title: title, commands: commands, disc: disc)
         }
         // Menus reached from the first one: their options, standalone
         for menu in menus.dropFirst() where menu.label != nil {
             for (title, label) in menu.choices where !options.contains(where: { $0.title == title }) {
-                let (commands, disc) = run(label, from: menu.label)
+                var (commands, disc) = run(label, from: menu.label)
+                commands = withDefaults(commands)
                 if !commands.isEmpty { options.append(Option(title: title, commands: commands, disc: disc)) }
             }
         }
         return options
+    }
+
+    /// SET commands under the first answer of each question that isn't a
+    /// "Press 1 for…" menu (a yes/no "choice"): what the script does by
+    /// default before reaching its menu.
+    private static func defaultSettings(in lines: [String]) -> [(name: String, command: String)] {
+        var results: [(name: String, command: String)] = []
+        var titled = 0
+        for (index, line) in lines.enumerated() {
+            if line.firstMatch(of: /(?i)^@?echo\s+press\s+\S\s+(?:for|to)\s+/) != nil { titled += 1; continue }
+            if line.hasPrefix(":") { titled = 0; continue }
+            guard line.firstMatch(of: /(?i)^@?choice\b/) != nil, titled < 2 else {
+                if line.firstMatch(of: /(?i)^@?choice\b/) != nil { titled = 0 }
+                continue
+            }
+            // The question's first answer: "if errorlevel = 1 goto cn"
+            guard let target = lines[(index + 1)...].prefix(12).compactMap({
+                $0.firstMatch(of: /(?i)^@?if\s+errorlevel\s*=?=?\s*1\s+goto\s+:?(\S+)$/).map { String($0.1).lowercased() }
+            }).first, let start = lines.firstIndex(where: { $0.lowercased() == ":\(target)" }) else { continue }
+            for command in lines[(start + 1)...] {
+                if command.hasPrefix(":") || command.lowercased().hasPrefix("goto") { break }
+                if let match = command.firstMatch(of: /(?i)^@?set\s+([A-Za-z0-9_]+)=.*$/) {
+                    let text = command.hasPrefix("@") ? String(command.dropFirst()) : command
+                    results.append((String(match.1).uppercased(), text))
+                }
+            }
+        }
+        return results
     }
 
     /// Every menu in the script, in order.
