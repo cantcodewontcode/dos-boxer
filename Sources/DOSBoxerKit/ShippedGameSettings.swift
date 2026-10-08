@@ -18,6 +18,9 @@ enum ShippedGameSettings {
         /// cost of a little sound delay, so only where needed); a player's
         /// own changes still win.
         var settings: [String: String]? = nil
+        /// DOS commands to run before the game, e.g. "LOADFIX" for games
+        /// that fail with "Packed file corrupt".
+        var commands: [String]? = nil
     }
 
     private struct File: Decodable { let games: [Entry] }

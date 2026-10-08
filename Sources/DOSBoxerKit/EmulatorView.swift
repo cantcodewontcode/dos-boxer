@@ -228,6 +228,7 @@ public final class EmulatorMTKView: MTKView {
         window?.acceptsMouseMovedEvents = true
         NSCursor.hide()
         CGAssociateMouseAndMouseCursorPosition(0)
+        Self.lockSound?.play()
     }
 
     private func unlockMouse() {
@@ -236,5 +237,16 @@ public final class EmulatorMTKView: MTKView {
         emulator.isMouseLocked = false
         CGAssociateMouseAndMouseCursorPosition(1)
         NSCursor.unhide()
+        Self.unlockSound?.play()
+    }
+
+    /// The lock sounds from System Settings, so it's clear when the game
+    /// has taken the mouse (and when it gives it back).
+    private static let lockSound = systemSound("lockClosing")
+    private static let unlockSound = systemSound("lockOpening")
+
+    private static func systemSound(_ name: String) -> NSSound? {
+        NSSound(contentsOf: URL(filePath: "/System/Library/Frameworks/SecurityInterface.framework/Resources/\(name).aif"),
+                byReference: true)
     }
 }

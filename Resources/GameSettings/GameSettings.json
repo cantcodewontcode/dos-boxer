@@ -403,7 +403,8 @@
   {
    "name": "J.R.R. Tolkien's The Lord of the Rings Vol 1 (1990)",
    "settings": {
-    "sblaster sbmixer": "false"
+    "sblaster sbmixer": "false",
+    "midi mididevice": "mt32"
    },
    "checked": "2026-10-07"
   },
@@ -515,9 +516,11 @@
   {
    "name": "Realms of Arkania - Blade of Destiny (1992)",
    "settings": {
-    "sblaster sbmixer": "false"
+    "sblaster sbmixer": "false",
+    "midi mididevice": "mt32"
    },
-   "checked": "2026-10-07"
+   "checked": "2026-10-07",
+   "launchBoxID": 28679
   },
   {
    "name": "Redneck Rampage (1997)",
@@ -601,14 +604,18 @@
    "settings": {
     "sblaster sbmixer": "false"
    },
-   "checked": "2026-10-07"
+   "checked": "2026-10-07",
+   "speed": "max",
+   "launchBoxID": 13080
   },
   {
    "name": "The Elder Scrolls - Arena (1994)",
    "settings": {
     "sblaster sbmixer": "false"
    },
-   "checked": "2026-10-07"
+   "checked": "2026-10-07",
+   "speed": "max",
+   "launchBoxID": 14147
   },
   {
    "name": "The Elder Scrolls - Daggerfall (1996)",
@@ -650,7 +657,9 @@
    "settings": {
     "sblaster sbmixer": "false"
    },
-   "checked": "2026-10-07"
+   "checked": "2026-10-07",
+   "speed": "max",
+   "launchBoxID": 19708
   },
   {
    "name": "Ultima Underworld 2 - Labyrinth of Worlds (1993)",
@@ -706,6 +715,1605 @@
    "launchBoxID": 5660,
    "speed": "20000",
    "checked": "2026-10-07"
+  },
+  {
+   "name": "Return of the Phantom (1993)",
+   "launchBoxID": 132447,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Magic Carpet (1994)",
+   "launchBoxID": 17118,
+   "settings": {
+    "cpu cputype": "pentium"
+   },
+   "speed": "30000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Premier Manager (1992)",
+   "launchBoxID": 145715,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Premier Manager 2 (1993)",
+   "launchBoxID": 145716,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Dragonsphere (1994)",
+   "launchBoxID": 14127,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "speed": "8000",
+   "commands": [
+    "LOADFIX"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "FIFA International Soccer (1994)",
+   "launchBoxID": 126558,
+   "settings": {
+    "cpu cputype": "pentium"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "MechWarrior (1989)",
+   "launchBoxID": 41325,
+   "settings": {
+    "midi mpu401": "uart"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Elite Plus (1991)",
+   "launchBoxID": 21529,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Falcon 3.0 (1991)",
+   "launchBoxID": 30740,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Secret of Monkey Island (1990)",
+   "launchBoxID": 144,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Cruise for a Corpse (1991)",
+   "launchBoxID": 14693,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Birds of Prey (1992)",
+   "launchBoxID": 125215,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Out of this World (1991)",
+   "launchBoxID": 10703,
+   "settings": {
+    "dos ems": "off"
+   },
+   "speed": "6000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Turrican II - The Final Fight (1995)",
+   "launchBoxID": 141312,
+   "settings": {
+    "cpu core": "normal",
+    "dos ems": "off"
+   },
+   "speed": "3000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander - Privateer (1993)",
+   "launchBoxID": 16684,
+   "settings": {
+    "joystick joysticktype": "2axis"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Privateer 2 The Darkening (Special Edition) (1996)",
+   "settings": {
+    "midi mpu401": "none"
+   },
+   "speed": "16000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Lion King (1994)",
+   "launchBoxID": 14220,
+   "settings": {
+    "joystick joysticktype": "2axis"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "LHX Attack Chopper (1990)",
+   "launchBoxID": 41290,
+   "settings": {
+    "joystick joysticktype": "2axis"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Dawn Patrol (1994)",
+   "launchBoxID": 41014,
+   "settings": {
+    "dosbox machine": "svga_et4000"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "JetFighter The Adventure (1988)",
+   "launchBoxID": 19811,
+   "settings": {
+    "cpu cputype": "386_prefetch"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Command & Conquer - Red Alert (1996)",
+   "launchBoxID": 220,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ultima™  Underworld II (1992)",
+   "launchBoxID": 453375,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Destruction Derby 2 (1996)",
+   "launchBoxID": 27429,
+   "settings": {
+    "cpu cputype": "pentium"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "I Have No Mouth and I Must Scream (1995)",
+   "launchBoxID": 10983,
+   "settings": {
+    "dosbox machine": "svga_et4000"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "King's Quest VII - The Princeless Bride (1994)",
+   "launchBoxID": 6569,
+   "settings": {
+    "sblaster sbtype": "sbpro2"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Angel Devoid (1996)",
+   "settings": {
+    "sblaster sbtype": "sbpro2"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Screamer 2 (1996)",
+   "launchBoxID": 34868,
+   "settings": {
+    "cpu cputype": "pentium"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Screamer (1995)",
+   "launchBoxID": 34867,
+   "settings": {
+    "cpu cputype": "pentium"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Need for Speed (1995)",
+   "launchBoxID": 17887,
+   "settings": {
+    "dosbox machine": "svga_et4000"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ultima VI™ (1985)",
+   "launchBoxID": 453373,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ultima VII Part 1 - The Black Gate + Forge of Virtue (1992)",
+   "settings": {
+    "dos ems": "off",
+    "dos xms": "false"
+   },
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ultima VII Part 2 - Serpent Isle + The Silver Seed (1993)",
+   "settings": {
+    "dos ems": "off",
+    "dos xms": "false"
+   },
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander (1990)",
+   "launchBoxID": 3664,
+   "speed": "4500",
+   "commands": [
+    "LOADFIX -10"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander II - Vengeance of the Kilrathi (1990)",
+   "launchBoxID": 4431,
+   "speed": "4500",
+   "commands": [
+    "LOADFIX -10"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander Academy (1993)",
+   "launchBoxID": 19881,
+   "speed": "4500",
+   "commands": [
+    "LOADFIX -10"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander III Heart of the Tiger (1994)",
+   "launchBoxID": 2457,
+   "settings": {
+    "mixer blocksize": "2048",
+    "mixer prebuffer": "50"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wing Commander IV The Price of Freedom (1996)",
+   "launchBoxID": 2458,
+   "settings": {
+    "mixer blocksize": "2048",
+    "mixer prebuffer": "50"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wings of Glory (1995)",
+   "launchBoxID": 150744,
+   "settings": {
+    "cpu core": "normal",
+    "dos ems": "off"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Aces of the Pacific (1992)",
+   "launchBoxID": 28956,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Aces Over Europe (1993)",
+   "launchBoxID": 32550,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Star Wars TIE Fighter (Collector's CD-ROM) (1995)",
+   "launchBoxID": 91512,
+   "settings": {
+    "joystick joysticktype": "2axis"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Grand Prix Unlimited (1992)",
+   "launchBoxID": 141614,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Test Drive III The Passion (1990)",
+   "launchBoxID": 14756,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Speed Racer in The Challenge of Racer X (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Siege (1992)",
+   "launchBoxID": 41511,
+   "settings": {
+    "sblaster sbtype": "sbpro1",
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Pinball Dreams (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Cannon Fodder (1993)",
+   "launchBoxID": 20222,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wizardry VII - Crusaders of the Dark Savant (1992)",
+   "launchBoxID": 93509,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ultrabots (1993)",
+   "launchBoxID": 30039,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Frontier - Elite 2 (1993)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Gabriel Knight 1 - Sins of the Fathers (1993)",
+   "launchBoxID": 93083,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "speed": "6000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Street Fighter II (1992)",
+   "launchBoxID": 14727,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "PowerMonger (1992)",
+   "launchBoxID": 145710,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Stronghold (1993)",
+   "launchBoxID": 41574,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Starlord (1993)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Moonstone - A Hard Days Knight (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Rules of Engagement (1991)",
+   "launchBoxID": 147449,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Spirit of Excalibur (1990)",
+   "launchBoxID": 41550,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Vengeance of Excalibur (1991)",
+   "launchBoxID": 41675,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Conan - The Cimmerian (1991)",
+   "launchBoxID": 40963,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Crisis in the Kremlin (1992)",
+   "launchBoxID": 40977,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Breach 2 (1990)",
+   "launchBoxID": 125638,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Back to the Future Part III (1991)",
+   "launchBoxID": 125100,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "AV8B Harrier Assault (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Teenage Mutant Ninja Turtles II - The Arcade Game (1991)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Twilight - 2000 (1991)",
+   "launchBoxID": 150305,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "MegaTraveller 2 - Quest for the Ancients (1991)",
+   "launchBoxID": 23611,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "J.R.R. Tolkien's The Lord of the Rings Vol 2 (1991)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Miami Vice (1989)",
+   "launchBoxID": 143887,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Eye of the Beholder III - Assault on Myth Drannor (1993)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Dungeon Hack (1993)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Spelljammer - Pirates of Realmspace (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Veil of Darkness (1993)",
+   "launchBoxID": 98156,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Champions of Krynn (1990)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Dark Queen of Krynn (1992)",
+   "launchBoxID": 19705,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Shadow Sorcerer (1991)",
+   "launchBoxID": 28607,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Buck Rogers - Matrix Cubed (1992)",
+   "launchBoxID": 21364,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Cisco Heat - All American Police Car Race (1991)",
+   "launchBoxID": 40935,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Bumpy's Arcade Fantasy (1992)",
+   "launchBoxID": 10884,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Prehistorik (1991)",
+   "launchBoxID": 30023,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Cadaver - The Payoff (1991)",
+   "launchBoxID": 135004,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Command HQ (1990)",
+   "launchBoxID": 30743,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Dominium (1992)",
+   "launchBoxID": 136498,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Double Dragon III - The Sacred Stones (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Great Naval Battles - North Atlantic 1939-43 (1992)",
+   "launchBoxID": 141634,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Italy 90 Soccer (1989)",
+   "launchBoxID": 465693,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Exterminator (1990)",
+   "launchBoxID": 138398,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Hired Guns (1993)",
+   "launchBoxID": 31024,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Obitus (1991)",
+   "launchBoxID": 144771,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Ninja Gaiden II - The Dark Sword of Chaos (1991)",
+   "launchBoxID": 144682,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Predator 2 (1990)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "PGA Tour Golf (1990)",
+   "launchBoxID": 41419,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Summoning (1992)",
+   "launchBoxID": 41581,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Supaplex (1991)",
+   "launchBoxID": 21370,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Zool (1993)",
+   "launchBoxID": 32507,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wrath of the Demon (1991)",
+   "launchBoxID": 41722,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Shuttle The Space Flight Simulator (1992)",
+   "launchBoxID": 123020,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Bloodwych (1989)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Risky Woods (1992)",
+   "launchBoxID": 135130,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Pushover (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Elf (1992)",
+   "launchBoxID": 137781,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Hook (1992)",
+   "launchBoxID": 41208,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Clive Barker's Nightbreed - The Interactive Movie (1990)",
+   "launchBoxID": 135354,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Clive Barker's Nightbreed - The Action Game (1990)",
+   "launchBoxID": 135353,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "RoboCop 3 (1992)",
+   "launchBoxID": 147303,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Epic (1992)",
+   "launchBoxID": 41111,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Curse of Enchantia (1992)",
+   "launchBoxID": 23416,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Planet's Edge - The Point of No Return (1991)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Alien Breed (1993)",
+   "launchBoxID": 23196,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Laser Squad (1992)",
+   "launchBoxID": 123096,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Sabre Team (1994)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "It Came from the Desert (1990)",
+   "launchBoxID": 19952,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Centurion - Defender of Rome (1990)",
+   "launchBoxID": 40927,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Amazon - Guardians of Eden (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Martian Memorandum (1991)",
+   "launchBoxID": 14237,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Rampart (1992)",
+   "launchBoxID": 16297,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Serf City - Life is Feudal (1994)",
+   "launchBoxID": 11503,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Battle Chess II - Chinese Chess (1990)",
+   "launchBoxID": 25270,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "A-Train (1992)",
+   "launchBoxID": 40776,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "SimLife (1992)",
+   "launchBoxID": 147815,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "SimAnt - The Electronic Ant Colony (1991)",
+   "launchBoxID": 41515,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Castles (1991)",
+   "launchBoxID": 19928,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Bad Blood (1990)",
+   "launchBoxID": 19274,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Chaos Engine (1994)",
+   "launchBoxID": 114137,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Simon the Sorcerer (1993)",
+   "launchBoxID": 12538,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Dune (1992)",
+   "launchBoxID": 14133,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Gunboat (1990)",
+   "launchBoxID": 141677,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Les Manley in - Lost in LA (1991)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Mike Ditka Ultimate Football (1991)",
+   "launchBoxID": 131624,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Games - Summer Challenge (1992)",
+   "launchBoxID": 14762,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Games - Winter Challenge (1991)",
+   "launchBoxID": 14763,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "HardBall III (1992)",
+   "launchBoxID": 41184,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Jack Nicklaus' Unlimited Golf and Course Design (1990)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Jack Nicklaus Golf and Course Design - Signature Edition (1992)",
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Snoopy's Game Club (1992)",
+   "launchBoxID": 147879,
+   "settings": {
+    "midi mididevice": "mt32"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Mortal Kombat Trilogy (1997)",
+   "launchBoxID": 127846,
+   "settings": {
+    "joystick joysticktype": "disabled"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "F-19 Stealth Fighter (1988)",
+   "speed": "4000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Knights of the Sky (1990)",
+   "speed": "4000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "F-117A Nighthawk Stealth Fighter 2.0 (1991)",
+   "launchBoxID": 24203,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Gunship 2000 (1991)",
+   "launchBoxID": 32317,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "B-17 Flying Fortress (1992)",
+   "launchBoxID": 29985,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Harrier Jump Jet (1992)",
+   "launchBoxID": 41185,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "ATAC - The Secret War Against Drugs (1992)",
+   "launchBoxID": 133087,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Air Duel - 80 Years of Dogfighting (1993)",
+   "launchBoxID": 41030,
+   "speed": "12000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Lemmings (1991)",
+   "launchBoxID": 18102,
+   "settings": {
+    "dosbox machine": "svga_paradise"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Oh No! More Lemmings (1992)",
+   "settings": {
+    "dosbox machine": "svga_paradise"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Xmas Lemmings (1991)",
+   "launchBoxID": 41287,
+   "settings": {
+    "dosbox machine": "svga_paradise"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Holiday Lemmings (1993)",
+   "launchBoxID": 41201,
+   "settings": {
+    "dosbox machine": "svga_paradise"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "King's Quest II - Romancing the Throne (1987)",
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "King's Quest III - To Heir is Human (1986)",
+   "launchBoxID": 2501,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Space Quest 1 - Roger Wilco in the Sarien Encounter (1991)",
+   "launchBoxID": 41546,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Space Quest II - Vohauls Revenge (1987)",
+   "launchBoxID": 8760,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Police Quest 1 - In Pursuit of the Death Angel (1987)",
+   "launchBoxID": 14324,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Gold Rush! (1988)",
+   "launchBoxID": 14155,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Manhunter - New York (1988)",
+   "launchBoxID": 14884,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Manhunter 2 - San Francisco (1989)",
+   "launchBoxID": 14885,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Leisure Suit Larry 1 - In The Land of the Lounge Lizards (1987)",
+   "launchBoxID": 429137,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Black Cauldron (1986)",
+   "launchBoxID": 10825,
+   "settings": {
+    "dosbox machine": "tandy"
+   },
+   "speed": "1000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Blood Money (1990)",
+   "launchBoxID": 90894,
+   "commands": [
+    "LOADFIX"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "California Games (1988)",
+   "launchBoxID": 13955,
+   "commands": [
+    "LOADFIX"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Might and Magic 2 - Gates to Another World (1988)",
+   "commands": [
+    "LOADFIX"
+   ],
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wrath of Earth (1995)",
+   "launchBoxID": 123454,
+   "settings": {
+    "dos ems": "off"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Barney Bear Goes to Space (1993)",
+   "launchBoxID": 25240,
+   "settings": {
+    "dos ems": "off"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Attack On Altair (1983)",
+   "launchBoxID": 133093,
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "350",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Castle Adventure (1984)",
+   "launchBoxID": 40916,
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "350",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Below the Root (1984)",
+   "launchBoxID": 134526,
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "350",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Striker (1985)",
+   "launchBoxID": 149160,
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "350",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Rogue (1983)",
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "1500",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Deja Vu 1 - A Nightmare Comes True (1985)",
+   "settings": {
+    "dosbox machine": "cga"
+   },
+   "speed": "1500",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Incredible Machine (1993)",
+   "launchBoxID": 10706,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Even More Incredible Machine (1993)",
+   "launchBoxID": 41612,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "One Must Fall (1993)",
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Theme Park (1994)",
+   "launchBoxID": 10702,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Alien Carnage (1993)",
+   "launchBoxID": 19261,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "F-14 Tomcat (1990)",
+   "launchBoxID": 41117,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Commander Keen 4 - Secret of the Oracle (1991)",
+   "launchBoxID": 40956,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Commander Keen 5 - The Armageddon Machine (1991)",
+   "launchBoxID": 10906,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Commander Keen 6 - Aliens Ate My Baby Sitter! (1991)",
+   "launchBoxID": 40961,
+   "speed": "8000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "X-COM - UFO Defense (1994)",
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "X-COM - Terror from the Deep (1995)",
+   "launchBoxID": 14146,
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Warcraft II - Tides of Darkness (1995)",
+   "launchBoxID": 801,
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Space Quest VI - Roger Wilco in the Spinal Frontier (1995)",
+   "launchBoxID": 41547,
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Lemmings 3D (1995)",
+   "launchBoxID": 98401,
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Riddle of Master Lu (1995)",
+   "speed": "20000",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Alone in the Dark (1992)",
+   "launchBoxID": 2402,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Alone in the Dark 2 (1993)",
+   "launchBoxID": 10992,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Alone in the Dark 3 (1994)",
+   "launchBoxID": 2404,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Lost Files of Sherlock Holmes - The Case of the Rose Tattoo (1996)",
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Royal Flush (1994)",
+   "launchBoxID": 147391,
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "JetFighter II Operation Lighting Storm (1992)",
+   "settings": {
+    "cpu core": "normal"
+   },
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Car and Driver (1992)",
+   "launchBoxID": 135036,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Blackthorne (1994)",
+   "launchBoxID": 14023,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Star Wars - X-Wing (1993)",
+   "launchBoxID": 7966,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Terminator 2029 (1992)",
+   "launchBoxID": 25371,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Terminator 2029 - Operation Scour (1993)",
+   "launchBoxID": 25372,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Terminator - Rampage (1993)",
+   "launchBoxID": 25368,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Epic Pinball - The Complete Collection (1995)",
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Pinball Fantasies (1992)",
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Sid Meier's Colonization - Create a New Nation (1994)",
+   "launchBoxID": 19710,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Blake Stone - Aliens of Gold (1993)",
+   "launchBoxID": 2273,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Blake Stone - Planet Strike (1994)",
+   "launchBoxID": 2274,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Links The Challenge of Golf (1990)",
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Warlords II (1993)",
+   "launchBoxID": 23106,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Master of Magic (1994)",
+   "launchBoxID": 17821,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "SimCity 2000 (1993)",
+   "launchBoxID": 771,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Master of Orion (1993)",
+   "launchBoxID": 23124,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Grand Prix (1989)",
+   "launchBoxID": 203244,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Tornado (1993)",
+   "launchBoxID": 41644,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Stunt Island (1992)",
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "Wolfenstein 3D (1992)",
+   "launchBoxID": 4228,
+   "speed": "max",
+   "checked": "2026-10-08"
+  },
+  {
+   "name": "The Geekwad - Games of the Galaxy (1993)",
+   "launchBoxID": 141525,
+   "speed": "max",
+   "checked": "2026-10-08"
   }
  ]
 }

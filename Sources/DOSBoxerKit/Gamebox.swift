@@ -651,6 +651,14 @@ public struct Gamebox: Sendable, Identifiable {
         return command
     }
 
+    /// Settings shipped for this game. Its MT-32 music only plays with the
+    /// MT-32 files installed; without them it stays on the Mac's synthesizer.
+    var shippedSettings: [String: String] {
+        var settings = ShippedGameSettings.entry(for: self)?.settings ?? [:]
+        if settings["midi mididevice"] == "mt32", !MT32Setup.isReady { settings["midi mididevice"] = nil }
+        return settings
+    }
+
     /// A CD drive's disc images (paths in the gamebox), in the order
     /// they're mounted: the disc a menu option starts with goes in first.
     static func discs(in drive: Drive, startingWith wanted: String?) -> [String] {
@@ -708,7 +716,7 @@ public struct Gamebox: Sendable, Identifiable {
         var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
             .merging(talkieSettings()) { $1 }
             .merging(programSound) { $1 }
-            .merging(ShippedGameSettings.entry(for: self)?.settings ?? [:]) { $1 }
+            .merging(shippedSettings) { $1 }
             .merging(ShippedGameSettings.entry(for: self)?.speed.map { ["cpu cpu_cycles": $0] } ?? [:]) { $1 }
             .merging(info.settings) { $1 }
             .sorted { $0.key < $1.key }.flatMap { ["--set", "\($0.key)=\($0.value)"] }
@@ -716,6 +724,8 @@ public struct Gamebox: Sendable, Identifiable {
             settings += ["--set", "sdl mapperfile=\(mapping.path(percentEncoded: false))"]
         }
         let exitsAfterwards = program != nil && info.closesWhenGameEnds
+        // Commands a game needs first (LOADFIX), after its drives are ready
+        mounts += (ShippedGameSettings.entry(for: self)?.commands ?? []).map { "@\($0) >NUL" }
         if program == nil, let drive = info.drives.first {
             mounts.append("@\(drive.letter):")
         }
