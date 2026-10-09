@@ -4,6 +4,16 @@
     <title>DOS Boxer</title>
     <!-- newest first -->
     <item>
+      <title>Version 0.2.6</title>
+      <pubDate>Fri, 09 Oct 2026 00:27:43 +0000</pubDate>
+      <sparkle:version>5</sparkle:version>
+      <sparkle:shortVersionString>0.2.6</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+      <description><![CDATA[<p>GOG games, games that boot from their own disks, and fixes for hundreds more.</p>
+<ul><li><b>GOG games.</b> Drop GOG's Mac installers (`.pkg`) straight in. Games copied from a PC leave their bundled DOSBox behind.</li><li><b>Games that boot from their own disks</b> start, including ones on several disks (King's Quest II, Summer Games II).</li><li><b>Fixes for over 200 games:</b> memory, graphics card and machine types, joysticks, sound cards and speeds (Ultima VII, Wing Commander, Lemmings, King's Quest VII, The Need for Speed and more).</li><li><b>Better choices.</b> Menus list the fullest version first (CD before floppy), and CloneCD discs play (Cannon Fodder).</li><li><b>Duplicates.</b> Adding a game you already have asks what to do, even if its name has changed.</li><li><b>Library touches.</b> Recently Added in the sidebar, and Game › Pause When in Background.</li><li><b>Feel.</b> Controllers are ready as soon as a game starts, and mouse capture plays the lock sound.</li></ul>]]></description>
+      <enclosure url="https://github.com/cantcodewontcode/dos-boxer/releases/download/v0.2.6/DOS-Boxer-0.2.6.zip" type="application/octet-stream" sparkle:edSignature="aFB1qGVGyunHm31XEARdL2vmw3RUzF79vtOPvZVXAwty8oT6cNxopo6bCGYX2e5nju0440J2BMeT2uABQy/rCQ==" length="11002108"/>
+    </item>
+    <item>
       <title>Version 0.2.5</title>
       <pubDate>Thu, 08 Oct 2026 00:51:23 +0000</pubDate>
       <sparkle:version>4</sparkle:version>
