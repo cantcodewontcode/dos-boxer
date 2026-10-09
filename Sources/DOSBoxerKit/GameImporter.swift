@@ -91,6 +91,10 @@ enum GameImporter {
         if info.launchers.isEmpty, let cd = discs.first {
             info.launchers = LauncherFinder.launchersOnCD(cd, inDrive: "D", gameName: name)
         }
+        // Nothing to run in DOS: a disk the game boots from
+        if info.launchers.isEmpty {
+            info.launchers = LauncherFinder.bootLaunchers(in: menuFolder ?? driveC)
+        }
         info.launchers = LauncherFinder.expandingMenus(info.launchers, root: menuFolder ?? driveC)
         info.menuVersion = Gamebox.Info.menuVersion
         info.chooseBestSound(year: Gamebox.year(fromName: name), hasMT32: MT32Setup.isReady)
@@ -438,6 +442,49 @@ enum LauncherFinder {
     /// programs on the CD in drive D, the game's first. A program at the top
     /// of the disc that's also in a folder is usually its installer, so the
     /// folder's copy ranks first.
+    /// Games that start the PC from their own floppy disk, with no DOS
+    /// program to run (King's Quest II, many early-80s games). Old booter
+    /// disks don't reliably carry a boot signature, so any floppy-sized
+    /// image counts. Disks named alike (KQ2V11H1, KQ2V11H2) are one game's
+    /// set: one launcher booting the first, the rest after it for Next
+    /// Disc. Otherwise each image is a version of its own (F-15 Strike
+    /// Eagle's ega.img and cga.img), the best graphics first.
+    static func bootLaunchers(in driveC: URL) -> [Gamebox.Launcher] {
+        let fileManager = FileManager.default
+        let floppyTypes = ["img", "ima", "dsk", "360", "720", "144", "vfd", "flp"]
+        let images = (fileManager.enumerator(at: driveC, includingPropertiesForKeys: [.fileSizeKey])?.allObjects as? [URL] ?? [])
+            .filter { url in
+                guard floppyTypes.contains(url.pathExtension.lowercased()),
+                      let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return false }
+                // Floppy-sized: 160 KB to 2.88 MB
+                return size % 512 == 0 && (163_840...2_949_120).contains(size)
+            }
+            .sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+        guard !images.isEmpty else { return [] }
+        let dosPath = { (url: URL) in "C:\\" + relativeComponents(of: url, under: driveC).joined(separator: "\\") }
+        func boot(_ disks: [URL], title: String, isDefault: Bool) -> Gamebox.Launcher {
+            let paths = disks.map { "\"\(dosPath($0))\"" }.joined(separator: " ")
+            return Gamebox.Launcher(title: title, dosPath: dosPath(disks[0]), isDefault: isDefault,
+                                    commands: ["BOOT \(paths) -l a"])
+        }
+        // A set: names alike apart from a trailing number or letter
+        let stem = { (url: URL) in
+            url.deletingPathExtension().lastPathComponent.lowercased().replacing(/[0-9a-z]$/, with: "")
+        }
+        let isSet = images.count > 1 && Set(images.map(stem)).count == 1 && stem(images[0]).count >= 3
+        if images.count == 1 || isSet {
+            return [boot(images, title: "Boot from Disk", isDefault: true)]
+        }
+        let rank = { (url: URL) -> Int in
+            let name = url.deletingPathExtension().lastPathComponent.lowercased()
+            return name.contains("vga") ? 3 : name.contains("ega") ? 2 : name.contains("tandy") || name.contains("pcjr") ? 1 : 0
+        }
+        return images.sorted { rank($0) > rank($1) }.enumerated().map { index, image in
+            boot([image], title: "Boot \(image.deletingPathExtension().lastPathComponent.uppercased()) Disk",
+                 isDefault: index == 0)
+        }
+    }
+
     static func launchersOnCD(_ image: URL, inDrive letter: String, gameName: String) -> [Gamebox.Launcher] {
         guard let files = CDImage.files(in: image) else { return [] }
         let programs = files.filter { runnable.contains(($0 as NSString).pathExtension.lowercased()) }

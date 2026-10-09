@@ -88,8 +88,14 @@ public struct GameWindow: View {
                 }
                 .help("Display look")
                 if discs.count > 1 {
-                    Menu("Disc", systemImage: "opticaldisc") {
+                    Menu {
                         discPicker
+                    } label: {
+                        if gamebox?.bootsFromFloppies(start) == true {
+                            Label { Text("Disk") } icon: { Image(nsImage: Self.floppyIcon) }
+                        } else {
+                            Label("Disc", systemImage: "opticaldisc")
+                        }
                     }
                     .help("Choose the disc in the CD drive")
                     .disabled(!emulator.isRunning)
@@ -229,7 +235,7 @@ public struct GameWindow: View {
         GameActions(
             isRunning: emulator.isRunning,
             isPaused: emulator.isPaused,
-            hasMoreDiscs: gamebox?.info.drives.contains { !($0.moreDiscs ?? []).isEmpty } ?? false,
+            hasMoreDiscs: discs.count > 1,
             discs: discs,
             discIndex: discIndex,
             selectDisc: selectDisc,
@@ -353,6 +359,16 @@ public struct GameWindow: View {
         guard gamebox?.startsSlowlyWithMT32(program) == true else { return }
         show("This game sets up its MT-32 music first. This takes up to 30 seconds.", for: 10)
     }
+
+    /// Phosphor's floppy (MIT; see Licenses/) in its bold weight, which
+    /// matches SF Symbols at toolbar size. Sized here: toolbars draw images
+    /// at their own size, ignoring SwiftUI frames.
+    private static let floppyIcon: NSImage = {
+        let image = (Bundle(for: Emulator.self).image(forResource: "FloppyDiskToolbar")?.copy() as? NSImage) ?? NSImage()
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
+    }()
 
     /// The discs the current session has in its CD drive, by name.
     private var discs: [String] { gamebox?.discNames(for: start) ?? [] }

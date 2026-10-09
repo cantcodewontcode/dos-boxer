@@ -27,7 +27,7 @@ It's designed as a successor to [Boxer](https://github.com/alinebee/Boxer), the 
 
 ## Features
 
-- **Drag and drop to import.** Folders, ZIPs and CD images. DOS Boxer works out which program starts the game, including the "Press 1 for Sound Blaster" menus many collections use.
+- **Drag and drop to import.** Folders, ZIPs, CD images and GOG's Mac installers. DOS Boxer works out which program starts the game, including the "Press 1 for Sound Blaster" menus many collections use.
 - **A proper library.** Box art, release year, developer, publisher, genres, ratings and descriptions. Sort and filter by any of them, make your own collections, and mark favorites.
 - **It just plays.** Each game gets sensible settings for its era. The game window gets out of your way: pause, screenshots, full screen, and a choice of display looks.
 - **Controllers.** Xbox, PlayStation and other controllers work out of the box, for up to two players. Remap buttons per game, including the ability to map joysticks to keypresses for games that don't natively support joysticks..
@@ -52,7 +52,7 @@ It's designed as a successor to [Boxer](https://github.com/alinebee/Boxer), the 
 
 ### Where do I get games?
 
-DOS Boxer doesn't come with any. Plenty of DOS games are still sold, DRM-free, on [GOG](https://www.gog.com), and lots of shareware and freeware is free to download. Bring your own disks, folders, ZIPs and CD images and DOS Boxer will take it from there.
+DOS Boxer doesn't come with any. Plenty of DOS games are still sold, DRM-free, on [GOG](https://www.gog.com): drop the Mac installer (`.pkg`) straight in. (A few of GOG's Mac versions are made for ScummVM and don't include the DOS game.) Lots of shareware and freeware is free to download too. Bring your own disks, folders, ZIPs and CD images and DOS Boxer will take it from there.
 
 ## Building from source
 

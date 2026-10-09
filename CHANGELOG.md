@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.6]
+
+GOG games, games that boot from their own disks, and fixes for hundreds more.
+
+- **GOG games.** Drop GOG's Mac installers (`.pkg`) straight in. Games copied from a PC leave their bundled DOSBox behind.
+- **Games that boot from their own disks** start, including ones on several disks (King's Quest II, Summer Games II).
+- **Fixes for over 200 games:** memory, graphics card and machine types, joysticks, sound cards and speeds (Ultima VII, Wing Commander, Lemmings, King's Quest VII, The Need for Speed and more).
+- **Better choices.** Menus list the fullest version first (CD before floppy), and CloneCD discs play (Cannon Fodder).
+- **Duplicates.** Adding a game you already have asks what to do, even if its name has changed.
+- **Library touches.** Recently Added in the sidebar, and Game › Pause When in Background.
+- **Feel.** Controllers are ready as soon as a game starts, and mouse capture plays the lock sound.
+
 ## [0.2.5]
 
 Clearer sound, the right speed for more games, and games on several CDs.

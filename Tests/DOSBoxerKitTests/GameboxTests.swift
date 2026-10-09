@@ -146,6 +146,26 @@ struct GameboxTests {
         #expect(FileManager.default.fileExists(atPath: driveC.appending(path: "DUKE3D.EXE").path(percentEncoded: false)))
     }
 
+    /// Games that boot from their own floppies: a numbered set is one
+    /// launcher (disk 1 first), alternative versions are one launcher each.
+    @Test func gamesThatBootFromFloppiesGetBootLaunchers() throws {
+        func folder(_ name: String, _ files: [String]) throws -> URL {
+            let root = scratch.appending(path: name, directoryHint: .isDirectory)
+            for file in files {
+                let url = root.appending(path: file)
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try Data(count: 368_640).write(to: url)
+            }
+            return root
+        }
+        let kq2 = LauncherFinder.bootLaunchers(in: try folder("kq2", ["KQ2V11H2.IMG", "KQ2V11H1.IMG"]))
+        #expect(kq2.map(\.commands) == [[#"BOOT "C:\KQ2V11H1.IMG" "C:\KQ2V11H2.IMG" -l a"#]])
+        let f15 = LauncherFinder.bootLaunchers(in: try folder("f15", ["floppy/cga.img", "floppy/ega.img"]))
+        #expect(f15.map(\.title) == ["Boot EGA Disk", "Boot CGA Disk"])
+        #expect(f15.first?.isDefault == true)
+        #expect(LauncherFinder.bootLaunchers(in: try folder("none", ["README.TXT"])).isEmpty)
+    }
+
     /// A GOG Mac installer adds the game folder inside it, named as GOG
     /// names it; a ScummVM-only one (no DOS program) is refused.
     @Test func addsGamesFromGOGInstallers() throws {
@@ -304,6 +324,27 @@ struct GameboxTests {
         late.launchers = late.launchers.map { var l = $0; l.isDefault = l.title == "GAME.EXE"; return l }
         late.chooseBestSound(year: 1994, hasMT32: true)
         #expect(late.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
+    }
+
+    /// Games chosen under an older order are re-sorted (CD first), and the
+    /// default moves only if it was still the old automatic pick.
+    @Test func olderChoicesAreResortedKeepingThePlayersPick() {
+        func info(defaultTitle: String) -> Gamebox.Info {
+            var info = Gamebox.Info(name: "Out of This World (1991)")
+            info.launchers = ["World Floppy w/ MT-32", "World CD w/ MT-32", "World Floppy w/ SoundBlaster",
+                              "World CD w/ SoundBlaster"].map {
+                Gamebox.Launcher(title: $0, dosPath: "C:\\run.bat", isDefault: $0 == defaultTitle, commands: ["world"])
+            }
+            info.soundChoiceVersion = 5
+            return info
+        }
+        var automatic = info(defaultTitle: "World Floppy w/ MT-32")
+        automatic.chooseBestSound(year: 1991, hasMT32: true)
+        #expect(automatic.launchers.map(\.title).prefix(2) == ["World CD w/ MT-32", "World CD w/ SoundBlaster"])
+        #expect(automatic.launchers.first(where: \.isDefault)?.title == "World CD w/ MT-32")
+        var picked = info(defaultTitle: "World Floppy w/ SoundBlaster")
+        picked.chooseBestSound(year: 1991, hasMT32: true)
+        #expect(picked.launchers.first(where: \.isDefault)?.title == "World Floppy w/ SoundBlaster")
     }
 
     @Test func versionsAndSoundCardsAreRanked() {

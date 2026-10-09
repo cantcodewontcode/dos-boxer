@@ -770,10 +770,8 @@
   {
    "name": "MechWarrior (1989)",
    "launchBoxID": 41325,
-   "settings": {
-    "midi mpu401": "uart"
-   },
-   "checked": "2026-10-08"
+   "checked": "2026-10-08",
+   "speed": "3000"
   },
   {
    "name": "Elite Plus (1991)",
@@ -938,9 +936,12 @@
    "name": "Screamer (1995)",
    "launchBoxID": 34867,
    "settings": {
-    "cpu cputype": "pentium"
+    "cpu cputype": "pentium",
+    "cpu cpu_cycles_protected": "300000",
+    "cpu cpu_throttle": "true"
    },
-   "checked": "2026-10-08"
+   "checked": "2026-10-08",
+   "speed": "60000"
   },
   {
    "name": "The Need for Speed (1995)",

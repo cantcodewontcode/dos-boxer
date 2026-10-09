@@ -208,6 +208,11 @@ public struct Gamebox: Sendable, Identifiable {
         @discardableResult
         public mutating func chooseBestSound(year: Int?, hasMT32: Bool) -> Bool {
             guard (soundChoiceVersion ?? 0) < Self.soundChoiceVersion else { return false }
+            // Chosen before under an older order: re-sort, but a default the
+            // player picked (not the old first choice) stays theirs
+            let firstChoice = launchers.first { $0.commands != nil }
+            let playersPick = soundChoiceVersion != nil
+                ? launchers.first(where: { $0.isDefault && $0.id != firstChoice?.id }) : nil
             soundChoiceVersion = Self.soundChoiceVersion
             soundChosen = true
             let options = launchers.filter { $0.commands != nil }
@@ -256,15 +261,16 @@ public struct Gamebox: Sendable, Identifiable {
             }.map(\.element)
             let others = launchers.filter { $0.commands == nil }
             guard let best = ranked.first(where: { rank($0) >= 0 }) ?? ranked.first else { return true }
+            let chosen = playersPick ?? best
             launchers = (ranked + others).map { launcher in
                 var launcher = launcher
-                launcher.isDefault = launcher.id == best.id
+                launcher.isDefault = launcher.id == chosen.id
                 return launcher
             }
             return true
         }
         /// Bump to choose again for games already in libraries.
-        static let soundChoiceVersion = 5
+        static let soundChoiceVersion = 6
         /// Bump to read games' menus again (Blood's two-step menu).
         public static let menuVersion = 5
 
@@ -687,14 +693,31 @@ public struct Gamebox: Sendable, Identifiable {
 
     /// The names of the discs a session starts with in the CD drive, in
     /// order, when there's more than one ("Command & Conquer CD-2").
-    public func discNames(for start: Start) -> [String] {
-        guard let drive = info.drives.first(where: { $0.kind == .cdROM && !($0.moreDiscs ?? []).isEmpty })
-        else { return [] }
+    /// Whether the session's disks are floppies it booted from (not CDs).
+    public func bootsFromFloppies(_ start: Start) -> Bool {
         let program: Launcher? = switch start {
         case .game: defaultLauncher
         case .launcher(let launcher): launcher
         case .prompt: nil
         }
+        return program?.commands?.contains { $0.uppercased().hasPrefix("BOOT ") } == true
+    }
+
+    public func discNames(for start: Start) -> [String] {
+        let program: Launcher? = switch start {
+        case .game: defaultLauncher
+        case .launcher(let launcher): launcher
+        case .prompt: nil
+        }
+        // A game booted from several floppies: its disks, in boot order
+        if let boot = program?.commands?.first(where: { $0.uppercased().hasPrefix("BOOT ") }) {
+            let disks = boot.matches(of: /"([^"]+)"/).map { String($0.1) }
+            if disks.count > 1 {
+                return disks.map { (($0.split(separator: "\\").last.map(String.init) ?? $0) as NSString).deletingPathExtension }
+            }
+        }
+        guard let drive = info.drives.first(where: { $0.kind == .cdROM && !($0.moreDiscs ?? []).isEmpty })
+        else { return [] }
         return Self.discs(in: drive, startingWith: program?.disc, gamebox: url)
             .map { (($0 as NSString).lastPathComponent as NSString).deletingPathExtension }
     }

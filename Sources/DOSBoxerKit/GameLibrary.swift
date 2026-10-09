@@ -589,10 +589,16 @@ public final class GameLibrary {
     /// looked on CDs): their programs on the CD (saved).
     private static func withProgramsOnCD(_ games: [Gamebox]) -> [Gamebox] {
         games.map { game in
-            guard !game.isReadOnly, game.info.launchers.isEmpty,
-                  let cd = game.info.drives.first(where: { $0.kind == .cdROM }) else { return game }
-            let launchers = LauncherFinder.launchersOnCD(game.url.appending(path: cd.path), inDrive: cd.letter,
+            guard !game.isReadOnly, game.info.launchers.isEmpty else { return game }
+            // Programs on the CD, else a disk the game boots from
+            var launchers: [Gamebox.Launcher] = []
+            if let cd = game.info.drives.first(where: { $0.kind == .cdROM }) {
+                launchers = LauncherFinder.launchersOnCD(game.url.appending(path: cd.path), inDrive: cd.letter,
                                                          gameName: game.name)
+            }
+            if launchers.isEmpty, let c = game.info.drives.first(where: { $0.letter == "C" }) {
+                launchers = LauncherFinder.bootLaunchers(in: game.url.appending(path: c.path))
+            }
             guard !launchers.isEmpty else { return game }
             var updated = game
             updated.info.launchers = launchers
