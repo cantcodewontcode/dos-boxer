@@ -587,6 +587,13 @@ public struct Gamebox: Sendable, Identifiable {
         return Self.talkieSoundSettings
     }
 
+    /// eXoDOS's PCjr editions ("KQ2pcjr") boot as a real IBM PCjr, for
+    /// its 16 colors and three-voice sound, at the PCjr's own speed.
+    func pcjrSettings() -> [String: String] {
+        guard info.shortName?.lowercased().hasSuffix("pcjr") == true else { return [:] }
+        return ["dosbox machine": "pcjr", "cpu cpu_cycles": Self.originalPCSpeed]
+    }
+
     static let talkieSoundSettings = ["mixer blocksize": "2048", "mixer prebuffer": "50"]
 
     /// Whether this program is a Gravis Ultrasound choice.
@@ -754,6 +761,7 @@ public struct Gamebox: Sendable, Identifiable {
         var settings = Self.eraSettings(year: year).merging(soundCardSettings()) { $1 }
             .merging(talkieSettings()) { $1 }
             .merging(programSound) { $1 }
+            .merging(pcjrSettings()) { $1 }
             .merging(shippedSettings) { $1 }
             .merging(ShippedGameSettings.entry(for: self)?.speed.map { ["cpu cpu_cycles": $0] } ?? [:]) { $1 }
             .merging(info.settings) { $1 }

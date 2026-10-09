@@ -851,10 +851,12 @@
   {
    "name": "The Lion King (1994)",
    "launchBoxID": 14220,
+   "speed": "15000",
    "settings": {
-    "joystick joysticktype": "2axis"
+    "joystick joysticktype": "2axis",
+    "dosbox dos_rate": "60"
    },
-   "checked": "2026-10-08"
+   "checked": "2026-10-09"
   },
   {
    "name": "LHX Attack Chopper (1990)",
