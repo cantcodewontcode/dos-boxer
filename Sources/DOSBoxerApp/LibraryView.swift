@@ -571,22 +571,25 @@ struct LibraryView: View {
     private func importDropped(_ urls: [URL]) {
         // Sorting ROMs from games reads the files: do it off the main thread
         Task {
-            let (games, roms) = await Task.detached(priority: .userInitiated) {
+            let (games, roms, fonts) = await Task.detached(priority: .userInitiated) {
                 var games: [URL] = []
                 var roms: [URL] = []
+                var fonts: [URL] = []
                 for url in urls {
-                    if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
+                    if SoundFontSetup.isSoundFont(url) { fonts.append(url) }
+                    else if let found = MT32Setup.roms(in: url) { roms += found } else { games.append(url) }
                 }
-                return (games, roms)
+                return (games, roms, fonts)
             }.value
-            addDropped(games: games, roms: roms)
+            addDropped(games: games, roms: roms, fonts: fonts)
         }
     }
 
-    private func addDropped(games: [URL], roms: [URL]) {
-        if !roms.isEmpty {
+    private func addDropped(games: [URL], roms: [URL], fonts: [URL]) {
+        if !roms.isEmpty || !fonts.isEmpty {
             // Shown even if they were all installed already
             _ = try? MT32Setup.install(from: roms)
+            _ = try? SoundFontSetup.install(from: fonts)
             UserDefaults.standard.set(SettingsTab.music.rawValue, forKey: SettingsTab.defaultsKey)
             NotificationCenter.default.post(name: .mt32ROMsChanged, object: nil)
             openSettings()

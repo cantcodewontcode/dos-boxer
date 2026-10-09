@@ -166,8 +166,8 @@ struct GameboxTests {
         #expect(LauncherFinder.bootLaunchers(in: try folder("none", ["README.TXT"])).isEmpty)
     }
 
-    /// SoundFonts are recognized by their header, and one the player added
-    /// is preferred over the downloaded GeneralUser GS.
+    /// SoundFonts are recognized by their header, and adding one replaces
+    /// the one installed.
     @Test func soundFontsAreRecognizedAndInstalled() throws {
         func font(_ name: String, valid: Bool = true) throws -> URL {
             let url = scratch.appending(path: name)
@@ -183,6 +183,7 @@ struct GameboxTests {
         #expect(SoundFontSetup.installedName == "GeneralUser GS")
         try SoundFontSetup.install(from: [try font("SC-55.sf2")])
         #expect(SoundFontSetup.installedName == "SC-55")
+        #expect(SoundFontSetup.soundFonts().count == 1)
         try SoundFontSetup.removeAll()
         #expect(!SoundFontSetup.isReady)
     }
@@ -332,18 +333,18 @@ struct GameboxTests {
         }
         let titles = ["Game w/ SoundBlaster", "Game w/ MT-32", "Game w/ Sound Canvas"]
         var early = info(titles)
-        early.chooseBestSound(year: 1990, hasMT32: true)
+        early.chooseBestSound(year: 1990, hasMT32: true, hasSoundFont: false)
         #expect(early.launchers.first(where: \.isDefault)?.title == "Game w/ MT-32")
         var noROMs = info(titles)
-        noROMs.chooseBestSound(year: 1990, hasMT32: false)
+        noROMs.chooseBestSound(year: 1990, hasMT32: false, hasSoundFont: false)
         // No better option for its era: still one of the menu's choices
         #expect(noROMs.launchers.first(where: \.isDefault)?.title == "Game w/ SoundBlaster")
         var late = info(titles)
-        late.chooseBestSound(year: 1994, hasMT32: false)
+        late.chooseBestSound(year: 1994, hasMT32: false, hasSoundFont: false)
         #expect(late.launchers.first(where: \.isDefault)?.title == "Game w/ Sound Canvas")
         // Only once: a choice made afterwards is left alone
         late.launchers = late.launchers.map { var l = $0; l.isDefault = l.title == "GAME.EXE"; return l }
-        late.chooseBestSound(year: 1994, hasMT32: true)
+        late.chooseBestSound(year: 1994, hasMT32: true, hasSoundFont: false)
         #expect(late.launchers.first(where: \.isDefault)?.title == "GAME.EXE")
     }
 
@@ -360,11 +361,11 @@ struct GameboxTests {
             return info
         }
         var automatic = info(defaultTitle: "World Floppy w/ MT-32")
-        automatic.chooseBestSound(year: 1991, hasMT32: true)
+        automatic.chooseBestSound(year: 1991, hasMT32: true, hasSoundFont: false)
         #expect(automatic.launchers.map(\.title).prefix(2) == ["World CD w/ MT-32", "World CD w/ SoundBlaster"])
         #expect(automatic.launchers.first(where: \.isDefault)?.title == "World CD w/ MT-32")
         var picked = info(defaultTitle: "World Floppy w/ SoundBlaster")
-        picked.chooseBestSound(year: 1991, hasMT32: true)
+        picked.chooseBestSound(year: 1991, hasMT32: true, hasSoundFont: false)
         #expect(picked.launchers.first(where: \.isDefault)?.title == "World Floppy w/ SoundBlaster")
     }
 
@@ -374,7 +375,7 @@ struct GameboxTests {
             info.launchers = titles.enumerated().map {
                 Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["game"])
             }
-            info.chooseBestSound(year: year, hasMT32: hasMT32)
+            info.chooseBestSound(year: year, hasMT32: hasMT32, hasSoundFont: false)
             return info.launchers.first(where: \.isDefault)?.title
         }
         #expect(best(["Play Shadow of the Comet Floppy", "Play Shadow of the Comet CD"], year: 1993)
@@ -393,7 +394,7 @@ struct GameboxTests {
                         "GK CD w/ MT32", "GK CD w/ SoundBlaster"].enumerated().map {
             Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["sierra"])
         }
-        gk.chooseBestSound(year: 1993, hasMT32: true)
+        gk.chooseBestSound(year: 1993, hasMT32: true, hasSoundFont: false)
         #expect(gk.launchers.map(\.title) == ["GK CD w/ MT32", "GK CD w/ Sound Canvas", "GK CD w/ SoundBlaster",
                                               "GK w/ MT32", "GK w/ Sound Canvas", "GK w/ SoundBlaster"])
     }
@@ -404,7 +405,7 @@ struct GameboxTests {
         info.launchers = ["Battle Chess w/ PC Speaker", "Battle Chess w/ Adlib", "Network Multiplayer"]
             .enumerated().map { Gamebox.Launcher(title: $1, dosPath: "C:\\run.bat", isDefault: $0 == 0, commands: ["chess"]) }
             + [Gamebox.Launcher(title: "Chess", dosPath: "C:\\CHESS\\CHESS.EXE")]
-        info.chooseBestSound(year: 1988, hasMT32: false)
+        info.chooseBestSound(year: 1988, hasMT32: false, hasSoundFont: false)
         #expect(info.launchers.map(\.title) == ["Battle Chess w/ Adlib", "Battle Chess w/ PC Speaker",
                                                  "Network Multiplayer", "Chess"])
         #expect(info.launchers.first(where: \.isDefault)?.title == "Battle Chess w/ Adlib")

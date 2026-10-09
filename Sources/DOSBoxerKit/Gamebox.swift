@@ -206,7 +206,8 @@ public struct Gamebox: Sendable, Identifiable {
         /// setup come last and aren't picked. Returns true if
         /// anything changed.
         @discardableResult
-        public mutating func chooseBestSound(year: Int?, hasMT32: Bool) -> Bool {
+        public mutating func chooseBestSound(year: Int?, hasMT32: Bool,
+                                              hasSoundFont: Bool = SoundFontSetup.isReady) -> Bool {
             guard (soundChoiceVersion ?? 0) < Self.soundChoiceVersion else { return false }
             // Chosen before under an older order: re-sort, but a default the
             // player picked (not the old first choice) stays theirs
@@ -234,7 +235,7 @@ public struct Gamebox: Sendable, Identifiable {
                         hasMT32 ? (year.map((1987...1992).contains) == true ? 100 : 90) : 5
                     }
                     else if has(["sound canvas", "general midi", "sc-55", "sc55", "roland sc"]) {
-                        (year ?? 0) >= 1993 ? (SessionDefaults.hasSoundFont ? 95 : 85) : 45
+                        (year ?? 0) >= 1993 ? (hasSoundFont ? 95 : 85) : 45
                     }
                     else if has(["gravis", "ultrasound", "gus"]) { 82 }
                     else if has(["soundblaster", "sound blaster", "sb16", "sbpro", "sb pro"]) { 80 }

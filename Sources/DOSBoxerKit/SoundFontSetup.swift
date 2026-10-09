@@ -21,11 +21,8 @@ public enum SoundFontSetup {
     public static let downloadName = "GeneralUser-GS.sf2"
     public static let downloadSize = 32_319_396
 
-    /// The SoundFont games use: one the player added, else GeneralUser GS.
-    public static var installedFont: URL? {
-        let fonts = soundFonts()
-        return fonts.first { $0.lastPathComponent != downloadName } ?? fonts.first
-    }
+    /// The SoundFont games use (there's only ever one).
+    public static var installedFont: URL? { soundFonts().first }
 
     public static var isReady: Bool { installedFont != nil }
 
@@ -49,13 +46,16 @@ public enum SoundFontSetup {
         return header.prefix(4) == Data("RIFF".utf8) && header.suffix(4) == Data("sfbk".utf8)
     }
 
-    /// Copies SoundFonts from `urls`. Returns how many were added.
+    /// Installs the first SoundFont in `urls`, replacing the one there
+    /// (DOSBox plays one SoundFont at a time). Returns how many were added.
     @discardableResult
     public static func install(from urls: [URL]) throws -> Int {
         let fileManager = FileManager.default
+        guard let font = urls.first(where: isSoundFont) else { return 0 }
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        try removeAll()
         var added = 0
-        for url in urls where isSoundFont(url) {
+        for url in [font] {
             let destination = folder.appending(path: url.lastPathComponent)
             if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
                 try fileManager.removeItem(at: destination)
