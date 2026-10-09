@@ -27,12 +27,15 @@ enum SessionDefaults {
          // movement until then
          "--set", "mouse mouse_capture=onstart"]
             + MT32Setup.sessionArguments()
+            // Sound Canvas music plays through the installed SoundFont
+            + (SoundFontSetup.installedFont.map {
+                ["--set", "fluidsynth soundfont=\($0.path(percentEncoded: false))"]
+            } ?? [])
     }
 
-    /// Whether a General MIDI SoundFont is installed for Sound Canvas music.
-    /// (Not yet: DOS Boxer doesn't offer one, so Sound Canvas uses the Mac's
-    /// synthesizer.)
-    static var hasSoundFont: Bool { false }
+    /// Whether a General MIDI SoundFont is installed for Sound Canvas music
+    /// (Settings › Music).
+    static var hasSoundFont: Bool { SoundFontSetup.isReady }
 
     /// The Mac keyboard layout in use right now, e.g. "com.apple.keylayout.US".
     static func currentInputSourceID() -> String? {

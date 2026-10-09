@@ -166,6 +166,27 @@ struct GameboxTests {
         #expect(LauncherFinder.bootLaunchers(in: try folder("none", ["README.TXT"])).isEmpty)
     }
 
+    /// SoundFonts are recognized by their header, and one the player added
+    /// is preferred over the downloaded GeneralUser GS.
+    @Test func soundFontsAreRecognizedAndInstalled() throws {
+        func font(_ name: String, valid: Bool = true) throws -> URL {
+            let url = scratch.appending(path: name)
+            var data = Data(valid ? "RIFF\0\0\0\0sfbk".utf8 : "RIFF\0\0\0\0WAVE".utf8)
+            data.append(Data(count: 64))
+            try data.write(to: url)
+            return url
+        }
+        SoundFontSetup.folderOverride = scratch.appending(path: "SoundFonts", directoryHint: .isDirectory)
+        defer { SoundFontSetup.folderOverride = nil }
+        #expect(!SoundFontSetup.isSoundFont(try font("sound.wav.sf2", valid: false)))
+        #expect(try SoundFontSetup.install(from: [try font("GeneralUser-GS.sf2")]) == 1)
+        #expect(SoundFontSetup.installedName == "GeneralUser GS")
+        try SoundFontSetup.install(from: [try font("SC-55.sf2")])
+        #expect(SoundFontSetup.installedName == "SC-55")
+        try SoundFontSetup.removeAll()
+        #expect(!SoundFontSetup.isReady)
+    }
+
     /// A GOG Mac installer adds the game folder inside it, named as GOG
     /// names it; a ScummVM-only one (no DOS program) is refused.
     @Test func addsGamesFromGOGInstallers() throws {

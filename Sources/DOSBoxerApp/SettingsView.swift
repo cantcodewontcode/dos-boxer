@@ -55,6 +55,7 @@ struct MusicSettings: View {
     @State private var installed = MT32Setup.installedROMs()
     @State private var choosingROMs = false
     @State private var message: String?
+    @State private var droppedSoundFonts: [URL] = []
 
     var body: some View {
         Form {
@@ -103,12 +104,17 @@ struct MusicSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            SoundCanvasSection(dropped: $droppedSoundFonts)
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
-        // Dropping ROMs (or the archive.org ZIP) anywhere on the tab adds them
+        // Dropping ROMs (or the archive.org ZIP), or a SoundFont, anywhere on
+        // the tab adds them
         .dropDestination(for: URL.self) { urls, _ in
-            install(urls)
+            let fonts = urls.filter(SoundFontSetup.isSoundFont)
+            if !fonts.isEmpty { droppedSoundFonts = fonts }
+            let rest = urls.filter { !SoundFontSetup.isSoundFont($0) }
+            if !rest.isEmpty { install(rest) }
             return true
         }
         .fileImporter(isPresented: $choosingROMs, allowedContentTypes: [.data, .folder, .zip],
@@ -132,6 +138,94 @@ struct MusicSettings: View {
         status = MT32Setup.status()
         installed = MT32Setup.installedROMs()
     }
+}
+
+/// Sound Canvas music: a SoundFont, downloaded (GeneralUser GS, from DOS
+/// Boxer's own copy) or the player's own.
+private struct SoundCanvasSection: View {
+    @Binding var dropped: [URL]
+    @State private var name = SoundFontSetup.installedName
+    @State private var progress: Double?
+    @State private var choosing = false
+    @State private var message: String?
+
+    var body: some View {
+        Section {
+            LabeledContent("Roland Sound Canvas") {
+                if let progress {
+                    ProgressView(value: progress).frame(width: 120)
+                } else if let name {
+                    Label("\(name) ready", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                } else {
+                    Text("Not set up").foregroundStyle(.secondary)
+                }
+            }
+            HStack {
+                if name == nil {
+                    Button("Install") { download() }
+                        .disabled(progress != nil)
+                }
+                Button("Add SoundFont…") { choosing = true }
+                    .disabled(progress != nil)
+                if name != nil {
+                    Button("Remove", role: .destructive) {
+                        try? SoundFontSetup.removeAll()
+                        refresh()
+                        message = "The SoundFont was removed."
+                    }
+                }
+                Spacer()
+                Button("Show in Finder") {
+                    try? FileManager.default.createDirectory(at: SoundFontSetup.folder, withIntermediateDirectories: true)
+                    NSWorkspace.shared.activateFileViewerSelecting([SoundFontSetup.folder])
+                }
+            }
+            if let message {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+        } footer: {
+            Text("""
+                Many games from the mid-1990s were scored for the Roland Sound Canvas. Install \
+                downloads GeneralUser GS by S. Christian Collins (32 MB), a free SoundFont made to \
+                sound like it. You can also add a SoundFont of your own (.sf2).
+                """)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .fileImporter(isPresented: $choosing, allowedContentTypes: [.init(filenameExtension: "sf2") ?? .data],
+                      allowsMultipleSelection: false) { result in
+            guard case .success(let urls) = result else { return }
+            add(urls)
+        }
+        .onChange(of: dropped) { _, urls in
+            guard !urls.isEmpty else { return }
+            add(urls)
+            dropped = []
+        }
+    }
+
+    private func download() {
+        progress = 0
+        message = nil
+        Task {
+            do {
+                try await SoundFontSetup.download { value in Task { @MainActor in progress = value } }
+                message = nil
+            } catch {
+                message = error.localizedDescription
+            }
+            progress = nil
+            refresh()
+        }
+    }
+
+    private func add(_ urls: [URL]) {
+        let added = (try? SoundFontSetup.install(from: urls)) ?? 0
+        refresh()
+        message = added == 0 ? "That file isn't a SoundFont." : nil
+    }
+
+    private func refresh() { name = SoundFontSetup.installedName }
 }
 
 extension Notification.Name {

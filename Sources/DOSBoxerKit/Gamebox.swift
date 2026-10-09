@@ -648,12 +648,12 @@ public struct Gamebox: Sendable, Identifiable {
     static func fixingSettings(_ command: String) -> String {
         var command = command.replacingOccurrences(of: "mididevice=default", with: "mididevice=coreaudio",
                                                    options: .caseInsensitive)
-        // Sound Canvas through a SoundFont: without one installed there'd be
-        // no music, so use the Mac's General MIDI synthesizer
-        if !SessionDefaults.hasSoundFont {
-            for device in ["mididevice=fluidsynth", "mididevice=soundcanvas"] {
-                command = command.replacingOccurrences(of: device, with: "mididevice=coreaudio", options: .caseInsensitive)
-            }
+        // Sound Canvas plays through the installed SoundFont (FluidSynth);
+        // without one there'd be no music, so the Mac's General MIDI
+        // synthesizer plays it instead
+        let soundCanvas = SessionDefaults.hasSoundFont ? "mididevice=fluidsynth" : "mididevice=coreaudio"
+        for device in ["mididevice=fluidsynth", "mididevice=soundcanvas"] {
+            command = command.replacingOccurrences(of: device, with: soundCanvas, options: .caseInsensitive)
         }
         return command
     }
